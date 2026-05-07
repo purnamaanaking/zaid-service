@@ -25,6 +25,23 @@ class WahaApiService
         return $headers;
     }
 
+    /**
+     * @return array<string, string>
+     */
+    private function fileHeaders(): array
+    {
+        $headers = [
+            'Accept' => '*/*',
+        ];
+
+        $apiKey = config('services.waha.api_key');
+        if (! empty($apiKey)) {
+            $headers['X-Api-Key'] = $apiKey;
+        }
+
+        return $headers;
+    }
+
     private function baseUrl(): string
     {
         return rtrim((string) config('services.waha.base_url', ''), '/');
@@ -82,7 +99,7 @@ class WahaApiService
                 'webhooks' => [
                     [
                         'url' => $webhookUrl,
-                        'events' => ['message', 'message.any'],
+                        'events' => ['message'],
                         'hmac' => empty(config('services.waha.webhook_secret')) ? null : [
                             'key' => config('services.waha.webhook_secret'),
                         ],
@@ -91,7 +108,6 @@ class WahaApiService
             ];
         }
 
-        // remove null hmac if no secret
         if (isset($payload['config']['webhooks'][0]['hmac']) && $payload['config']['webhooks'][0]['hmac'] === null) {
             unset($payload['config']['webhooks'][0]['hmac']);
         }
@@ -147,5 +163,27 @@ class WahaApiService
         return is_string($phoneNumber) && $phoneNumber !== ''
             ? preg_replace('/@c\.us$/', '', $phoneNumber)
             : null;
+    }
+
+    public function downloadMediaAsDataUrl(string $url, ?string $mimeType = null): ?string
+    {
+        $response = Http::withHeaders($this->fileHeaders())
+            ->timeout(30)
+            ->get($url);
+
+        if (! $response->successful()) {
+            Log::error('WAHA media download failed.', [
+                'status' => $response->status(),
+                'url' => $url,
+                'body' => substr($response->body(), 0, 500),
+            ]);
+
+            return null;
+        }
+
+        $contentType = $mimeType ?: $response->header('Content-Type') ?: 'application/octet-stream';
+        $base64 = base64_encode($response->body());
+
+        return 'data:'.$contentType.';base64,'.$base64;
     }
 }

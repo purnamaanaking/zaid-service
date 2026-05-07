@@ -46,6 +46,51 @@ class WahaWebhookTest extends TestCase
         $response->assertStatus(202);
     }
 
+    public function test_waha_image_message_is_processed_using_downloaded_media(): void
+    {
+        config([
+            'services.whatsapp.driver' => 'waha',
+            'services.waha.base_url' => 'http://waha.test',
+        ]);
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser());
+        Http::fake([
+            'http://file.waha.test/image.jpg' => Http::response('fake-image-bytes', 200, ['Content-Type' => 'image/jpeg']),
+            '*' => Http::response([], 200),
+        ]);
+
+        $user = User::factory()->active()->create();
+        UserPhone::query()->create([
+            'user_id' => $user->id,
+            'phone_e164' => '+628123456789',
+            'phone_local' => '08123456789',
+            'country_code' => 'ID',
+            'is_primary' => true,
+            'is_verified' => true,
+            'verified_at' => now(),
+            'linked_for_whatsapp_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/webhooks/whatsapp', [
+            'event' => 'message',
+            'session' => 'default',
+            'payload' => [
+                'id' => 'false_628123456789@c.us_IMAGE_1',
+                'from' => '628123456789@c.us',
+                'fromMe' => false,
+                'to' => '628111111111@c.us',
+                'body' => 'Ini gambar apa',
+                'hasMedia' => true,
+                'source' => 'app',
+                'media' => [
+                    'url' => 'http://file.waha.test/image.jpg',
+                    'mimetype' => 'image/jpeg',
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(202);
+    }
+
     public function test_waha_status_endpoint_requires_auth_and_returns_remote_data(): void
     {
         config(['services.waha.base_url' => 'http://waha.test']);

@@ -81,9 +81,12 @@ class WhatsappWebhookService
             $url = $media['url'] ?? null;
 
             if ($url && is_string($mime) && str_starts_with($mime, 'image/')) {
+                $dataUrl = app(WahaApiService::class)->downloadMediaAsDataUrl($url, $mime);
+
                 $attachments[] = [
                     'type' => 'image',
                     'url' => $url,
+                    'data_url' => $dataUrl,
                     'mime_type' => $mime,
                 ];
             }

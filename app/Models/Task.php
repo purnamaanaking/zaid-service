@@ -56,4 +56,9 @@ class Task extends Model
     {
         return $this->hasMany(TaskChange::class);
     }
+
+    public function calendarEventLink(): HasOne
+    {
+        return $this->hasOne(CalendarEventLink::class);
+    }
 }

@@ -126,7 +126,7 @@ PROMPT;
     }
 
     /**
-     * @param  array<int, array{type: string, url?: string, mime_type?: string}>|null  $attachments
+     * @param  array<int, array{type: string, url?: string, data_url?: string, mime_type?: string}>|null  $attachments
      * @return string|array<int, array<string, mixed>>
      */
     private function buildUserContent(string $text, ?array $attachments): string|array
@@ -143,11 +143,11 @@ PROMPT;
         ];
 
         foreach ($attachments as $attachment) {
-            if ($attachment['type'] === 'image' && isset($attachment['url'])) {
+            if ($attachment['type'] === 'image' && (isset($attachment['data_url']) || isset($attachment['url']))) {
                 $parts[] = [
                     'type' => 'image_url',
                     'image_url' => [
-                        'url' => $attachment['url'],
+                        'url' => $attachment['data_url'] ?? $attachment['url'],
                     ],
                 ];
             }
