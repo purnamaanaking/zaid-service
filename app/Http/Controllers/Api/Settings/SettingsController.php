@@ -21,6 +21,7 @@ class SettingsController extends Controller
                 'reminder_enabled' => true,
             ],
         );
+        $calendarConnection = $request->user()->calendarConnections()->latest('updated_at')->first();
 
         return response()->json([
             'success' => true,
@@ -30,6 +31,16 @@ class SettingsController extends Controller
                 'default_task_time' => $settings->default_task_time,
                 'reminder_offset_minutes' => $settings->reminder_offset_minutes,
                 'reminder_enabled' => $settings->reminder_enabled,
+                'integrations' => [
+                    'google_calendar' => [
+                        'connected' => $calendarConnection?->status === 'connected',
+                        'google_calendar_id' => $calendarConnection?->google_calendar_id,
+                        'google_calendar_summary' => $calendarConnection?->google_calendar_summary,
+                        'status' => $calendarConnection?->status,
+                        'last_synced_at' => $calendarConnection?->last_synced_at,
+                        'last_error_message' => $calendarConnection?->last_error_message,
+                    ],
+                ],
             ],
         ]);
     }

@@ -43,6 +43,7 @@ Zaid supports:
 - `Task API`
 - `Prompt API`
 - `Sync/Agenda API`
+- `Google Calendar Integration API`
 - `WhatsApp Webhook API`
 - `Settings API`
 
@@ -375,6 +376,16 @@ GET /api/v1/me
       "default_task_time": "09:00",
       "theme": "light",
       "timezone": "Asia/Jakarta"
+    },
+    "integrations": {
+      "google_calendar": {
+        "connected": true,
+        "google_calendar_id": "primary",
+        "google_calendar_summary": "Primary Calendar",
+        "status": "connected",
+        "last_synced_at": "2026-05-07T12:00:00Z",
+        "last_error_message": null
+      }
     }
   }
 }
@@ -749,7 +760,34 @@ Returns parse result, execution status, and output summary.
 
 ---
 
-## 12. Settings API
+## 12. Google Calendar Integration API
+
+## 12.1 Get Connect URL
+```http
+GET /api/v1/integrations/google-calendar/connect
+```
+
+## 12.2 OAuth Callback
+```http
+GET /api/v1/integrations/google-calendar/callback?code=...&state=...
+```
+
+## 12.3 Integration Status
+```http
+GET /api/v1/integrations/google-calendar/status
+```
+
+## 12.4 Disconnect Integration
+```http
+DELETE /api/v1/integrations/google-calendar
+```
+
+### Notes
+- Calendar integration is separate from identity login.
+- Two-way sync uses incremental sync tokens.
+- Conflict policy is currently `remote_wins` when both local and remote changed after the last sync.
+
+## 13. Settings API
 
 ## 12.1 Get Settings
 ```http
@@ -773,7 +811,7 @@ PATCH /api/v1/settings
 
 ---
 
-## 13. WhatsApp Webhook API
+## 14. WhatsApp Webhook API
 
 ## 13.1 Verify Webhook
 Required by WhatsApp provider.
@@ -867,7 +905,7 @@ Siap, task "Laporan Penjualan" berhasil dibuat untuk setiap Jumat jam 10:00.
 
 ---
 
-## 13.3 Outbound WhatsApp Sender Service
+## 14.3 Outbound WhatsApp Sender Service
 This may be an internal service rather than a public endpoint.
 
 ### Internal Service Responsibility
@@ -878,7 +916,7 @@ This may be an internal service rather than a public endpoint.
 
 ---
 
-## 14. Internal Command Execution Contract
+## 15. Internal Command Execution Contract
 
 Even if not exposed publicly, the backend should normalize prompt handling using a common internal payload.
 
@@ -919,7 +957,7 @@ Even if not exposed publicly, the backend should normalize prompt handling using
 
 ---
 
-## 15. Error Codes
+## 16. Error Codes
 
 ### Auth / Onboarding
 - `INVALID_GOOGLE_TOKEN`
@@ -950,9 +988,15 @@ Even if not exposed publicly, the backend should normalize prompt handling using
 - `WHATSAPP_INVALID_SIGNATURE`
 - `WHATSAPP_SEND_FAILED`
 
+### Google Calendar
+- `GOOGLE_CALENDAR_NOT_CONNECTED`
+- `GOOGLE_CALENDAR_TOKEN_REVOKED`
+- `GOOGLE_CALENDAR_SYNC_TOKEN_INVALID`
+- `GOOGLE_CALENDAR_SYNC_CONFLICT`
+
 ---
 
-## 16. Authorization Rules
+## 17. Authorization Rules
 
 ### App Endpoints
 All authenticated app endpoints require a valid access token.
@@ -975,7 +1019,7 @@ Every task/action must be scoped to the authenticated user id or resolved verifi
 
 ---
 
-## 17. Idempotency and Reliability
+## 18. Idempotency and Reliability
 
 ### Recommended idempotency rules
 - WhatsApp webhook should deduplicate using provider message id.
@@ -990,7 +1034,7 @@ Idempotency-Key: unique-key-generated-by-client
 
 ---
 
-## 18. Security Recommendations
+## 19. Security Recommendations
 
 - Verify Google tokens server-side.
 - Hash refresh tokens and OTP values.
@@ -1001,7 +1045,7 @@ Idempotency-Key: unique-key-generated-by-client
 
 ---
 
-## 19. Suggested Backend Module Breakdown
+## 20. Suggested Backend Module Breakdown
 
 ### Auth Module
 - Google token verification
@@ -1022,6 +1066,17 @@ Idempotency-Key: unique-key-generated-by-client
 - CRUD
 - recurrence handling
 - agenda queries
+- outbound calendar sync dispatch
+
+### Google Calendar Module
+- OAuth connect/callback
+- encrypted token storage
+- Google Calendar API client
+- task/event transformer
+- outbound sync jobs
+- inbound incremental sync jobs
+- conflict resolution
+- sync logging
 
 ### Prompt Module
 - parser adapter
@@ -1038,7 +1093,7 @@ Idempotency-Key: unique-key-generated-by-client
 
 ---
 
-## 20. Example End-to-End Flows
+## 21. Example End-to-End Flows
 
 ## 20.1 App Onboarding Flow
 1. `POST /auth/google`
@@ -1066,7 +1121,7 @@ Idempotency-Key: unique-key-generated-by-client
 
 ---
 
-## 21. Suggested Future API Extensions
+## 22. Suggested Future API Extensions
 
 - push notification registration endpoints
 - reminder endpoints
@@ -1077,7 +1132,7 @@ Idempotency-Key: unique-key-generated-by-client
 
 ---
 
-## 22. Final API Summary
+## 23. Final API Summary
 
 The Zaid MVP API is built around three architectural truths:
 

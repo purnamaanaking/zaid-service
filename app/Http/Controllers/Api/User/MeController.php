@@ -11,6 +11,7 @@ class MeController extends Controller
     {
         $user = request()->user();
         $primaryPhone = $user->phones()->where('is_primary', true)->first();
+        $calendarConnection = $user->calendarConnections()->latest('updated_at')->first();
 
         return response()->json([
             'success' => true,
@@ -26,6 +27,16 @@ class MeController extends Controller
                     'default_task_time' => '09:00',
                     'theme' => 'light',
                     'timezone' => 'Asia/Jakarta',
+                ],
+                'integrations' => [
+                    'google_calendar' => [
+                        'connected' => $calendarConnection?->status === 'connected',
+                        'google_calendar_id' => $calendarConnection?->google_calendar_id,
+                        'google_calendar_summary' => $calendarConnection?->google_calendar_summary,
+                        'status' => $calendarConnection?->status,
+                        'last_synced_at' => $calendarConnection?->last_synced_at,
+                        'last_error_message' => $calendarConnection?->last_error_message,
+                    ],
                 ],
             ],
         ]);

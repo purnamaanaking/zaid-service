@@ -2,6 +2,7 @@
 
 namespace App\Services\Tasks;
 
+use App\Jobs\Calendar\SyncTaskToGoogleCalendarJob;
 use App\Models\Task;
 use App\Models\TaskChange;
 use App\Models\TaskRecurrence;
@@ -53,7 +54,11 @@ class TaskMutationService
                 'created_at' => now(),
             ]);
 
-            return $task->load('recurrence');
+            $task = $task->load('recurrence');
+
+            $this->dispatchCalendarSyncIfNeeded($user, $task, 'upsert');
+
+            return $task;
         });
     }
 
@@ -98,7 +103,11 @@ class TaskMutationService
                 'created_at' => now(),
             ]);
 
-            return $task->fresh()->load('recurrence');
+            $task = $task->fresh()->load('recurrence');
+
+            $this->dispatchCalendarSyncIfNeeded($user, $task, 'upsert');
+
+            return $task;
         });
     }
 
@@ -117,6 +126,8 @@ class TaskMutationService
             ]);
 
             $task->delete();
+
+            $this->dispatchCalendarSyncIfNeeded($user, $task, 'delete');
         });
     }
 
@@ -140,7 +151,11 @@ class TaskMutationService
                 'created_at' => now(),
             ]);
 
-            return $task->fresh();
+            $task = $task->fresh();
+
+            $this->dispatchCalendarSyncIfNeeded($user, $task, 'upsert');
+
+            return $task;
         });
     }
 
@@ -159,7 +174,27 @@ class TaskMutationService
                 'created_at' => now(),
             ]);
 
-            return $task->fresh();
+            $task = $task->fresh();
+
+            $this->dispatchCalendarSyncIfNeeded($user, $task, 'upsert');
+
+            return $task;
         });
+    }
+
+    private function dispatchCalendarSyncIfNeeded(User $user, Task $task, string $action): void
+    {
+        $hasConnection = $user->calendarConnections()
+            ->where('provider', 'google_calendar')
+            ->where('status', 'connected')
+            ->exists();
+
+        $hasSchedule = $task->scheduled_date !== null || $task->scheduled_time !== null || $task->all_day;
+
+        if (! $hasConnection || ! $hasSchedule) {
+            return;
+        }
+
+        SyncTaskToGoogleCalendarJob::dispatch($task->id, $action);
     }
 }

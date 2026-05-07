@@ -26,6 +26,9 @@ The schema below is optimized for:
 Core entities:
 - `users`
 - `user_identities`
+- `user_calendar_connections`
+- `calendar_event_links`
+- `calendar_sync_logs`
 - `phone_verifications`
 - `user_phones`
 - `user_sessions`
@@ -46,6 +49,8 @@ Core entities:
 ```mermaid
 erDiagram
     users ||--o{ user_identities : has
+    users ||--o{ user_calendar_connections : has
+    users ||--o{ calendar_sync_logs : has
     users ||--o{ user_phones : has
     users ||--o{ user_sessions : has
     users ||--o{ tasks : owns
@@ -56,8 +61,12 @@ erDiagram
     user_phones ||--o{ otp_attempts : tracks
 
     tasks ||--o| task_recurrences : may_have
+    tasks ||--o| calendar_event_links : maps_to
     tasks ||--o{ task_occurrences : generates
     tasks ||--o{ task_changes : logs
+
+    user_calendar_connections ||--o{ calendar_event_links : owns
+    user_calendar_connections ||--o{ calendar_sync_logs : logs
 
     prompt_requests ||--o{ prompt_actions : produces
     prompt_requests ||--o{ whatsapp_messages : may_reference

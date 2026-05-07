@@ -316,7 +316,7 @@ The bot should be able to return a confirmation text before applying uncertain u
 ## 10.5 Data Synchronization
 
 ### FR-SYNC-01: Shared source of truth
-All user productivity data shall be stored in one centralized database.
+All user productivity data shall be stored in one centralized database, with Google Calendar synchronization represented as an external integration rather than the primary source of truth.
 
 ### FR-SYNC-02: App-to-WA consistency
 Changes made in the app shall be reflected in future WhatsApp reads immediately or near real time.
@@ -326,6 +326,18 @@ Changes made through WhatsApp shall appear in the mobile app after sync/refresh 
 
 ### FR-SYNC-04: Auditability
 Prompt-triggered operations should be logged for debugging and support.
+
+### FR-SYNC-05: Google Calendar integration
+The system shall support connecting a user's Google Calendar through a dedicated OAuth flow separate from base sign-in.
+
+### FR-SYNC-06: Local-to-Google synchronization
+When a connected user creates, updates, completes, restores, or deletes a scheduled task in Zaid, the system shall synchronize the corresponding Google Calendar event.
+
+### FR-SYNC-07: Google-to-local synchronization
+When a connected user's Google Calendar event changes remotely, the system shall synchronize those changes back into Zaid tasks using incremental sync.
+
+### FR-SYNC-08: Conflict handling
+If both Zaid and Google Calendar change the same linked item after the last successful sync, the system shall resolve the conflict deterministically and log the outcome.
 
 ---
 
@@ -483,6 +495,9 @@ Prompt-triggered operations should be logged for debugging and support.
 - App displays stale cache after WA update
 - Prompt creates duplicate task because of repeated submissions
 - Network retry creates repeated operations
+- Google refresh token is revoked or expires
+- Google incremental sync token becomes invalid and requires a reset/full resync
+- Local task and remote Google event are edited concurrently
 
 ---
 

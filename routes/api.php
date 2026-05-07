@@ -5,6 +5,10 @@ use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\RefreshTokenController;
 use App\Http\Controllers\Api\Calendar\MonthCalendarController;
+use App\Http\Controllers\Api\Integrations\GoogleCalendarCallbackController;
+use App\Http\Controllers\Api\Integrations\GoogleCalendarConnectController;
+use App\Http\Controllers\Api\Integrations\GoogleCalendarDisconnectController;
+use App\Http\Controllers\Api\Integrations\GoogleCalendarStatusController;
 use App\Http\Controllers\Api\Onboarding\OnboardingStatusController;
 use App\Http\Controllers\Api\Onboarding\PhoneOnboardingController;
 use App\Http\Controllers\Api\Onboarding\ResendOtpController;
@@ -53,6 +57,12 @@ Route::prefix('v1')->group(function (): void {
         // User profile
         Route::get('/me', MeController::class);
         Route::patch('/me', UpdateProfileController::class);
+
+        // Google Calendar integration
+        Route::get('/integrations/google-calendar/connect', GoogleCalendarConnectController::class);
+        Route::get('/integrations/google-calendar/callback', GoogleCalendarCallbackController::class);
+        Route::get('/integrations/google-calendar/status', GoogleCalendarStatusController::class);
+        Route::delete('/integrations/google-calendar', GoogleCalendarDisconnectController::class);
 
         // Protected routes (require phone verified)
         Route::middleware('phone.verified')->group(function (): void {
