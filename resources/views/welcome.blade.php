@@ -3,255 +3,580 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Zaid — AI Task & Calendar Assistant</title>
+    <title>Zaid — AI Productivity Core</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --purple-1: #c084fc;
+            --purple-2: #a855f7;
+            --purple-3: #7c3aed;
+            --purple-4: #581c87;
+            --bg-1: #050510;
+            --bg-2: #0a0820;
+            --card: rgba(255, 255, 255, 0.05);
+            --border: rgba(192, 132, 252, 0.14);
+            --text-soft: #94a3b8;
+            --text-muted: #64748b;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a1a;
-            color: #fff;
-            min-height: 100vh;
-            overflow-x: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: white;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(168, 85, 247, 0.35), transparent 25%),
+                radial-gradient(circle at 85% 18%, rgba(124, 58, 237, 0.28), transparent 24%),
+                radial-gradient(circle at 50% 80%, rgba(88, 28, 135, 0.45), transparent 30%),
+                linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+            position: relative;
         }
 
-        .bg-grid {
-            position: fixed; inset: 0; z-index: 0;
+        .aurora,
+        .aurora::before,
+        .aurora::after {
+            position: absolute;
+            inset: -20%;
+            content: "";
+            filter: blur(90px);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .aurora::before {
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.23) 0%, transparent 55%);
+            animation: drift 12s ease-in-out infinite alternate;
+        }
+
+        .aurora::after {
+            background: radial-gradient(circle, rgba(192, 132, 252, 0.14) 0%, transparent 60%);
+            animation: drift 18s ease-in-out infinite alternate-reverse;
+        }
+
+        .grid {
+            position: absolute;
+            inset: 0;
             background-image:
-                linear-gradient(rgba(108, 99, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(108, 99, 255, 0.03) 1px, transparent 1px);
-            background-size: 60px 60px;
+                linear-gradient(rgba(192, 132, 252, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(192, 132, 252, 0.05) 1px, transparent 1px);
+            background-size: 64px 64px;
+            mask-image: radial-gradient(circle at center, black 35%, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at center, black 35%, transparent 80%);
+            pointer-events: none;
         }
 
-        .bg-glow {
-            position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
-            width: 800px; height: 800px; z-index: 0;
-            background: radial-gradient(circle, rgba(108, 99, 255, 0.15) 0%, transparent 70%);
-            filter: blur(80px);
+        .particles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
         }
 
-        .container { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--purple-1), var(--purple-3));
+            box-shadow: 0 0 16px rgba(192, 132, 252, 0.8);
+            opacity: 0;
+            animation: floatUp linear infinite;
+        }
 
-        nav {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 24px 0;
+        .page {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
         }
-        .logo { font-size: 28px; font-weight: 800; color: #6C63FF; letter-spacing: -1px; }
-        .nav-links { display: flex; gap: 24px; align-items: center; }
-        .nav-links a {
-            color: #888; text-decoration: none; font-size: 14px; font-weight: 500;
-            transition: color 0.2s;
-        }
-        .nav-links a:hover { color: #fff; }
-        .btn-docs {
-            background: rgba(108, 99, 255, 0.1); border: 1px solid rgba(108, 99, 255, 0.3);
-            color: #6C63FF; padding: 8px 20px; border-radius: 8px; font-size: 14px;
-            text-decoration: none; font-weight: 600; transition: all 0.2s;
-        }
-        .btn-docs:hover { background: rgba(108, 99, 255, 0.2); border-color: #6C63FF; }
 
-        .hero {
-            text-align: center; padding: 100px 0 60px;
+        .shell {
+            width: min(1280px, 100%);
+            height: min(820px, 100%);
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 24px;
+            align-items: stretch;
         }
-        .badge {
-            display: inline-block; background: rgba(108, 99, 255, 0.1);
-            border: 1px solid rgba(108, 99, 255, 0.25); border-radius: 100px;
-            padding: 6px 16px; font-size: 13px; color: #9D97FF; margin-bottom: 24px;
-            font-weight: 500;
+
+        .hero-panel,
+        .side-panel {
+            background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+            border: 1px solid var(--border);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.08),
+                0 20px 80px rgba(88, 28, 135, 0.25);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-radius: 32px;
+            overflow: hidden;
         }
-        .hero h1 {
-            font-size: 56px; font-weight: 800; line-height: 1.1;
-            background: linear-gradient(135deg, #fff 0%, #9D97FF 50%, #6C63FF 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text; margin-bottom: 20px; letter-spacing: -2px;
+
+        .hero-panel {
+            padding: 32px 34px 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
         }
-        .hero p {
-            font-size: 18px; color: #777; max-width: 560px; margin: 0 auto 40px;
-            line-height: 1.7;
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
         }
-        .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+        .logo {
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -1.8px;
+            background: linear-gradient(135deg, #f5d0fe 0%, var(--purple-1) 30%, var(--purple-2) 60%, #ddd6fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 6s linear infinite;
+            background-size: 200% auto;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: rgba(124, 58, 237, 0.16);
+            border: 1px solid rgba(192, 132, 252, 0.2);
+            color: #e9d5ff;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #c084fc;
+            box-shadow: 0 0 0 0 rgba(192,132,252,.7);
+            animation: pulse 2s infinite;
+        }
+
+        .hero-copy {
+            max-width: 720px;
+            margin-top: 10px;
+        }
+
+        .eyebrow {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.8px;
+            color: #d8b4fe;
+            margin-bottom: 16px;
+            opacity: 0.9;
+        }
+
+        h1 {
+            font-size: clamp(52px, 6vw, 86px);
+            line-height: 0.95;
+            letter-spacing: -3.8px;
+            font-weight: 900;
+            margin-bottom: 18px;
+        }
+
+        h1 .solid {
+            display: block;
+            color: white;
+        }
+
+        h1 .gradient {
+            display: block;
+            background: linear-gradient(135deg, #ffffff 0%, #e9d5ff 22%, var(--purple-1) 46%, var(--purple-2) 66%, #c4b5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 7s linear infinite;
+            background-size: 220% auto;
+        }
+
+        .subtitle {
+            max-width: 640px;
+            font-size: 17px;
+            line-height: 1.75;
+            color: var(--text-soft);
+            margin-bottom: 26px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 34px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            border-radius: 18px;
+            padding: 15px 22px;
+            font-size: 14px;
+            font-weight: 700;
+            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease, background .25s ease;
+        }
+
         .btn-primary {
-            background: #6C63FF; color: #fff; padding: 14px 32px; border-radius: 12px;
-            text-decoration: none; font-weight: 700; font-size: 15px;
-            transition: all 0.2s; box-shadow: 0 4px 24px rgba(108, 99, 255, 0.3);
+            color: white;
+            background: linear-gradient(135deg, var(--purple-2), var(--purple-3));
+            box-shadow: 0 12px 36px rgba(124, 58, 237, 0.35);
         }
-        .btn-primary:hover { background: #5a52e0; transform: translateY(-1px); box-shadow: 0 6px 32px rgba(108, 99, 255, 0.4); }
-        .btn-secondary {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: #ccc; padding: 14px 32px; border-radius: 12px;
-            text-decoration: none; font-weight: 600; font-size: 15px; transition: all 0.2s;
-        }
-        .btn-secondary:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: #fff; }
 
-        .features { padding: 60px 0 80px; }
-        .features-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
-        }
-        .feature-card {
-            background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px; padding: 32px; transition: all 0.3s;
-        }
-        .feature-card:hover {
-            background: rgba(108, 99, 255, 0.04); border-color: rgba(108, 99, 255, 0.15);
+        .btn-primary:hover {
             transform: translateY(-2px);
+            box-shadow: 0 18px 44px rgba(124, 58, 237, 0.45);
         }
-        .feature-icon {
-            width: 48px; height: 48px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 22px; margin-bottom: 16px;
-            background: rgba(108, 99, 255, 0.1);
+
+        .btn-secondary {
+            color: #eadcff;
+            border: 1px solid rgba(192, 132, 252, 0.22);
+            background: rgba(255,255,255,0.04);
         }
-        .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #eee; }
-        .feature-card p { font-size: 14px; color: #666; line-height: 1.6; }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            border-color: rgba(192, 132, 252, 0.4);
+            background: rgba(168, 85, 247, 0.10);
+        }
 
         .stats {
-            display: flex; justify-content: center; gap: 60px; padding: 40px 0 80px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
         }
-        .stat { text-align: center; }
-        .stat-value { font-size: 36px; font-weight: 800; color: #6C63FF; }
-        .stat-label { font-size: 13px; color: #555; margin-top: 4px; font-weight: 500; }
 
-        .api-preview {
-            background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px; padding: 32px; margin-bottom: 80px; overflow-x: auto;
+        .stat {
+            border-radius: 22px;
+            padding: 20px 18px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.025));
+            border: 1px solid rgba(192, 132, 252, 0.10);
+            transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+            animation: fadeUp .8s ease both;
         }
-        .api-preview h3 { font-size: 14px; color: #6C63FF; font-weight: 700; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
-        .api-table { width: 100%; border-collapse: collapse; }
-        .api-table th { text-align: left; font-size: 12px; color: #555; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-        .api-table td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.03); }
-        .method { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-family: monospace; }
-        .method-get { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
-        .method-post { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-        .method-patch { background: rgba(249, 115, 22, 0.1); color: #f97316; }
-        .method-delete { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-        .api-path { font-family: 'SF Mono', 'Fira Code', monospace; color: #aaa; font-size: 13px; }
-        .api-desc { color: #555; font-size: 13px; }
 
-        footer {
-            text-align: center; padding: 40px 0; border-top: 1px solid rgba(255,255,255,0.04);
-            color: #444; font-size: 13px;
+        .stat:hover {
+            transform: translateY(-4px);
+            border-color: rgba(192, 132, 252, 0.24);
+            box-shadow: 0 16px 34px rgba(124, 58, 237, 0.14);
         }
-        footer a { color: #6C63FF; text-decoration: none; }
 
-        @media (max-width: 768px) {
-            .hero h1 { font-size: 36px; }
-            .features-grid { grid-template-columns: 1fr; }
-            .stats { gap: 32px; }
-            nav { flex-direction: column; gap: 16px; }
+        .stat strong {
+            display: block;
+            font-size: 34px;
+            line-height: 1;
+            letter-spacing: -1.4px;
+            font-weight: 900;
+            color: white;
+            margin-bottom: 8px;
+        }
+
+        .stat span {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .side-panel {
+            padding: 24px;
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 18px;
+        }
+
+        .info-card {
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(124, 58, 237, 0.14), rgba(124, 58, 237, 0.04));
+            border: 1px solid rgba(192, 132, 252, 0.14);
+            padding: 20px;
+            animation: fadeUp .9s ease both;
+        }
+
+        .info-card h3 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1.6px;
+            color: #e9d5ff;
+            margin-bottom: 14px;
+        }
+
+        .info-card p {
+            color: var(--text-soft);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .feature-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .feature-item {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            border-radius: 18px;
+            padding: 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(192, 132, 252, 0.09);
+            transition: transform .25s ease, background .25s ease, border-color .25s ease;
+            animation: fadeUp 1s ease both;
+        }
+
+        .feature-item:hover {
+            transform: translateX(4px);
+            background: rgba(168, 85, 247, 0.08);
+            border-color: rgba(192, 132, 252, 0.18);
+        }
+
+        .feature-icon {
+            min-width: 42px;
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: linear-gradient(135deg, rgba(192, 132, 252, 0.16), rgba(124, 58, 237, 0.12));
+            border: 1px solid rgba(192, 132, 252, 0.12);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+
+        .feature-text strong {
+            display: block;
+            font-size: 14px;
+            color: white;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .feature-text span {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.65;
+        }
+
+        .stack-card {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            align-content: start;
+        }
+
+        .chip {
+            border-radius: 16px;
+            padding: 13px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #e2d4ff;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(192, 132, 252, 0.10);
+            text-align: center;
+            transition: transform .22s ease, border-color .22s ease, background .22s ease;
+            animation: fadeUp 1.1s ease both;
+        }
+
+        .chip:hover {
+            transform: translateY(-3px);
+            border-color: rgba(192, 132, 252, 0.25);
+            background: rgba(168, 85, 247, 0.09);
+        }
+
+        .footer-note {
+            margin-top: auto;
+            text-align: center;
+            font-size: 12px;
+            color: #475569;
+            letter-spacing: 0.4px;
+            padding-top: 4px;
+        }
+
+        @keyframes shimmer {
+            from { background-position: 0% center; }
+            to { background-position: 200% center; }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(192,132,252,.6); }
+            70% { box-shadow: 0 0 0 12px rgba(192,132,252,0); }
+            100% { box-shadow: 0 0 0 0 rgba(192,132,252,0); }
+        }
+
+        @keyframes drift {
+            from { transform: translate3d(-2%, -1%, 0) scale(1); }
+            to { transform: translate3d(2%, 2%, 0) scale(1.08); }
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0.2); opacity: 0; }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.15; }
+            100% { transform: translateY(-20vh) scale(1); opacity: 0; }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1100px) {
+            html, body { overflow: auto; }
+            .page { min-height: 100vh; }
+            .shell {
+                height: auto;
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .page { padding: 18px; }
+            .hero-panel, .side-panel { border-radius: 24px; }
+            .hero-panel { padding: 24px; }
+            .topbar { flex-direction: column; align-items: flex-start; gap: 14px; }
+            .hero-copy { max-width: 100%; }
+            h1 { letter-spacing: -2.2px; }
+            .subtitle { font-size: 15px; }
+            .hero-actions { flex-direction: column; }
+            .btn { width: 100%; }
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .stack-card { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="bg-grid"></div>
-    <div class="bg-glow"></div>
+    <div class="aurora"></div>
+    <div class="grid"></div>
+    <div class="particles" id="particles"></div>
 
-    <div class="container">
-        <nav>
-            <div class="logo">Zaid</div>
-            <div class="nav-links">
-                <a href="#features">Features</a>
-                <a href="#api">API</a>
-                <a href="/docs/api" class="btn-docs">API Docs →</a>
-            </div>
-        </nav>
+    <main class="page">
+        <section class="shell">
+            <div class="hero-panel">
+                <div>
+                    <div class="topbar">
+                        <div class="logo">Zaid</div>
+                        <div class="status-badge">
+                            <span class="pulse"></span>
+                            Backend Active
+                        </div>
+                    </div>
 
-        <section class="hero">
-            <div class="badge">✨ AI-Powered Productivity Backend</div>
-            <h1>Manage Tasks.<br>From Anywhere.</h1>
-            <p>Zaid adalah backend service untuk AI task & calendar assistant. Kelola jadwal lewat mobile app atau WhatsApp, dengan natural language.</p>
-            <div class="hero-buttons">
-                <a href="/docs/api" class="btn-primary">Explore API Docs</a>
-                <a href="/api/v1/health" class="btn-secondary">Health Check ↗</a>
+                    <div class="hero-copy">
+                        <div class="eyebrow">AI Productivity Core</div>
+                        <h1>
+                            <span class="solid">Premium backend.</span>
+                            <span class="gradient">Built for intelligent work.</span>
+                        </h1>
+                        <p class="subtitle">
+                            Zaid adalah core engine untuk task, calendar, prompt AI, dan integrasi WhatsApp.
+                            Satu service, satu source of truth, siap jadi fondasi pengalaman produktivitas yang cepat,
+                            rapi, dan terasa modern.
+                        </p>
+                        <div class="hero-actions">
+                            <a href="/api/v1/health" class="btn btn-primary">Check Service Status ↗</a>
+                            <a href="#overview" class="btn btn-secondary">Overview</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats" id="overview">
+                    <div class="stat"><strong>28</strong><span>API Endpoints</span></div>
+                    <div class="stat"><strong>15</strong><span>DB Tables</span></div>
+                    <div class="stat"><strong>39</strong><span>Tests Passing</span></div>
+                    <div class="stat"><strong>2</strong><span>AI Routes</span></div>
+                </div>
             </div>
+
+            <aside class="side-panel">
+                <div class="info-card">
+                    <h3>One-screen Overview</h3>
+                    <p>
+                        Fokus halaman ini cuma buat show off identitas produk dan fondasi teknisnya.
+                        Gak ada endpoint sensitif, gak ada dokumentasi API terbuka, dan gak ada detail kredensial yang tampil.
+                    </p>
+                </div>
+
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <div class="feature-icon">🔐</div>
+                        <div class="feature-text">
+                            <strong>Google Auth + OTP Email</strong>
+                            <span>Flow login simpel, aman, dan onboarding tetap terkontrol dari aplikasi.</span>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🧠</div>
+                        <div class="feature-text">
+                            <strong>Prompt AI Bahasa Indonesia</strong>
+                            <span>Perintah natural language diproses jadi aksi task, agenda, update, dan delete.</span>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">💬</div>
+                        <div class="feature-text">
+                            <strong>WhatsApp + Mobile Sync</strong>
+                            <span>Satu data source untuk pengalaman app dan chat yang tetap sinkron.</span>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-text">
+                            <strong>Production-minded Foundation</strong>
+                            <span>Rate limiting, validation, audit trail, upload flow, dan testing yang rapi.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stack-card">
+                    <div class="chip">Laravel 13</div>
+                    <div class="chip">PostgreSQL</div>
+                    <div class="chip">Sanctum</div>
+                    <div class="chip">Socialite</div>
+                    <div class="chip">Gemini</div>
+                    <div class="chip">MiniMax</div>
+                </div>
+
+                <div class="footer-note">Zaid Service v1.0 — premium core for intelligent productivity</div>
+            </aside>
         </section>
+    </main>
 
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-value">28</div>
-                <div class="stat-label">API Endpoints</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">15</div>
-                <div class="stat-label">Database Tables</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">39</div>
-                <div class="stat-label">Tests Passing</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">2</div>
-                <div class="stat-label">AI Models</div>
-            </div>
-        </div>
-
-        <section id="features" class="features">
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🔐</div>
-                    <h3>Google Auth + OTP</h3>
-                    <p>Login cuma pakai Google. Verifikasi nomor HP via OTP email. Satu flow, aman, simpel.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📋</div>
-                    <h3>Task & Calendar</h3>
-                    <p>CRUD task lengkap dengan recurrence, agenda harian, calendar bulanan, dan audit log.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3>AI Prompt Engine</h3>
-                    <p>Ketik perintah bahasa Indonesia, AI parsing intent dan entity, task otomatis terbuat.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💬</div>
-                    <h3>WhatsApp Integration</h3>
-                    <p>Webhook WA Cloud API, sender matching, bot reply otomatis. Chat = aksi.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🖼️</div>
-                    <h3>Multimodal Support</h3>
-                    <p>Dual-model parser: text murah (MiniMax), image + voice otomatis switch ke Gemini.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Production Ready</h3>
-                    <p>Rate limiting, standardized error envelope, Sanctum auth, soft delete, dan Scramble API docs.</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="api" class="api-preview">
-            <h3>API Endpoints</h3>
-            <table class="api-table">
-                <thead>
-                    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
-                </thead>
-                <tbody>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/auth/google</td><td class="api-desc">Login / register with Google</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/auth/refresh</td><td class="api-desc">Refresh access token</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/auth/logout</td><td class="api-desc">Revoke current token</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/onboarding/phone</td><td class="api-desc">Submit phone number, send OTP</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/onboarding/phone/verify</td><td class="api-desc">Verify OTP code</td></tr>
-                    <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/me</td><td class="api-desc">Current user profile</td></tr>
-                    <tr><td><span class="method method-patch">PATCH</span></td><td class="api-path">/api/v1/me</td><td class="api-desc">Update profile</td></tr>
-                    <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/tasks</td><td class="api-desc">List tasks (filterable)</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/tasks</td><td class="api-desc">Create task</td></tr>
-                    <tr><td><span class="method method-patch">PATCH</span></td><td class="api-path">/api/v1/tasks/{id}</td><td class="api-desc">Update task</td></tr>
-                    <tr><td><span class="method method-delete">DEL</span></td><td class="api-path">/api/v1/tasks/{id}</td><td class="api-desc">Delete task (soft)</td></tr>
-                    <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/agenda/day</td><td class="api-desc">Daily agenda</td></tr>
-                    <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/calendar/month</td><td class="api-desc">Monthly calendar summary</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/prompts</td><td class="api-desc">AI prompt (text/image/voice)</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/upload</td><td class="api-desc">File upload</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/webhooks/whatsapp</td><td class="api-desc">WhatsApp webhook handler</td></tr>
-                </tbody>
-            </table>
-        </section>
-
-        <footer>
-            <p>Zaid Service v1.0 — Built with Laravel, PostgreSQL & AI</p>
-            <p style="margin-top: 8px;">
-                <a href="/docs/api">API Documentation</a> · <a href="/api/v1/health">Health</a>
-            </p>
-        </footer>
-    </div>
+    <script>
+        const particles = document.getElementById('particles');
+        for (let i = 0; i < 26; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = (Math.random() * 100) + '%';
+            p.style.animationDuration = (10 + Math.random() * 12) + 's';
+            p.style.animationDelay = (Math.random() * 10) + 's';
+            const size = 2 + Math.random() * 3;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            particles.appendChild(p);
+        }
+    </script>
 </body>
 </html>
