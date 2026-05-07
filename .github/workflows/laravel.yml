@@ -1,35 +1,135 @@
-name: Laravel
+name: Zaid Service CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-  laravel-tests:
-
+  test:
+    name: Run backend tests
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: zaid_service_test
+          POSTGRES_USER: zaid
+          POSTGRES_PASSWORD: zaid123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U zaid -d zaid_service_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      APP_ENV: testing
+      APP_DEBUG: true
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: zaid_service_test
+      DB_USERNAME: zaid
+      DB_PASSWORD: zaid123
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      OPENAI_API_KEY: test-key
+      OPENAI_API_BASE: https://ai.sumopod.com/v1
+      OPENAI_MODEL_TEXT: MiniMax-M2.7-highspeed
+      OPENAI_MODEL_MULTIMODAL: gemini/gemini-2.0-flash
+      GOOGLE_CLIENT_ID: test-google-client-id
+      GOOGLE_CLIENT_SECRET: test-google-client-secret
+      GOOGLE_REDIRECT_URI: http://localhost/callback
+
     steps:
-    - uses: shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e
-      with:
-        php-version: '8.0'
-    - uses: actions/checkout@v4
-    - name: Copy .env
-      run: php -r "file_exists('.env') || copy('.env.example', '.env');"
-    - name: Install Dependencies
-      run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
-    - name: Generate key
-      run: php artisan key:generate
-    - name: Directory Permissions
-      run: chmod -R 777 storage bootstrap/cache
-    - name: Create Database
-      run: |
-        mkdir -p database
-        touch database/database.sqlite
-    - name: Execute tests (Unit and Feature tests) via PHPUnit/Pest
-      env:
-        DB_CONNECTION: sqlite
-        DB_DATABASE: database/database.sqlite
-      run: php artisan test
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, pdo_pgsql, pgsql, dom, fileinfo
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-8.3-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-8.3-
+
+      - name: Prepare environment file
+        run: cp .env.example .env
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Generate application key
+        run: php artisan key:generate --force
+
+      - name: Set directory permissions
+        run: chmod -R 775 storage bootstrap/cache
+
+      - name: Run database migrations
+        run: php artisan migrate:fresh --force
+
+      - name: Run PHPUnit / Artisan tests
+        run: php artisan test
+
+  deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            cd /var/www/zaid-service
+
+            echo "== Pull latest code =="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "== Install PHP dependencies =="
+            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+
+            echo "== Run database migrations =="
+            php artisan migrate --force
+
+            echo "== Ensure storage symlink =="
+            php artisan storage:link || true
+
+            echo "== Clear and rebuild caches =="
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            echo "== Build frontend assets if package.json exists =="
+            if [ -f package.json ]; then
+              npm ci
+              npm run build
+            fi
+
+            echo "== Restart queues if available =="
+            php artisan queue:restart || true
+
+            echo "== Deployment finished =="
