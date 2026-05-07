@@ -44,7 +44,7 @@ class WhatsappPromptToneTest extends TestCase
 
         UserPhone::query()->create([
             'user_id' => $user->id,
-            'phone_e164' => '+6281556796240',
+            'phone_e164' => '+6281556796242',
             'is_verified' => true,
             'linked_for_whatsapp_at' => now(),
         ]);
@@ -54,7 +54,7 @@ class WhatsappPromptToneTest extends TestCase
             'event' => 'message',
             'payload' => [
                 'id' => 'wamid-tone-1',
-                'from' => '6281556796240@c.us',
+                'from' => '6281556796242@c.us',
                 'to' => '6285182302209@c.us',
                 'body' => 'Cek tanggal 22 mei jadwal apa',
                 'fromMe' => false,
