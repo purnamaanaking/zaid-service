@@ -129,4 +129,23 @@ class WahaApiService
             'data' => $response->json() ?? [],
         ];
     }
+
+    public function resolvePhoneNumberFromLid(string $lid, ?string $session = null): ?string
+    {
+        $session = $session ?: $this->sessionName();
+        $lookup = rawurlencode($lid);
+
+        $response = Http::withHeaders($this->headers())
+            ->get($this->baseUrl().'/api/'.$session.'/lids/'.$lookup);
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $phoneNumber = $response->json('pn');
+
+        return is_string($phoneNumber) && $phoneNumber !== ''
+            ? preg_replace('/@c\.us$/', '', $phoneNumber)
+            : null;
+    }
 }

@@ -124,33 +124,30 @@ class WhatsappWebhookService
             return;
         }
 
-        $existing = WhatsappMessage::query()->where('wa_message_id', $waMessageId)->exists();
-        if ($existing) {
-            Log::info('Duplicate WhatsApp message ignored.', ['wa_message_id' => $waMessageId]);
-
-            return;
-        }
-
-        $senderE164 = PhoneNumber::normalize($senderRaw);
         $recipient = $message['to'] ?? 'bot';
-
-        $userPhone = UserPhone::query()
-            ->where('phone_e164', $senderE164)
-            ->where('is_verified', true)
-            ->whereNotNull('linked_for_whatsapp_at')
-            ->first();
+        $senderE164 = $this->resolveSenderPhoneE164($senderRaw);
+        $userPhone = $this->findVerifiedLinkedUserPhone($senderE164);
 
         if ($userPhone === null) {
-            WhatsappMessage::query()->create([
+            $inserted = WhatsappMessage::query()->insertOrIgnore([
+                'id' => (string) str()->uuid(),
                 'user_id' => null,
                 'direction' => 'inbound',
                 'wa_message_id' => $waMessageId,
                 'sender_phone_e164' => $senderE164,
                 'recipient_phone_e164' => (string) $recipient,
                 'message_text' => $text,
-                'webhook_payload' => $webhookPayload,
+                'webhook_payload' => json_encode($webhookPayload, JSON_THROW_ON_ERROR),
                 'processing_status' => 'failed',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
+
+            if ($inserted === 0) {
+                Log::info('Duplicate WhatsApp message ignored.', ['wa_message_id' => $waMessageId]);
+
+                return;
+            }
 
             $this->senderService->send(
                 $senderRaw,
@@ -162,16 +159,27 @@ class WhatsappWebhookService
 
         $user = $userPhone->user;
 
-        $inbound = WhatsappMessage::query()->create([
+        $inserted = WhatsappMessage::query()->insertOrIgnore([
+            'id' => (string) str()->uuid(),
             'user_id' => $user->id,
             'direction' => 'inbound',
             'wa_message_id' => $waMessageId,
             'sender_phone_e164' => $senderE164,
             'recipient_phone_e164' => (string) $recipient,
             'message_text' => $text,
-            'webhook_payload' => $webhookPayload,
+            'webhook_payload' => json_encode($webhookPayload, JSON_THROW_ON_ERROR),
             'processing_status' => 'parsed',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
+
+        if ($inserted === 0) {
+            Log::info('Duplicate WhatsApp message ignored.', ['wa_message_id' => $waMessageId]);
+
+            return;
+        }
+
+        $inbound = WhatsappMessage::query()->where('wa_message_id', $waMessageId)->firstOrFail();
 
         $result = $this->promptCommandService->process(
             $user,
@@ -199,5 +207,27 @@ class WhatsappWebhookService
         ]);
 
         $this->senderService->send($senderRaw, $replyText);
+    }
+
+    private function resolveSenderPhoneE164(string $senderRaw): string
+    {
+        if (str_ends_with($senderRaw, '@lid')) {
+            $resolved = app(WahaApiService::class)->resolvePhoneNumberFromLid($senderRaw);
+
+            if ($resolved !== null) {
+                return PhoneNumber::normalize($resolved);
+            }
+        }
+
+        return PhoneNumber::normalize($senderRaw);
+    }
+
+    private function findVerifiedLinkedUserPhone(string $senderE164): ?UserPhone
+    {
+        return UserPhone::query()
+            ->where('phone_e164', $senderE164)
+            ->where('is_verified', true)
+            ->whereNotNull('linked_for_whatsapp_at')
+            ->first();
     }
 }
