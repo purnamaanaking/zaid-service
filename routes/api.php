@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\Agenda\DayAgendaController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
+use App\Http\Controllers\Api\Auth\LogoutController;
+use App\Http\Controllers\Api\Auth\RefreshTokenController;
 use App\Http\Controllers\Api\Calendar\MonthCalendarController;
 use App\Http\Controllers\Api\Onboarding\OnboardingStatusController;
 use App\Http\Controllers\Api\Onboarding\PhoneOnboardingController;
@@ -10,7 +12,10 @@ use App\Http\Controllers\Api\Onboarding\VerifyPhoneOtpController;
 use App\Http\Controllers\Api\Prompts\PromptController;
 use App\Http\Controllers\Api\Settings\SettingsController;
 use App\Http\Controllers\Api\Tasks\TaskController;
+use App\Http\Controllers\Api\Upload\FileUploadController;
+use App\Http\Controllers\Api\User\ChangePhoneController;
 use App\Http\Controllers\Api\User\MeController;
+use App\Http\Controllers\Api\User\UpdateProfileController;
 use App\Http\Controllers\Api\Webhooks\WhatsappWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,7 +27,9 @@ Route::prefix('v1')->group(function (): void {
     ]));
 
     // Auth (public)
-    Route::post('/auth/google', GoogleAuthController::class);
+    Route::middleware('throttle:auth')->group(function (): void {
+        Route::post('/auth/google', GoogleAuthController::class);
+    });
 
     // WhatsApp webhook (public, provider-verified)
     Route::get('/webhooks/whatsapp', [WhatsappWebhookController::class, 'verify']);
@@ -30,15 +37,29 @@ Route::prefix('v1')->group(function (): void {
 
     // Authenticated routes
     Route::middleware('auth:sanctum')->group(function (): void {
+        // Auth management
+        Route::post('/auth/refresh', RefreshTokenController::class);
+        Route::post('/auth/logout', LogoutController::class);
+
         // Onboarding (authenticated but phone may not be verified yet)
         Route::get('/onboarding/status', OnboardingStatusController::class);
-        Route::post('/onboarding/phone', PhoneOnboardingController::class);
-        Route::post('/onboarding/phone/verify', VerifyPhoneOtpController::class);
-        Route::post('/onboarding/phone/resend-otp', ResendOtpController::class);
+        Route::middleware('throttle:otp')->group(function (): void {
+            Route::post('/onboarding/phone', PhoneOnboardingController::class);
+            Route::post('/onboarding/phone/verify', VerifyPhoneOtpController::class);
+            Route::post('/onboarding/phone/resend-otp', ResendOtpController::class);
+        });
+
+        // User profile
         Route::get('/me', MeController::class);
+        Route::patch('/me', UpdateProfileController::class);
 
         // Protected routes (require phone verified)
         Route::middleware('phone.verified')->group(function (): void {
+            // Change phone (re-verify flow)
+            Route::middleware('throttle:otp')->group(function (): void {
+                Route::post('/me/phone/change', ChangePhoneController::class);
+            });
+
             // Tasks
             Route::apiResource('tasks', TaskController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
             Route::post('/tasks/{task}/complete', [TaskController::class, 'complete']);
@@ -49,9 +70,16 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/calendar/month', MonthCalendarController::class);
 
             // Prompts
-            Route::post('/prompts', [PromptController::class, 'store']);
-            Route::get('/prompts/{promptRequest}', [PromptController::class, 'show']);
-            Route::post('/prompts/{promptRequest}/confirm', [PromptController::class, 'confirm']);
+            Route::middleware('throttle:prompt')->group(function (): void {
+                Route::post('/prompts', [PromptController::class, 'store']);
+                Route::get('/prompts/{promptRequest}', [PromptController::class, 'show']);
+                Route::post('/prompts/{promptRequest}/confirm', [PromptController::class, 'confirm']);
+            });
+
+            // File upload
+            Route::middleware('throttle:upload')->group(function (): void {
+                Route::post('/upload', FileUploadController::class);
+            });
 
             // Settings
             Route::get('/settings', [SettingsController::class, 'show']);
