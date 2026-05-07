@@ -184,12 +184,16 @@ class WhatsappWebhookService
 
         $inbound = WhatsappMessage::query()->where('wa_message_id', $waMessageId)->firstOrFail();
 
-        $result = $this->promptCommandService->process(
-            $user,
-            $text,
-            'whatsapp',
-            $message['attachments'],
-        );
+        $pendingPrompt = $this->findPendingWhatsappConfirmation($user);
+
+        $result = $pendingPrompt && $this->isConfirmationReply($text)
+            ? $this->promptCommandService->confirm($pendingPrompt, $user, $this->isPositiveConfirmation($text))
+            : $this->promptCommandService->process(
+                $user,
+                $text,
+                'whatsapp',
+                $message['attachments'],
+            );
 
         $inbound->update([
             'prompt_request_id' => $result['prompt_request_id'] ?? null,
@@ -232,5 +236,29 @@ class WhatsappWebhookService
             ->where('is_verified', true)
             ->whereNotNull('linked_for_whatsapp_at')
             ->first();
+    }
+
+    private function findPendingWhatsappConfirmation(\App\Models\User $user): ?\App\Models\PromptRequest
+    {
+        return \App\Models\PromptRequest::query()
+            ->where('user_id', $user->id)
+            ->where('channel', 'whatsapp')
+            ->where('execution_status', 'awaiting_confirmation')
+            ->latest('created_at')
+            ->first();
+    }
+
+    private function isConfirmationReply(string $text): bool
+    {
+        $normalized = strtolower(trim($text));
+
+        return preg_match('/^(iya(\s+(betul|bener|benar))?|ya(\s+(betul|bener|benar))?|yup|betul|bener|benar|oke|ok|lanjut|gas|setuju|enggak|nggak|ga|gak|bukan|cancel|batal|enggak jadi|ga jadi|gak jadi)$/i', $normalized) === 1;
+    }
+
+    private function isPositiveConfirmation(string $text): bool
+    {
+        $normalized = strtolower(trim($text));
+
+        return preg_match('/^(iya(\s+(betul|bener|benar))?|ya(\s+(betul|bener|benar))?|yup|betul|bener|benar|oke|ok|lanjut|gas|setuju)$/i', $normalized) === 1;
     }
 }
