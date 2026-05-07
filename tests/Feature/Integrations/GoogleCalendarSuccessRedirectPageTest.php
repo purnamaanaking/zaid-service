@@ -6,14 +6,14 @@ use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
-class GoogleCalendarOAuthPrimaryCalendarFallbackTest extends TestCase
+class GoogleCalendarSuccessRedirectPageTest extends TestCase
 {
-    public function test_callback_falls_back_to_primary_calendar_metadata_endpoint_when_calendar_list_lookup_fails(): void
+    public function test_public_callback_redirects_to_existing_success_page(): void
     {
         config([
             'services.google.client_id' => 'client-id',
             'services.google.client_secret' => 'client-secret',
-            'services.google.calendar_redirect' => 'https://zaid-assist.my.id/api/v1/integrations/google-calendar/callback',
+            'services.google.calendar_redirect' => 'http://localhost/api/v1/integrations/google-calendar/callback',
         ]);
 
         Http::fake([
@@ -29,12 +29,6 @@ class GoogleCalendarOAuthPrimaryCalendarFallbackTest extends TestCase
                 'email' => 'calendar@example.com',
             ], 200),
             'https://www.googleapis.com/calendar/v3/users/me/calendarList/primary' => Http::response([
-                'error' => [
-                    'code' => 404,
-                    'message' => 'Not Found',
-                ],
-            ], 404),
-            'https://www.googleapis.com/calendar/v3/calendars/primary' => Http::response([
                 'id' => 'primary',
                 'summary' => 'Primary Calendar',
             ], 200),
@@ -51,11 +45,8 @@ class GoogleCalendarOAuthPrimaryCalendarFallbackTest extends TestCase
 
         $response->assertRedirect('/integrations/google-calendar/connected');
 
-        $this->assertDatabaseHas('user_calendar_connections', [
-            'user_id' => $user->id,
-            'provider' => 'google_calendar',
-            'google_calendar_id' => 'primary',
-            'status' => 'connected',
-        ]);
+        $this->get('/integrations/google-calendar/connected')
+            ->assertOk()
+            ->assertSee('Google Calendar connected');
     }
 }

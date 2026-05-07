@@ -44,7 +44,7 @@ class GoogleCalendarOAuthCallbackPublicFlowTest extends TestCase
 
         $response = $this->get('/api/v1/integrations/google-calendar/callback?code=auth-code-123&state='.urlencode($state));
 
-        $response->assertRedirect('/settings?google_calendar=connected');
+        $response->assertRedirect('/integrations/google-calendar/connected');
 
         $this->assertDatabaseHas('user_calendar_connections', [
             'user_id' => $user->id,

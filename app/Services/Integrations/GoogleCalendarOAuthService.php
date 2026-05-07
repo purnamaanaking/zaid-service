@@ -142,7 +142,7 @@ class GoogleCalendarOAuthService
             ]);
         }
 
-        return redirect('/settings?google_calendar=connected');
+        return redirect('/integrations/google-calendar/connected');
     }
 
     public function disconnect(User $user): void
