@@ -108,6 +108,11 @@ class GoogleCalendarOAuthService
 
         $primaryCalendarId = (string) config('services.google.calendar_primary_id', 'primary');
         $calendarInfo = Http::withToken($accessToken)->get('https://www.googleapis.com/calendar/v3/users/me/calendarList/'.$primaryCalendarId);
+
+        if (! $calendarInfo->successful()) {
+            $calendarInfo = Http::withToken($accessToken)->get('https://www.googleapis.com/calendar/v3/calendars/'.$primaryCalendarId);
+        }
+
         if (! $calendarInfo->successful()) {
             throw ValidationException::withMessages([
                 'calendar' => 'Unable to fetch Google Calendar details.',
