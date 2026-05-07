@@ -16,7 +16,7 @@ use Illuminate\Validation\ValidationException;
 class PhoneVerificationService
 {
     /**
-     * @return array{phone_number: string, verification_id: string, expires_in_seconds: int, next_step: string}
+     * @return array{phone_number: string, verification_id: string, expires_in_seconds: int, next_step: string, otp_channel: string}
      */
     public function submitPhone(User $user, string $phoneNumber, ?string $countryCode = 'ID'): array
     {
@@ -60,7 +60,7 @@ class PhoneVerificationService
             $verification = PhoneVerification::query()->create([
                 'user_phone_id' => $userPhone->id,
                 'otp_code_hash' => Hash::make($otpCode),
-                'channel' => 'email',
+                'channel' => 'whatsapp',
                 'status' => 'pending',
                 'expires_at' => now()->addMinutes(5),
                 'attempt_count' => 0,
@@ -74,13 +74,20 @@ class PhoneVerificationService
                 'created_at' => now(),
             ]);
 
-            SendOtpJob::dispatch($user->email, $otpCode, $verification->id, $user->full_name ?? 'User');
+            SendOtpJob::dispatch(
+                $normalized,
+                $user->email,
+                $otpCode,
+                $verification->id,
+                $user->full_name ?? 'User',
+            );
 
             return [
                 'phone_number' => $normalized,
                 'verification_id' => $verification->id,
                 'expires_in_seconds' => 300,
                 'next_step' => 'verify_otp',
+                'otp_channel' => 'whatsapp_primary_email_fallback',
             ];
         });
     }
@@ -176,7 +183,7 @@ class PhoneVerificationService
     }
 
     /**
-     * @return array{phone_number: string, verification_id: string, expires_in_seconds: int, next_step: string}
+     * @return array{phone_number: string, verification_id: string, expires_in_seconds: int, next_step: string, otp_channel: string}
      */
     public function resendOtp(User $user, string $phoneNumber): array
     {

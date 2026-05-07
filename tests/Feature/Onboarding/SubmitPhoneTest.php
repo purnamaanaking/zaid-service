@@ -22,7 +22,8 @@ class SubmitPhoneTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.phone_number', '+628123456789')
-            ->assertJsonPath('data.next_step', 'verify_otp');
+            ->assertJsonPath('data.next_step', 'verify_otp')
+            ->assertJsonPath('data.otp_channel', 'whatsapp_primary_email_fallback');
 
         Queue::assertPushed(SendOtpJob::class);
     }

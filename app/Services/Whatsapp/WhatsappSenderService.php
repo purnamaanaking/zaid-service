@@ -7,20 +7,18 @@ use Illuminate\Support\Facades\Log;
 
 class WhatsappSenderService
 {
-    public function send(string $recipientPhone, string $text): void
+    public function send(string $recipientPhone, string $text): bool
     {
         $driver = config('services.whatsapp.driver', 'waha');
 
         if ($driver === 'waha') {
-            $this->sendViaWaha($recipientPhone, $text);
-
-            return;
+            return $this->sendViaWaha($recipientPhone, $text);
         }
 
-        $this->sendViaMeta($recipientPhone, $text);
+        return $this->sendViaMeta($recipientPhone, $text);
     }
 
-    private function sendViaMeta(string $recipientPhone, string $text): void
+    private function sendViaMeta(string $recipientPhone, string $text): bool
     {
         $phoneNumberId = config('services.whatsapp.phone_number_id');
         $accessToken = config('services.whatsapp.access_token');
@@ -31,7 +29,7 @@ class WhatsappSenderService
                 'text' => $text,
             ]);
 
-            return;
+            return false;
         }
 
         $response = Http::withToken($accessToken)
@@ -50,10 +48,14 @@ class WhatsappSenderService
                 'body' => $response->body(),
                 'recipient' => $recipientPhone,
             ]);
+
+            return false;
         }
+
+        return true;
     }
 
-    private function sendViaWaha(string $recipientPhone, string $text): void
+    private function sendViaWaha(string $recipientPhone, string $text): bool
     {
         $baseUrl = rtrim((string) config('services.waha.base_url'), '/');
         $session = (string) config('services.waha.session', 'default');
@@ -65,7 +67,7 @@ class WhatsappSenderService
                 'text' => $text,
             ]);
 
-            return;
+            return false;
         }
 
         $headers = [
@@ -93,6 +95,10 @@ class WhatsappSenderService
                 'recipient' => $recipientPhone,
                 'chat_id' => $chatId,
             ]);
+
+            return false;
         }
+
+        return true;
     }
 }

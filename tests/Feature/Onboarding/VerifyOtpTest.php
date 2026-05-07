@@ -27,7 +27,7 @@ class VerifyOtpTest extends TestCase
             'user_phone_id' => $phone->id,
             'otp_code_hash' => Hash::make('123456'),
             'status' => 'pending',
-            'channel' => 'sms',
+            'channel' => 'whatsapp',
             'expires_at' => now()->addMinutes(5),
         ]);
 
