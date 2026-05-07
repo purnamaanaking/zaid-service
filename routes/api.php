@@ -40,6 +40,8 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/webhooks/whatsapp', [WhatsappWebhookController::class, 'verify']);
     Route::post('/webhooks/whatsapp', [WhatsappWebhookController::class, 'handle']);
 
+    Route::get('/integrations/google-calendar/callback', GoogleCalendarCallbackController::class);
+
     // Authenticated routes
     Route::middleware('auth:sanctum')->group(function (): void {
         // Auth management
@@ -60,7 +62,6 @@ Route::prefix('v1')->group(function (): void {
 
         // Google Calendar integration
         Route::get('/integrations/google-calendar/connect', GoogleCalendarConnectController::class);
-        Route::get('/integrations/google-calendar/callback', GoogleCalendarCallbackController::class);
         Route::get('/integrations/google-calendar/status', GoogleCalendarStatusController::class);
         Route::delete('/integrations/google-calendar', GoogleCalendarDisconnectController::class);
 

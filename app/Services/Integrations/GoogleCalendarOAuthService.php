@@ -5,9 +5,10 @@ namespace App\Services\Integrations;
 use App\Models\User;
 use App\Support\Security\EncryptedTokenStore;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class GoogleCalendarOAuthService
 {
@@ -25,15 +26,55 @@ class GoogleCalendarOAuthService
             'access_type' => 'offline',
             'prompt' => 'consent',
             'include_granted_scopes' => 'true',
-            'state' => (string) $user->id,
+            'state' => $this->buildSignedState($user),
         ]);
 
         return 'https://accounts.google.com/o/oauth2/v2/auth?'.$query;
     }
 
+    public function buildSignedState(User $user): string
+    {
+        return Crypt::encryptString(json_encode([
+            'user_id' => (string) $user->id,
+            'issued_at' => now()->timestamp,
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    public function resolveUserFromState(string $state): User
+    {
+        try {
+            $payload = json_decode(Crypt::decryptString($state), true, 512, JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'state' => 'Invalid OAuth state.',
+            ]);
+        }
+
+        $userId = $payload['user_id'] ?? null;
+
+        if (! is_string($userId) || $userId === '') {
+            throw ValidationException::withMessages([
+                'state' => 'Invalid OAuth state.',
+            ]);
+        }
+
+        return User::query()->findOrFail($userId);
+    }
+
+    public function handleCallbackFromState(string $code, string $state): RedirectResponse
+    {
+        return $this->handleCallback(
+            $this->resolveUserFromState($state),
+            $code,
+            $state,
+        );
+    }
+
     public function handleCallback(User $user, string $code, string $state): RedirectResponse
     {
-        if ($state !== (string) $user->id) {
+        $resolvedUser = $this->resolveUserFromState($state);
+
+        if ((string) $resolvedUser->id !== (string) $user->id) {
             throw ValidationException::withMessages([
                 'state' => 'Invalid OAuth state.',
             ]);

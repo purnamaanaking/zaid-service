@@ -11,8 +11,7 @@ class GoogleCalendarCallbackController extends Controller
 {
     public function __invoke(Request $request, GoogleCalendarOAuthService $oauthService): RedirectResponse
     {
-        return $oauthService->handleCallback(
-            $request->user(),
+        return $oauthService->handleCallbackFromState(
             $request->string('code')->toString(),
             $request->string('state')->toString(),
         );

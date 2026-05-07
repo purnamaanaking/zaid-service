@@ -53,7 +53,9 @@ class GoogleCalendarOAuthFlowTest extends TestCase
             'email' => 'calendar@example.com',
         ]);
 
-        $response = $this->actingAs($user, 'sanctum')->get('/api/v1/integrations/google-calendar/callback?code=auth-code-123&state='.$user->id);
+        $state = app(\App\Services\Integrations\GoogleCalendarOAuthService::class)->buildSignedState($user);
+
+        $response = $this->get('/api/v1/integrations/google-calendar/callback?code=auth-code-123&state='.urlencode($state));
 
         $response->assertRedirect('/settings?google_calendar=connected');
 
