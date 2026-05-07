@@ -16,10 +16,18 @@ return [
     ],
 
     'whatsapp' => [
+        'driver' => env('WHATSAPP_DRIVER', 'waha'),
         'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
         'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
         'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID'),
+    ],
+
+    'waha' => [
+        'base_url' => env('WAHA_BASE_URL'),
+        'api_key' => env('WAHA_API_KEY'),
+        'session' => env('WAHA_SESSION', 'default'),
+        'webhook_secret' => env('WAHA_WEBHOOK_SECRET'),
     ],
 
     /*

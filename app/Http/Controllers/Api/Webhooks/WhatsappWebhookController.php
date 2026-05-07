@@ -30,6 +30,19 @@ class WhatsappWebhookController extends Controller
 
     public function handle(Request $request, WhatsappWebhookService $webhookService): JsonResponse
     {
+        if (config('services.whatsapp.driver') === 'waha' && filled(config('services.waha.webhook_secret'))) {
+            $signature = $request->header('X-Webhook-Hmac');
+            $expected = hash_hmac('sha512', $request->getContent(), (string) config('services.waha.webhook_secret'));
+
+            if (! $signature || ! hash_equals($expected, $signature)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid WAHA webhook signature.',
+                    'error' => ['code' => 'INVALID_WEBHOOK_SIGNATURE', 'details' => null],
+                ], 401);
+            }
+        }
+
         $webhookService->handleInbound($request->all());
 
         return response()->json([

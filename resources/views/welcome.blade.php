@@ -425,11 +425,6 @@
                     Backend yang modern untuk pengalaman produktivitas yang cepat, stabil, aman, dan terasa seamless di balik setiap interaksi.
                 </p>
 
-                <div class="actions">
-                    <a href="/api/v1/health" class="btn btn-primary">Get Started <span style="font-size:24px; line-height:0;">→</span></a>
-                    <a href="#" class="btn btn-secondary">View Overview <span style="font-size:18px; opacity:.85;">⌘</span></a>
-                </div>
-
                 <div class="status-row">
                     <span class="status-dot"></span>
                     <span>All systems operational</span>

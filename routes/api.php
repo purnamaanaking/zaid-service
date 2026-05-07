@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\User\ChangePhoneController;
 use App\Http\Controllers\Api\User\MeController;
 use App\Http\Controllers\Api\User\UpdateProfileController;
 use App\Http\Controllers\Api\Webhooks\WhatsappWebhookController;
+use App\Http\Controllers\Api\Whatsapp\WahaSessionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -80,6 +81,11 @@ Route::prefix('v1')->group(function (): void {
             Route::middleware('throttle:upload')->group(function (): void {
                 Route::post('/upload', FileUploadController::class);
             });
+
+            // WAHA helper endpoints for testing
+            Route::get('/whatsapp/waha/status', [WahaSessionController::class, 'status']);
+            Route::post('/whatsapp/waha/start', [WahaSessionController::class, 'start']);
+            Route::get('/whatsapp/waha/qr', [WahaSessionController::class, 'qr']);
 
             // Settings
             Route::get('/settings', [SettingsController::class, 'show']);
