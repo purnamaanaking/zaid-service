@@ -2,6 +2,7 @@
 
 namespace App\Services\Whatsapp;
 
+use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -79,7 +80,7 @@ class WhatsappSenderService
             $headers['X-Api-Key'] = $apiKey;
         }
 
-        $chatId = preg_replace('/\D/', '', $recipientPhone).'@c.us';
+        $chatId = preg_replace('/\D/', '', PhoneNumber::normalize($recipientPhone)).'@c.us';
 
         $response = Http::withHeaders($headers)
             ->post("{$baseUrl}/api/sendText", [
