@@ -11,7 +11,7 @@ class OpenAiPromptParser implements PromptParser
 {
     private const SYSTEM_PROMPT = <<<'PROMPT'
 You are a task and calendar assistant that understands Indonesian natural language.
-Your job is to parse the user's message into a structured JSON command.
+Your job is to infer the user's intent from everyday phrasing, including long, indirect, casual, typo-filled, or chatty Indonesian messages.
 
 You MUST respond with valid JSON only. No explanation, no markdown, no code block.
 
@@ -38,14 +38,33 @@ JSON format:
 }
 
 Rules:
-- TODAY is provided. Use it for relative dates like "hari ini", "besok", "minggu depan", "lusa".
-- "Setiap Jumat" = weekly recurrence on friday.
-- "Setiap hari" = daily recurrence.
-- If intent is READ, set search_query to capture the user's filter criteria.
-- If command is unclear or ambiguous, set requires_confirmation to true and parse_status to "ambiguous".
-- If command is not task/calendar related, set parse_status to "unsupported".
+- TODAY is provided. Use it for relative dates like "hari ini", "besok", "minggu depan", "lusa", and conversational variants like "malam ini", "nanti", or "tanggal 22 mei".
+- Infer the most likely task/calendar intent even if the user does not speak in command format.
+- READ includes asking what schedule exists on a date, whether a day is free, when a task happens, or what agenda exists.
+- UPDATE includes moving/rescheduling/renaming an existing task even when the user says things like "geser", "pindahin", "ganti", or "yang gym itu ubah ke pagi".
+- DELETE includes canceling/removing a task even when the user says things like "hapus", "batalkan", or "yang meeting itu ga jadi".
+- If intent is READ, set search_query to capture the user's filter criteria in natural language.
+- If command is unclear or ambiguous but still task/calendar related, prefer `parse_status: "ambiguous"` instead of `unsupported`.
+- Use `unsupported` only when the request is clearly outside task/calendar assistant scope.
 - If an image is attached, analyze the image for any schedule, task, or calendar information and extract it.
 - If a voice transcription is provided, parse the transcription as the user's command.
+PROMPT;
+
+    private const RESCUE_SYSTEM_PROMPT = <<<'PROMPT'
+You are doing a second-pass rescue parse for a WhatsApp task/calendar assistant.
+
+The first parser said the message was unsupported or failed, but the message may still contain a valid task/calendar meaning. Be generous in interpretation while staying inside task/calendar scope.
+
+Return valid JSON only using the same schema as before.
+
+Important rules:
+- If the user is asking about schedule, agenda, date, time, reminders, tasks, meetings, gym, plans, or calendar, do NOT return unsupported.
+- Prefer `READ` for questions about what exists on a date or time.
+- Prefer `CREATE` when the user is asking to add/schedule something.
+- Prefer `UPDATE` when the user wants to move/change an existing task.
+- Prefer `DELETE` when the user wants to cancel/remove an existing task.
+- If you still cannot safely infer enough details, return `ambiguous` with `requires_confirmation: true`.
+- Only return `unsupported` if the message is clearly unrelated to tasks, schedules, reminders, meetings, plans, or calendar usage.
 PROMPT;
 
     public function __construct(
@@ -113,6 +132,10 @@ PROMPT;
                 return $this->failedResult();
             }
 
+            if ($this->shouldRetryWithRescuePrompt($text, $parsed)) {
+                return $this->retryWithRescuePrompt($text, $userId, $today, $model, $userContent);
+            }
+
             return $parsed;
         } catch (Throwable $e) {
             Log::error('Prompt parser error.', [
@@ -161,6 +184,82 @@ PROMPT;
         }
 
         return $parts;
+    }
+
+    private function shouldRetryWithRescuePrompt(string $text, array $parsed): bool
+    {
+        $status = $parsed['parse_status'] ?? 'failed';
+
+        if (! in_array($status, ['failed', 'unsupported'], true)) {
+            return false;
+        }
+
+        return preg_match('/\b(jadwal|agenda|task|tugas|meeting|meet|gym|kalender|calendar|besok|hari ini|tanggal|jam|hapus|ubah|ganti|pindah|geser|buat|catat|ingatkan)\b/i', $text) === 1;
+    }
+
+    /**
+     * @param  string|array<int, array<string, mixed>>  $userContent
+     */
+    private function retryWithRescuePrompt(string $text, string $userId, string $today, string $model, string|array $userContent): array
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$this->apiKey}",
+                'Content-Type' => 'application/json',
+            ])
+                ->timeout(30)
+                ->post("{$this->apiBase}/chat/completions", [
+                    'model' => $model,
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => self::RESCUE_SYSTEM_PROMPT."\n\nTODAY = {$today}",
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $userContent,
+                        ],
+                    ],
+                    'max_tokens' => 512,
+                    'temperature' => 0.1,
+                ]);
+
+            if (! $response->successful()) {
+                Log::error('Prompt parser rescue API failed.', [
+                    'model' => $model,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'user_id' => $userId,
+                ]);
+
+                return $this->failedResult();
+            }
+
+            $content = $response->json('choices.0.message.content', '{}');
+            $content = preg_replace('/^```(?:json)?\s*/', '', trim($content));
+            $content = preg_replace('/\s*```$/', '', $content);
+            $parsed = json_decode($content, true);
+
+            if (! is_array($parsed) || ! isset($parsed['intent'])) {
+                Log::warning('Prompt parser rescue returned invalid JSON.', [
+                    'model' => $model,
+                    'raw' => $content,
+                    'user_id' => $userId,
+                ]);
+
+                return $this->failedResult();
+            }
+
+            return $parsed;
+        } catch (Throwable $e) {
+            Log::error('Prompt parser rescue error.', [
+                'model' => $model,
+                'error' => $e->getMessage(),
+                'user_id' => $userId,
+            ]);
+
+            return $this->failedResult();
+        }
     }
 
     private function failedResult(): array
