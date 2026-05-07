@@ -3,38 +3,38 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Zaid — AI Productivity Core</title>
+    <title>Zaid</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
+            --bg-1: #070511;
+            --bg-2: #120a24;
             --purple-1: #c084fc;
             --purple-2: #a855f7;
             --purple-3: #7c3aed;
             --purple-4: #581c87;
-            --bg-1: #050510;
-            --bg-2: #0a0820;
-            --card: rgba(255, 255, 255, 0.05);
+            --text-soft: #cbd5e1;
+            --text-muted: #94a3b8;
             --border: rgba(192, 132, 252, 0.14);
-            --text-soft: #94a3b8;
-            --text-muted: #64748b;
+            --card: rgba(255, 255, 255, 0.05);
         }
 
         html, body {
             width: 100%;
-            height: 100%;
-            overflow: hidden;
+            min-height: 100%;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Inter', sans-serif;
             color: white;
+            overflow: hidden;
             background:
-                radial-gradient(circle at 15% 20%, rgba(168, 85, 247, 0.35), transparent 25%),
-                radial-gradient(circle at 85% 18%, rgba(124, 58, 237, 0.28), transparent 24%),
-                radial-gradient(circle at 50% 80%, rgba(88, 28, 135, 0.45), transparent 30%),
+                radial-gradient(circle at 20% 20%, rgba(168, 85, 247, 0.28), transparent 28%),
+                radial-gradient(circle at 80% 18%, rgba(124, 58, 237, 0.22), transparent 24%),
+                radial-gradient(circle at 50% 85%, rgba(88, 28, 135, 0.45), transparent 36%),
                 linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
             position: relative;
         }
@@ -43,20 +43,19 @@
         .aurora::before,
         .aurora::after {
             position: absolute;
-            inset: -20%;
+            inset: -15%;
             content: "";
-            filter: blur(90px);
-            opacity: 0.7;
             pointer-events: none;
+            filter: blur(90px);
         }
 
         .aurora::before {
-            background: radial-gradient(circle, rgba(168, 85, 247, 0.23) 0%, transparent 55%);
-            animation: drift 12s ease-in-out infinite alternate;
+            background: radial-gradient(circle, rgba(192, 132, 252, 0.16) 0%, transparent 60%);
+            animation: drift 14s ease-in-out infinite alternate;
         }
 
         .aurora::after {
-            background: radial-gradient(circle, rgba(192, 132, 252, 0.14) 0%, transparent 60%);
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.12) 0%, transparent 60%);
             animation: drift 18s ease-in-out infinite alternate-reverse;
         }
 
@@ -64,11 +63,11 @@
             position: absolute;
             inset: 0;
             background-image:
-                linear-gradient(rgba(192, 132, 252, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(192, 132, 252, 0.05) 1px, transparent 1px);
+                linear-gradient(rgba(192,132,252,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(192,132,252,0.04) 1px, transparent 1px);
             background-size: 64px 64px;
-            mask-image: radial-gradient(circle at center, black 35%, transparent 80%);
-            -webkit-mask-image: radial-gradient(circle at center, black 35%, transparent 80%);
+            mask-image: radial-gradient(circle at center, black 35%, transparent 78%);
+            -webkit-mask-image: radial-gradient(circle at center, black 35%, transparent 78%);
             pointer-events: none;
         }
 
@@ -80,11 +79,9 @@
 
         .particle {
             position: absolute;
-            width: 4px;
-            height: 4px;
-            border-radius: 50%;
+            border-radius: 999px;
             background: linear-gradient(135deg, var(--purple-1), var(--purple-3));
-            box-shadow: 0 0 16px rgba(192, 132, 252, 0.8);
+            box-shadow: 0 0 14px rgba(192,132,252,.65);
             opacity: 0;
             animation: floatUp linear infinite;
         }
@@ -92,89 +89,79 @@
         .page {
             position: relative;
             z-index: 2;
-            width: 100%;
-            height: 100%;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 32px;
+            padding: 28px;
         }
 
         .shell {
-            width: min(1280px, 100%);
-            height: min(820px, 100%);
+            width: min(1160px, 100%);
+            min-height: 720px;
             display: grid;
-            grid-template-columns: 1.15fr 0.85fr;
-            gap: 24px;
-            align-items: stretch;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 22px;
         }
 
-        .hero-panel,
-        .side-panel {
-            background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+        .panel {
+            border-radius: 32px;
             border: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
             box-shadow:
                 inset 0 1px 0 rgba(255,255,255,0.08),
-                0 20px 80px rgba(88, 28, 135, 0.25);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border-radius: 32px;
-            overflow: hidden;
+                0 24px 80px rgba(88, 28, 135, 0.22);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
 
-        .hero-panel {
-            padding: 32px 34px 28px;
+        .hero {
+            padding: 34px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            position: relative;
         }
 
         .topbar {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 18px;
+            justify-content: space-between;
+            margin-bottom: 24px;
         }
 
         .logo {
-            font-size: 32px;
+            font-size: 34px;
             font-weight: 900;
             letter-spacing: -1.8px;
-            background: linear-gradient(135deg, #f5d0fe 0%, var(--purple-1) 30%, var(--purple-2) 60%, #ddd6fe 100%);
+            background: linear-gradient(135deg, #fff 0%, var(--purple-1) 35%, var(--purple-2) 70%, #ddd6fe 100%);
+            background-size: 220% auto;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: shimmer 6s linear infinite;
-            background-size: 200% auto;
+            animation: shimmer 7s linear infinite;
         }
 
-        .status-badge {
+        .badge {
             display: inline-flex;
             align-items: center;
             gap: 10px;
             padding: 10px 16px;
             border-radius: 999px;
-            background: rgba(124, 58, 237, 0.16);
-            border: 1px solid rgba(192, 132, 252, 0.2);
+            background: rgba(124, 58, 237, 0.14);
+            border: 1px solid rgba(192, 132, 252, 0.18);
             color: #e9d5ff;
             font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.4px;
+            letter-spacing: .4px;
         }
 
         .pulse {
             width: 8px;
             height: 8px;
             border-radius: 999px;
-            background: #c084fc;
+            background: var(--purple-1);
             box-shadow: 0 0 0 0 rgba(192,132,252,.7);
             animation: pulse 2s infinite;
-        }
-
-        .hero-copy {
-            max-width: 720px;
-            margin-top: 10px;
         }
 
         .eyebrow {
@@ -183,16 +170,15 @@
             text-transform: uppercase;
             letter-spacing: 1.8px;
             color: #d8b4fe;
-            margin-bottom: 16px;
-            opacity: 0.9;
+            margin-bottom: 18px;
         }
 
         h1 {
-            font-size: clamp(52px, 6vw, 86px);
-            line-height: 0.95;
-            letter-spacing: -3.8px;
+            font-size: clamp(56px, 6.5vw, 88px);
+            line-height: .94;
+            letter-spacing: -4px;
             font-weight: 900;
-            margin-bottom: 18px;
+            margin-bottom: 22px;
         }
 
         h1 .solid {
@@ -202,130 +188,82 @@
 
         h1 .gradient {
             display: block;
-            background: linear-gradient(135deg, #ffffff 0%, #e9d5ff 22%, var(--purple-1) 46%, var(--purple-2) 66%, #c4b5fd 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #f5d0fe 24%, var(--purple-1) 46%, var(--purple-2) 70%, #c4b5fd 100%);
+            background-size: 220% auto;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: shimmer 7s linear infinite;
-            background-size: 220% auto;
+            animation: shimmer 8s linear infinite;
         }
 
         .subtitle {
-            max-width: 640px;
+            max-width: 620px;
             font-size: 17px;
-            line-height: 1.75;
+            line-height: 1.8;
             color: var(--text-soft);
-            margin-bottom: 26px;
         }
 
-        .hero-actions {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-            margin-bottom: 34px;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            border-radius: 18px;
-            padding: 15px 22px;
-            font-size: 14px;
-            font-weight: 700;
-            transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease, background .25s ease;
-        }
-
-        .btn-primary {
-            color: white;
-            background: linear-gradient(135deg, var(--purple-2), var(--purple-3));
-            box-shadow: 0 12px 36px rgba(124, 58, 237, 0.35);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 18px 44px rgba(124, 58, 237, 0.45);
-        }
-
-        .btn-secondary {
-            color: #eadcff;
-            border: 1px solid rgba(192, 132, 252, 0.22);
-            background: rgba(255,255,255,0.04);
-        }
-
-        .btn-secondary:hover {
-            transform: translateY(-2px);
-            border-color: rgba(192, 132, 252, 0.4);
-            background: rgba(168, 85, 247, 0.10);
-        }
-
-        .stats {
+        .hero-bottom {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 14px;
+            margin-top: 36px;
         }
 
-        .stat {
+        .mini-card {
             border-radius: 22px;
             padding: 20px 18px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.025));
+            background: rgba(255,255,255,0.035);
             border: 1px solid rgba(192, 132, 252, 0.10);
-            transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
-            animation: fadeUp .8s ease both;
+            transition: transform .25s ease, border-color .25s ease, background .25s ease;
         }
 
-        .stat:hover {
+        .mini-card:hover {
             transform: translateY(-4px);
-            border-color: rgba(192, 132, 252, 0.24);
-            box-shadow: 0 16px 34px rgba(124, 58, 237, 0.14);
+            border-color: rgba(192, 132, 252, 0.22);
+            background: rgba(168, 85, 247, 0.08);
         }
 
-        .stat strong {
+        .mini-card strong {
             display: block;
-            font-size: 34px;
-            line-height: 1;
-            letter-spacing: -1.4px;
-            font-weight: 900;
             color: white;
-            margin-bottom: 8px;
-        }
-
-        .stat span {
-            font-size: 11px;
+            font-size: 14px;
+            margin-bottom: 6px;
             font-weight: 700;
-            letter-spacing: 1.2px;
-            text-transform: uppercase;
-            color: var(--text-muted);
         }
 
-        .side-panel {
+        .mini-card span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .side {
             padding: 24px;
             display: grid;
-            grid-template-rows: auto auto 1fr;
+            grid-template-rows: auto 1fr auto;
             gap: 18px;
         }
 
-        .info-card {
-            border-radius: 24px;
-            background: linear-gradient(180deg, rgba(124, 58, 237, 0.14), rgba(124, 58, 237, 0.04));
-            border: 1px solid rgba(192, 132, 252, 0.14);
-            padding: 20px;
-            animation: fadeUp .9s ease both;
+        .showcase {
+            border-radius: 26px;
+            padding: 24px;
+            background: linear-gradient(180deg, rgba(124,58,237,0.12), rgba(124,58,237,0.04));
+            border: 1px solid rgba(192,132,252,0.14);
         }
 
-        .info-card h3 {
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 1.6px;
-            color: #e9d5ff;
-            margin-bottom: 14px;
+        .showcase h2 {
+            font-size: 22px;
+            line-height: 1.2;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
         }
 
-        .info-card p {
+        .showcase p {
             color: var(--text-soft);
             font-size: 14px;
-            line-height: 1.7;
+            line-height: 1.75;
         }
 
         .feature-list {
@@ -337,18 +275,17 @@
             display: flex;
             gap: 14px;
             align-items: flex-start;
-            border-radius: 18px;
             padding: 16px;
+            border-radius: 18px;
             background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(192, 132, 252, 0.09);
-            transition: transform .25s ease, background .25s ease, border-color .25s ease;
-            animation: fadeUp 1s ease both;
+            border: 1px solid rgba(192,132,252,0.09);
+            transition: transform .25s ease, border-color .25s ease, background .25s ease;
         }
 
         .feature-item:hover {
             transform: translateX(4px);
-            background: rgba(168, 85, 247, 0.08);
-            border-color: rgba(192, 132, 252, 0.18);
+            border-color: rgba(192,132,252,0.18);
+            background: rgba(168,85,247,0.08);
         }
 
         .feature-icon {
@@ -360,17 +297,15 @@
             align-items: center;
             justify-content: center;
             font-size: 18px;
-            background: linear-gradient(135deg, rgba(192, 132, 252, 0.16), rgba(124, 58, 237, 0.12));
-            border: 1px solid rgba(192, 132, 252, 0.12);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+            background: linear-gradient(135deg, rgba(192,132,252,0.16), rgba(124,58,237,0.12));
+            border: 1px solid rgba(192,132,252,0.12);
         }
 
         .feature-text strong {
             display: block;
             font-size: 14px;
-            color: white;
             margin-bottom: 5px;
-            font-weight: 700;
+            color: white;
         }
 
         .feature-text span {
@@ -380,39 +315,11 @@
             line-height: 1.65;
         }
 
-        .stack-card {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            align-content: start;
-        }
-
-        .chip {
-            border-radius: 16px;
-            padding: 13px 14px;
-            font-size: 13px;
-            font-weight: 700;
-            color: #e2d4ff;
-            background: rgba(255,255,255,0.035);
-            border: 1px solid rgba(192, 132, 252, 0.10);
+        .signature {
             text-align: center;
-            transition: transform .22s ease, border-color .22s ease, background .22s ease;
-            animation: fadeUp 1.1s ease both;
-        }
-
-        .chip:hover {
-            transform: translateY(-3px);
-            border-color: rgba(192, 132, 252, 0.25);
-            background: rgba(168, 85, 247, 0.09);
-        }
-
-        .footer-note {
-            margin-top: auto;
-            text-align: center;
-            font-size: 12px;
             color: #475569;
-            letter-spacing: 0.4px;
-            padding-top: 4px;
+            font-size: 12px;
+            letter-spacing: .4px;
         }
 
         @keyframes shimmer {
@@ -432,38 +339,25 @@
         }
 
         @keyframes floatUp {
-            0% { transform: translateY(100vh) scale(0.2); opacity: 0; }
-            10% { opacity: 0.6; }
-            90% { opacity: 0.15; }
+            0% { transform: translateY(105vh) scale(.2); opacity: 0; }
+            10% { opacity: .65; }
+            90% { opacity: .12; }
             100% { transform: translateY(-20vh) scale(1); opacity: 0; }
         }
 
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(18px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @media (max-width: 1100px) {
-            html, body { overflow: auto; }
+        @media (max-width: 1080px) {
+            body { overflow: auto; }
             .page { min-height: 100vh; }
-            .shell {
-                height: auto;
-                grid-template-columns: 1fr;
-            }
+            .shell { grid-template-columns: 1fr; min-height: auto; }
         }
 
         @media (max-width: 720px) {
             .page { padding: 18px; }
-            .hero-panel, .side-panel { border-radius: 24px; }
-            .hero-panel { padding: 24px; }
+            .hero, .side { padding: 22px; }
             .topbar { flex-direction: column; align-items: flex-start; gap: 14px; }
-            .hero-copy { max-width: 100%; }
-            h1 { letter-spacing: -2.2px; }
+            h1 { letter-spacing: -2.4px; }
             .subtitle { font-size: 15px; }
-            .hero-actions { flex-direction: column; }
-            .btn { width: 100%; }
-            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .stack-card { grid-template-columns: 1fr 1fr; }
+            .hero-bottom { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -474,48 +368,47 @@
 
     <main class="page">
         <section class="shell">
-            <div class="hero-panel">
+            <div class="panel hero">
                 <div>
                     <div class="topbar">
                         <div class="logo">Zaid</div>
-                        <div class="status-badge">
-                            <span class="pulse"></span>
-                            Backend Active
-                        </div>
+                        <div class="badge"><span class="pulse"></span>Private Core</div>
                     </div>
 
-                    <div class="hero-copy">
-                        <div class="eyebrow">AI Productivity Core</div>
-                        <h1>
-                            <span class="solid">Premium backend.</span>
-                            <span class="gradient">Built for intelligent work.</span>
-                        </h1>
-                        <p class="subtitle">
-                            Zaid adalah core engine untuk task, calendar, prompt AI, dan integrasi WhatsApp.
-                            Satu service, satu source of truth, siap jadi fondasi pengalaman produktivitas yang cepat,
-                            rapi, dan terasa modern.
-                        </p>
-                        <div class="hero-actions">
-                            <a href="/api/v1/health" class="btn btn-primary">Check Service Status ↗</a>
-                            <a href="#overview" class="btn btn-secondary">Overview</a>
-                        </div>
-                    </div>
+                    <div class="eyebrow">AI Productivity Engine</div>
+                    <h1>
+                        <span class="solid">Simple outside.</span>
+                        <span class="gradient">Powerful inside.</span>
+                    </h1>
+                    <p class="subtitle">
+                        Zaid adalah fondasi backend untuk pengalaman produktivitas yang modern —
+                        menghubungkan task, calendar, prompt AI, dan interaksi lintas channel ke dalam satu inti yang rapi dan cepat.
+                    </p>
                 </div>
 
-                <div class="stats" id="overview">
-                    <div class="stat"><strong>28</strong><span>API Endpoints</span></div>
-                    <div class="stat"><strong>15</strong><span>DB Tables</span></div>
-                    <div class="stat"><strong>39</strong><span>Tests Passing</span></div>
-                    <div class="stat"><strong>2</strong><span>AI Routes</span></div>
+                <div class="hero-bottom">
+                    <div class="mini-card">
+                        <strong>Structured</strong>
+                        <span>Arsitektur backend dibangun rapi untuk flow onboarding, tasking, dan prompt processing.</span>
+                    </div>
+                    <div class="mini-card">
+                        <strong>Responsive</strong>
+                        <span>Dirancang untuk pengalaman cepat, stabil, dan nyaman dipakai sebagai core service aplikasi.</span>
+                    </div>
+                    <div class="mini-card">
+                        <strong>Integrated</strong>
+                        <span>Satu source of truth untuk pengalaman app, AI, dan komunikasi berbasis percakapan.</span>
+                    </div>
                 </div>
             </div>
 
-            <aside class="side-panel">
-                <div class="info-card">
-                    <h3>One-screen Overview</h3>
+            <aside class="panel side">
+                <div class="showcase">
+                    <h2>Built to feel premium, not noisy.</h2>
                     <p>
-                        Fokus halaman ini cuma buat show off identitas produk dan fondasi teknisnya.
-                        Gak ada endpoint sensitif, gak ada dokumentasi API terbuka, dan gak ada detail kredensial yang tampil.
+                        Halaman ini sengaja dibuat sederhana, elegan, dan informatif.
+                        Fokusnya cuma menunjukkan identitas Zaid sebagai backend core yang modern,
+                        tanpa menampilkan detail internal, endpoint, credential, atau informasi sensitif lainnya.
                     </p>
                 </div>
 
@@ -523,50 +416,41 @@
                     <div class="feature-item">
                         <div class="feature-icon">🔐</div>
                         <div class="feature-text">
-                            <strong>Google Auth + OTP Email</strong>
-                            <span>Flow login simpel, aman, dan onboarding tetap terkontrol dari aplikasi.</span>
+                            <strong>Secure onboarding flow</strong>
+                            <span>Masuk dengan pengalaman yang terasa clean, aman, dan tetap terkontrol.</span>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📅</div>
+                        <div class="feature-text">
+                            <strong>Task & calendar intelligence</strong>
+                            <span>Mengelola agenda, pengingat, dan aktivitas dengan alur yang konsisten.</span>
                         </div>
                     </div>
                     <div class="feature-item">
                         <div class="feature-icon">🧠</div>
                         <div class="feature-text">
-                            <strong>Prompt AI Bahasa Indonesia</strong>
-                            <span>Perintah natural language diproses jadi aksi task, agenda, update, dan delete.</span>
+                            <strong>Natural language ready</strong>
+                            <span>Dirancang untuk menerima instruksi yang terasa natural dan mudah dipahami user.</span>
                         </div>
                     </div>
                     <div class="feature-item">
-                        <div class="feature-icon">💬</div>
+                        <div class="feature-icon">✨</div>
                         <div class="feature-text">
-                            <strong>WhatsApp + Mobile Sync</strong>
-                            <span>Satu data source untuk pengalaman app dan chat yang tetap sinkron.</span>
-                        </div>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feature-icon">⚡</div>
-                        <div class="feature-text">
-                            <strong>Production-minded Foundation</strong>
-                            <span>Rate limiting, validation, audit trail, upload flow, dan testing yang rapi.</span>
+                            <strong>Polished foundation</strong>
+                            <span>Lebih dari sekadar backend — ini adalah inti produk yang siap berkembang.</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="stack-card">
-                    <div class="chip">Laravel 13</div>
-                    <div class="chip">PostgreSQL</div>
-                    <div class="chip">Sanctum</div>
-                    <div class="chip">Socialite</div>
-                    <div class="chip">Gemini</div>
-                    <div class="chip">MiniMax</div>
-                </div>
-
-                <div class="footer-note">Zaid Service v1.0 — premium core for intelligent productivity</div>
+                <div class="signature">Zaid Service — quiet luxury for intelligent productivity</div>
             </aside>
         </section>
     </main>
 
     <script>
         const particles = document.getElementById('particles');
-        for (let i = 0; i < 26; i++) {
+        for (let i = 0; i < 24; i++) {
             const p = document.createElement('div');
             p.className = 'particle';
             p.style.left = (Math.random() * 100) + '%';
