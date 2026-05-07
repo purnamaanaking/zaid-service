@@ -7,6 +7,7 @@ use App\Models\PromptAction;
 use App\Models\PromptRequest;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use App\Services\Agenda\AgendaQueryService;
 use App\Services\Tasks\TaskMutationService;
 use Illuminate\Support\Facades\DB;
@@ -81,7 +82,7 @@ class PromptCommandService
                     'entities' => $parsed['entities'],
                 ],
                 'result' => null,
-                'human_response' => null,
+                'human_response' => 'Biar aman, aku konfirmasi dulu ya. Ini maksudmu sudah benar belum?',
             ];
         }
 
@@ -219,22 +220,27 @@ class PromptCommandService
      */
     private function executeUpdate(PromptRequest $promptRequest, User $user, array $entities, string $channel): array
     {
-        $searchQuery = $entities['search_query'] ?? $entities['title'] ?? null;
+        $matches = $this->resolveTaskCandidates($user, $entities);
 
-        if ($searchQuery === null) {
-            return ['action' => 'update_task', 'human_response' => 'Aku belum nemu task mana yang mau kamu ubah.'];
+        if ($matches->isEmpty()) {
+            return ['action' => 'update_task', 'human_response' => 'Aku belum nemu task mana yang mau kamu ubah. Coba sebut judul atau jamnya lebih jelas ya.'];
         }
 
-        $task = Task::query()
-            ->where('user_id', $user->id)
-            ->where('title', 'ilike', "%{$searchQuery}%")
-            ->first();
-
-        if ($task === null) {
-            return ['action' => 'update_task', 'human_response' => "Aku belum nemu task dengan kata kunci \"{$searchQuery}\"."];
+        if ($matches->count() > 1) {
+            return [
+                'action' => 'update_task',
+                'requires_confirmation' => true,
+                'candidates' => $matches->map(fn (Task $task) => [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'scheduled_date' => $task->scheduled_date?->format('Y-m-d'),
+                    'scheduled_time' => $task->scheduled_time,
+                ])->all(),
+                'human_response' => "Aku nemu beberapa task yang mirip. Maksudmu yang mana?\n".$matches->values()->map(fn (Task $task, int $index) => ($index + 1).'. '.$task->title.($task->scheduled_time ? ' - '.$task->scheduled_time : ''))->implode("\n"),
+            ];
         }
 
-        $task = $this->taskMutationService->update($task, $user, $entities, $channel, $promptRequest->id);
+        $task = $this->taskMutationService->update($matches->first(), $user, $entities, $channel, $promptRequest->id);
 
         PromptAction::query()->create([
             'prompt_request_id' => $promptRequest->id,
@@ -259,21 +265,27 @@ class PromptCommandService
      */
     private function executeDelete(PromptRequest $promptRequest, User $user, array $entities, string $channel): array
     {
-        $searchQuery = $entities['search_query'] ?? $entities['title'] ?? null;
+        $matches = $this->resolveTaskCandidates($user, $entities);
 
-        if ($searchQuery === null) {
-            return ['action' => 'delete_task', 'human_response' => 'Aku belum nemu task mana yang mau kamu hapus.'];
+        if ($matches->isEmpty()) {
+            return ['action' => 'delete_task', 'human_response' => 'Aku belum nemu task mana yang mau kamu hapus. Coba sebut judul atau jamnya lebih jelas ya.'];
         }
 
-        $task = Task::query()
-            ->where('user_id', $user->id)
-            ->where('title', 'ilike', "%{$searchQuery}%")
-            ->first();
-
-        if ($task === null) {
-            return ['action' => 'delete_task', 'human_response' => "Aku belum nemu task dengan kata kunci \"{$searchQuery}\"."];
+        if ($matches->count() > 1) {
+            return [
+                'action' => 'delete_task',
+                'requires_confirmation' => true,
+                'candidates' => $matches->map(fn (Task $task) => [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'scheduled_date' => $task->scheduled_date?->format('Y-m-d'),
+                    'scheduled_time' => $task->scheduled_time,
+                ])->all(),
+                'human_response' => "Aku nemu beberapa task yang mirip. Maksudmu yang mana mau dihapus?\n".$matches->values()->map(fn (Task $task, int $index) => ($index + 1).'. '.$task->title.($task->scheduled_time ? ' - '.$task->scheduled_time : ''))->implode("\n"),
+            ];
         }
 
+        $task = $matches->first();
         $title = $task->title;
         $this->taskMutationService->delete($task, $user, $channel, $promptRequest->id);
 
@@ -291,5 +303,34 @@ class PromptCommandService
             'action' => 'delete_task',
             'human_response' => "Oke, task \"{$title}\" udah aku hapus.",
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $entities
+     * @return EloquentCollection<int, Task>
+     */
+    private function resolveTaskCandidates(User $user, array $entities): EloquentCollection
+    {
+        $query = Task::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at');
+
+        if (! empty($entities['title'])) {
+            $query->where('title', 'ilike', '%'.$entities['title'].'%');
+        } elseif (! empty($entities['search_query'])) {
+            $normalized = str_replace('.', ':', (string) $entities['search_query']);
+            $query->where(function ($builder) use ($normalized) {
+                $builder->where('title', 'ilike', '%'.$normalized.'%')
+                    ->orWhere('description', 'ilike', '%'.$normalized.'%')
+                    ->orWhereRaw("to_char(scheduled_time, 'HH24:MI:SS') LIKE ?", ['%'.$normalized.'%'])
+                    ->orWhereRaw("to_char(scheduled_time, 'HH24:MI') LIKE ?", ['%'.$normalized.'%']);
+            });
+        }
+
+        if (! empty($entities['scheduled_date'])) {
+            $query->whereDate('scheduled_date', $entities['scheduled_date']);
+        }
+
+        return $query->orderBy('scheduled_date')->orderBy('scheduled_time')->limit(5)->get();
     }
 }
