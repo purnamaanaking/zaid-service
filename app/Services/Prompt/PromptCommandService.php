@@ -50,7 +50,7 @@ class PromptCommandService
                 'intent' => null,
                 'requires_confirmation' => false,
                 'result' => null,
-                'human_response' => 'Maaf, aku tidak bisa memahami perintah itu.',
+                'human_response' => 'Maaf ya, aku masih belum nangkep maksud perintahmu. Coba tulis lebih spesifik, misalnya "cek jadwal hari ini" atau "buat task meeting besok jam 9".',
             ];
         }
 
@@ -63,7 +63,7 @@ class PromptCommandService
                 'intent' => $parsed['intent'],
                 'requires_confirmation' => false,
                 'result' => null,
-                'human_response' => 'Maaf, perintah itu belum didukung.',
+                'human_response' => 'Aku belum bisa bantu untuk permintaan itu lewat WhatsApp. Coba minta cek jadwal, buat task, ubah task, atau hapus task ya.',
             ];
         }
 
@@ -77,7 +77,7 @@ class PromptCommandService
                 'confidence_score' => $parsed['confidence_score'],
                 'requires_confirmation' => true,
                 'confirmation' => [
-                    'question' => 'Apakah ini sudah benar?',
+                    'question' => 'Biar aman, aku konfirmasi dulu ya. Ini maksudmu sudah benar belum?',
                     'entities' => $parsed['entities'],
                 ],
                 'result' => null,
@@ -99,7 +99,7 @@ class PromptCommandService
             return [
                 'prompt_request_id' => $promptRequest->id,
                 'result' => null,
-                'human_response' => 'Perintah dibatalkan.',
+                'human_response' => 'Oke, aku batalin dulu ya.',
             ];
         }
 
@@ -129,7 +129,7 @@ class PromptCommandService
                 'READ' => $this->executeRead($user, $entities),
                 'UPDATE' => $this->executeUpdate($promptRequest, $user, $entities, $channel),
                 'DELETE' => $this->executeDelete($promptRequest, $user, $entities, $channel),
-                default => ['action' => 'unknown', 'human_response' => 'Perintah tidak dikenali.'],
+                default => ['action' => 'unknown', 'human_response' => 'Maaf, aku belum ngerti maksud perintah itu.'],
             };
 
             $promptRequest->update([
@@ -182,7 +182,7 @@ class PromptCommandService
         return [
             'action' => 'create_task',
             'task' => $task->toArray(),
-            'human_response' => "Siap, task \"{$task->title}\" berhasil dibuat{$recurrenceText}.",
+            'human_response' => "Siap, aku udah buatin task \"{$task->title}\"{$recurrenceText}.",
         ];
     }
 
@@ -199,7 +199,7 @@ class PromptCommandService
             return [
                 'action' => 'read_agenda',
                 'items' => [],
-                'human_response' => "Tidak ada agenda untuk tanggal {$date}.",
+                'human_response' => "Belum ada jadwal untuk tanggal {$date}.",
             ];
         }
 
@@ -209,7 +209,7 @@ class PromptCommandService
             'action' => 'read_agenda',
             'date' => $date,
             'items' => $items->toArray(),
-            'human_response' => "Agenda {$date}:\n{$lines}",
+            'human_response' => "Jadwal kamu di tanggal {$date}:\n{$lines}",
         ];
     }
 
@@ -222,7 +222,7 @@ class PromptCommandService
         $searchQuery = $entities['search_query'] ?? $entities['title'] ?? null;
 
         if ($searchQuery === null) {
-            return ['action' => 'update_task', 'human_response' => 'Task yang mau diubah tidak ditemukan.'];
+            return ['action' => 'update_task', 'human_response' => 'Aku belum nemu task mana yang mau kamu ubah.'];
         }
 
         $task = Task::query()
@@ -231,7 +231,7 @@ class PromptCommandService
             ->first();
 
         if ($task === null) {
-            return ['action' => 'update_task', 'human_response' => "Task \"{$searchQuery}\" tidak ditemukan."];
+            return ['action' => 'update_task', 'human_response' => "Aku belum nemu task dengan kata kunci \"{$searchQuery}\"."];
         }
 
         $task = $this->taskMutationService->update($task, $user, $entities, $channel, $promptRequest->id);
@@ -249,7 +249,7 @@ class PromptCommandService
         return [
             'action' => 'update_task',
             'task' => $task->toArray(),
-            'human_response' => "Task \"{$task->title}\" berhasil diubah.",
+            'human_response' => "Siap, task \"{$task->title}\" udah aku update.",
         ];
     }
 
@@ -262,7 +262,7 @@ class PromptCommandService
         $searchQuery = $entities['search_query'] ?? $entities['title'] ?? null;
 
         if ($searchQuery === null) {
-            return ['action' => 'delete_task', 'human_response' => 'Task yang mau dihapus tidak ditemukan.'];
+            return ['action' => 'delete_task', 'human_response' => 'Aku belum nemu task mana yang mau kamu hapus.'];
         }
 
         $task = Task::query()
@@ -271,7 +271,7 @@ class PromptCommandService
             ->first();
 
         if ($task === null) {
-            return ['action' => 'delete_task', 'human_response' => "Task \"{$searchQuery}\" tidak ditemukan."];
+            return ['action' => 'delete_task', 'human_response' => "Aku belum nemu task dengan kata kunci \"{$searchQuery}\"."];
         }
 
         $title = $task->title;
@@ -289,7 +289,7 @@ class PromptCommandService
 
         return [
             'action' => 'delete_task',
-            'human_response' => "Task \"{$title}\" berhasil dihapus.",
+            'human_response' => "Oke, task \"{$title}\" udah aku hapus.",
         ];
     }
 }

@@ -196,7 +196,7 @@ class WhatsappWebhookService
             'processing_status' => 'executed',
         ]);
 
-        $replyText = $result['human_response'] ?? 'Siap, perintah sudah diproses.';
+        $replyText = $result['human_response'] ?? 'Siap, aku bantu proses ya.';
 
         WhatsappMessage::query()->create([
             'user_id' => $user->id,

@@ -772,6 +772,11 @@ GET /api/v1/integrations/google-calendar/connect
 GET /api/v1/integrations/google-calendar/callback?code=...&state=...
 ```
 
+### Notes
+- This callback is public and does not require a bearer token.
+- Production redirect URI: `https://zaid-assist.my.id/api/v1/integrations/google-calendar/callback`
+- Successful browser callback redirects to `GET /integrations/google-calendar/connected`.
+
 ## 12.3 Integration Status
 ```http
 GET /api/v1/integrations/google-calendar/status
@@ -881,6 +886,11 @@ Provider signature/verification, not user token.
    - execute or clarify
    - send WhatsApp reply
    - store outbound message log
+
+### Production WAHA Notes
+- WAHA session webhook must point to `https://zaid-assist.my.id/api/v1/webhooks/whatsapp`
+- `http://43.134.61.160/api/v1/webhooks/whatsapp` is obsolete and causes 404 webhook delivery failures
+- WAHA session update on the current deployment uses `PUT /api/sessions/default`
 
 ### Example Internal Outcomes
 #### A. Unknown sender
