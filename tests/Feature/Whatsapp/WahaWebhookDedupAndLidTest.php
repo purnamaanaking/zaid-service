@@ -64,6 +64,11 @@ class WahaWebhookDedupAndLidTest extends TestCase
             'sender_phone_e164' => '+6281556796240',
             'processing_status' => 'executed',
         ]);
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'http://waha.test/api/sendText'
+                && $request['chatId'] === '6281556796240@c.us';
+        });
     }
 
     public function test_duplicate_waha_events_with_same_message_id_are_ignored_without_failing(): void

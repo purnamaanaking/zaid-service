@@ -206,7 +206,7 @@ class WhatsappWebhookService
             'processing_status' => 'replied',
         ]);
 
-        $this->senderService->send($senderRaw, $replyText);
+        $this->senderService->send($senderE164, $replyText);
     }
 
     private function resolveSenderPhoneE164(string $senderRaw): string
