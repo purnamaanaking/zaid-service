@@ -2,20 +2,29 @@
 
 namespace Tests\Feature\Whatsapp;
 
-use App\Contracts\Prompt\PromptParser;
 use App\Models\User;
 use App\Models\UserPhone;
 use Illuminate\Support\Facades\Http;
-use Tests\Fakes\Prompt\FakePromptParser;
 use Tests\TestCase;
 
 class WahaWebhookTest extends TestCase
 {
+    private function fakeOpenAiAgentResponse(string $reply, ?array $action = null): void
+    {
+        $json = json_encode(['reply' => $reply, 'action' => $action]);
+
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [['message' => ['content' => $json]]],
+            ]),
+            '*' => Http::response([], 200),
+        ]);
+    }
+
     public function test_waha_inbound_message_is_processed(): void
     {
         config(['services.whatsapp.driver' => 'waha']);
-        $this->app->bind(PromptParser::class, fn () => new FakePromptParser());
-        Http::fake();
+        $this->fakeOpenAiAgentResponse('Jadwal hari ini kosong.');
 
         $user = User::factory()->active()->create();
         UserPhone::query()->create([
@@ -52,9 +61,12 @@ class WahaWebhookTest extends TestCase
             'services.whatsapp.driver' => 'waha',
             'services.waha.base_url' => 'http://waha.test',
         ]);
-        $this->app->bind(PromptParser::class, fn () => new FakePromptParser());
+
         Http::fake([
             'http://file.waha.test/image.jpg' => Http::response('fake-image-bytes', 200, ['Content-Type' => 'image/jpeg']),
+            '*/chat/completions' => Http::response([
+                'choices' => [['message' => ['content' => json_encode(['reply' => 'Aku lihat gambarnya.', 'action' => null])]]],
+            ]),
             '*' => Http::response([], 200),
         ]);
 

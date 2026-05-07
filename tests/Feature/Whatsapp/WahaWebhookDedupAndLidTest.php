@@ -2,16 +2,29 @@
 
 namespace Tests\Feature\Whatsapp;
 
-use App\Contracts\Prompt\PromptParser;
 use App\Models\User;
 use App\Models\UserPhone;
 use App\Models\WhatsappMessage;
 use Illuminate\Support\Facades\Http;
-use Tests\Fakes\Prompt\FakePromptParser;
 use Tests\TestCase;
 
 class WahaWebhookDedupAndLidTest extends TestCase
 {
+    private function fakeAgentAndWaha(): void
+    {
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [['message' => ['content' => json_encode(['reply' => 'Yo!', 'action' => null])]]],
+            ]),
+            'http://waha.test/api/default/lids/*' => Http::response([
+                'lid' => '192002369028278@lid',
+                'pn' => '6281556796240@c.us',
+            ], 200),
+            'http://waha.test/api/sendText' => Http::response(['success' => true], 201),
+            '*' => Http::response([], 200),
+        ]);
+    }
+
     public function test_waha_lid_message_is_matched_to_verified_user_via_lid_lookup(): void
     {
         config([
@@ -20,15 +33,7 @@ class WahaWebhookDedupAndLidTest extends TestCase
             'services.waha.api_key' => 'test-key',
         ]);
 
-        $this->app->bind(PromptParser::class, fn () => new FakePromptParser());
-
-        Http::fake([
-            'http://waha.test/api/default/lids/*' => Http::response([
-                'lid' => '192002369028278@lid',
-                'pn' => '6281556796240@c.us',
-            ], 200),
-            'http://waha.test/api/sendText' => Http::response(['success' => true], 201),
-        ]);
+        $this->fakeAgentAndWaha();
 
         $user = User::factory()->active()->create();
         UserPhone::query()->create([
@@ -79,11 +84,7 @@ class WahaWebhookDedupAndLidTest extends TestCase
             'services.waha.api_key' => 'test-key',
         ]);
 
-        $this->app->bind(PromptParser::class, fn () => new FakePromptParser());
-
-        Http::fake([
-            'http://waha.test/api/sendText' => Http::response(['success' => true], 201),
-        ]);
+        $this->fakeAgentAndWaha();
 
         $user = User::factory()->active()->create();
         UserPhone::query()->create([
