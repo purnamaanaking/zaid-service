@@ -19,27 +19,47 @@ class GoogleCalendarApiService
     public function listChanges(UserCalendarConnection $connection, ?string $syncToken = null): array
     {
         $accessToken = $this->getValidAccessToken($connection);
+        $items = [];
+        $nextPageToken = null;
+        $nextSyncToken = null;
+        $status = 200;
 
-        $response = Http::withToken($accessToken)
-            ->get('https://www.googleapis.com/calendar/v3/calendars/'.$connection->google_calendar_id.'/events', array_filter([
-                'singleEvents' => 'true',
-                'showDeleted' => 'true',
-                'syncToken' => $syncToken,
-            ], fn ($value) => $value !== null));
+        do {
+            $response = Http::withToken($accessToken)
+                ->get('https://www.googleapis.com/calendar/v3/calendars/'.$connection->google_calendar_id.'/events', array_filter([
+                    'singleEvents' => 'true',
+                    'showDeleted' => 'true',
+                    'syncToken' => $syncToken,
+                    'pageToken' => $nextPageToken,
+                ], fn ($value) => $value !== null));
 
-        if (! $response->successful()) {
-            $connection->update([
-                'status' => $response->status() === 410 ? 'error' : $connection->status,
-                'last_error_at' => now(),
-                'last_error_message' => (string) ($response->json('error.message') ?? $response->body()),
-            ]);
-        }
+            $status = $response->status();
+
+            if (! $response->successful()) {
+                $connection->update([
+                    'status' => $response->status() === 410 ? 'error' : $connection->status,
+                    'last_error_at' => now(),
+                    'last_error_message' => (string) ($response->json('error.message') ?? $response->body()),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'status' => $status,
+                    'items' => [],
+                    'next_sync_token' => null,
+                ];
+            }
+
+            $items = array_merge($items, $response->json('items', []));
+            $nextPageToken = $response->json('nextPageToken');
+            $nextSyncToken = $response->json('nextSyncToken', $nextSyncToken);
+        } while ($nextPageToken);
 
         return [
-            'ok' => $response->successful(),
-            'status' => $response->status(),
-            'items' => $response->json('items', []),
-            'next_sync_token' => $response->json('nextSyncToken'),
+            'ok' => true,
+            'status' => $status,
+            'items' => $items,
+            'next_sync_token' => $nextSyncToken,
         ];
     }
 
