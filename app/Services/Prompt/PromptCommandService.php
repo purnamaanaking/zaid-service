@@ -22,9 +22,12 @@ class PromptCommandService
     /**
      * @return array<string, mixed>
      */
-    public function process(User $user, string $text, string $channel = 'app_prompt'): array
+    /**
+     * @param  array<int, array{type: string, url?: string, mime_type?: string, text?: string}>|null  $attachments
+     */
+    public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null): array
     {
-        $parsed = $this->parser->parse($text, $user->id);
+        $parsed = $this->parser->parse($text, $user->id, $attachments);
 
         $promptRequest = PromptRequest::query()->create([
             'user_id' => $user->id,

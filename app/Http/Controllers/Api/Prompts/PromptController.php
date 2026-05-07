@@ -14,12 +14,19 @@ class PromptController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $request->validate(['text' => ['required', 'string']]);
+        $request->validate([
+            'text' => ['required', 'string'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*.type' => ['required_with:attachments', 'string', 'in:image,audio_transcription'],
+            'attachments.*.url' => ['nullable', 'string'],
+            'attachments.*.text' => ['nullable', 'string'],
+        ]);
 
         $result = $this->promptCommandService->process(
             $request->user(),
             $request->string('text')->toString(),
             'app_prompt',
+            $request->input('attachments'),
         );
 
         return response()->json([

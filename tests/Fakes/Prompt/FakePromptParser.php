@@ -11,7 +11,7 @@ class FakePromptParser implements PromptParser
      */
     public function __construct(private readonly ?array $fixedResult = null) {}
 
-    public function parse(string $text, string $userId): array
+    public function parse(string $text, string $userId, ?array $attachments = null): array
     {
         if ($this->fixedResult !== null) {
             return $this->fixedResult;

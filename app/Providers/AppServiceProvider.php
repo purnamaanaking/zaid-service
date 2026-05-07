@@ -19,7 +19,10 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(PromptParser::class, function (): OpenAiPromptParser {
             return new OpenAiPromptParser(
-                model: config('services.openai.model', 'gpt-4o-mini'),
+                modelText: config('services.openai.model_text', 'MiniMax-M2.7-highspeed'),
+                modelMultimodal: config('services.openai.model_multimodal', 'gemini/gemini-2.0-flash'),
+                apiKey: config('services.openai.api_key', ''),
+                apiBase: config('services.openai.api_base', 'https://api.openai.com/v1'),
             );
         });
     }

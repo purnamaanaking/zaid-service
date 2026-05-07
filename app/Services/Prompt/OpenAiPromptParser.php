@@ -3,8 +3,8 @@
 namespace App\Services\Prompt;
 
 use App\Contracts\Prompt\PromptParser;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use OpenAI\Laravel\Facades\OpenAI;
 use Throwable;
 
 class OpenAiPromptParser implements PromptParser
@@ -44,37 +44,68 @@ Rules:
 - If intent is READ, set search_query to capture the user's filter criteria.
 - If command is unclear or ambiguous, set requires_confirmation to true and parse_status to "ambiguous".
 - If command is not task/calendar related, set parse_status to "unsupported".
+- If an image is attached, analyze the image for any schedule, task, or calendar information and extract it.
+- If a voice transcription is provided, parse the transcription as the user's command.
 PROMPT;
 
-    public function __construct(private readonly string $model) {}
+    public function __construct(
+        private readonly string $modelText,
+        private readonly string $modelMultimodal,
+        private readonly string $apiKey,
+        private readonly string $apiBase,
+    ) {}
 
-    public function parse(string $text, string $userId): array
+    public function parse(string $text, string $userId, ?array $attachments = null): array
     {
+        $hasMedia = ! empty($attachments);
+        $model = $hasMedia ? $this->modelMultimodal : $this->modelText;
         $today = now()->format('Y-m-d');
 
-        try {
-            $response = OpenAI::chat()->create([
-                'model' => $this->model,
-                'response_format' => ['type' => 'json_object'],
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => self::SYSTEM_PROMPT."\n\nTODAY = {$today}",
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => $text,
-                    ],
-                ],
-                'max_tokens' => 512,
-                'temperature' => 0.1,
-            ]);
+        $userContent = $this->buildUserContent($text, $attachments);
 
-            $content = $response->choices[0]->message->content ?? '{}';
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$this->apiKey}",
+                'Content-Type' => 'application/json',
+            ])
+                ->timeout(30)
+                ->post("{$this->apiBase}/chat/completions", [
+                    'model' => $model,
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => self::SYSTEM_PROMPT."\n\nTODAY = {$today}",
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $userContent,
+                        ],
+                    ],
+                    'max_tokens' => 512,
+                    'temperature' => 0.1,
+                ]);
+
+            if (! $response->successful()) {
+                Log::error('Prompt parser API failed.', [
+                    'model' => $model,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'user_id' => $userId,
+                ]);
+
+                return $this->failedResult();
+            }
+
+            $content = $response->json('choices.0.message.content', '{}');
+
+            $content = preg_replace('/^```(?:json)?\s*/', '', trim($content));
+            $content = preg_replace('/\s*```$/', '', $content);
+
             $parsed = json_decode($content, true);
 
             if (! is_array($parsed) || ! isset($parsed['intent'])) {
-                Log::warning('OpenAI parser returned invalid JSON.', [
+                Log::warning('Prompt parser returned invalid JSON.', [
+                    'model' => $model,
                     'raw' => $content,
                     'user_id' => $userId,
                 ]);
@@ -84,13 +115,52 @@ PROMPT;
 
             return $parsed;
         } catch (Throwable $e) {
-            Log::error('OpenAI prompt parser error.', [
+            Log::error('Prompt parser error.', [
+                'model' => $model,
                 'error' => $e->getMessage(),
                 'user_id' => $userId,
             ]);
 
             return $this->failedResult();
         }
+    }
+
+    /**
+     * @param  array<int, array{type: string, url?: string, mime_type?: string}>|null  $attachments
+     * @return string|array<int, array<string, mixed>>
+     */
+    private function buildUserContent(string $text, ?array $attachments): string|array
+    {
+        if (empty($attachments)) {
+            return $text;
+        }
+
+        $parts = [];
+
+        $parts[] = [
+            'type' => 'text',
+            'text' => $text,
+        ];
+
+        foreach ($attachments as $attachment) {
+            if ($attachment['type'] === 'image' && isset($attachment['url'])) {
+                $parts[] = [
+                    'type' => 'image_url',
+                    'image_url' => [
+                        'url' => $attachment['url'],
+                    ],
+                ];
+            }
+
+            if ($attachment['type'] === 'audio_transcription' && isset($attachment['text'])) {
+                $parts[] = [
+                    'type' => 'text',
+                    'text' => "[Voice message transcription]: {$attachment['text']}",
+                ];
+            }
+        }
+
+        return $parts;
     }
 
     private function failedResult(): array

@@ -4,7 +4,9 @@ return [
 
     'openai' => [
         'api_key' => env('OPENAI_API_KEY', ''),
-        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'api_base' => env('OPENAI_API_BASE', 'https://api.openai.com/v1'),
+        'model_text' => env('OPENAI_MODEL_TEXT', 'MiniMax-M2.7-highspeed'),
+        'model_multimodal' => env('OPENAI_MODEL_MULTIMODAL', 'gemini/gemini-2.0-flash'),
     ],
 
     'google' => [
