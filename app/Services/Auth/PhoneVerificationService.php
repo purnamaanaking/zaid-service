@@ -60,7 +60,7 @@ class PhoneVerificationService
             $verification = PhoneVerification::query()->create([
                 'user_phone_id' => $userPhone->id,
                 'otp_code_hash' => Hash::make($otpCode),
-                'channel' => 'sms',
+                'channel' => 'email',
                 'status' => 'pending',
                 'expires_at' => now()->addMinutes(5),
                 'attempt_count' => 0,
@@ -74,7 +74,7 @@ class PhoneVerificationService
                 'created_at' => now(),
             ]);
 
-            SendOtpJob::dispatch($normalized, $otpCode, $verification->id);
+            SendOtpJob::dispatch($user->email, $otpCode, $verification->id, $user->full_name ?? 'User');
 
             return [
                 'phone_number' => $normalized,
