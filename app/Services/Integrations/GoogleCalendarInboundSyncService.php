@@ -46,8 +46,21 @@ class GoogleCalendarInboundSyncService
             ->where('google_event_id', $event['id'])
             ->first();
 
-        if (($event['status'] ?? 'confirmed') === 'cancelled' && $link && $link->task) {
-            $link->task->delete();
+        if (! $link) {
+            $link = CalendarEventLink::query()
+                ->where('user_calendar_connection_id', $connection->id)
+                ->where('google_event_id', $event['id'])
+                ->with('task')
+                ->first();
+        }
+
+        $linkedTask = $link?->task()->withTrashed()->first();
+
+        if (($event['status'] ?? 'confirmed') === 'cancelled' && $link && $linkedTask) {
+            if (! $linkedTask->trashed()) {
+                $linkedTask->delete();
+            }
+
             $link->update([
                 'google_event_etag' => $event['etag'] ?? null,
                 'remote_status' => 'cancelled',
@@ -57,15 +70,15 @@ class GoogleCalendarInboundSyncService
                 'sync_error' => null,
             ]);
 
-            $this->log($connection, $link->task, $link, 'delete', 'success', $event);
+            $this->log($connection, $linkedTask, $link, 'delete', 'success', $event);
 
             return;
         }
 
         $taskData = $this->transformer->googleEventToTaskData($event);
 
-        if ($link && $link->task) {
-            $task = $link->task;
+        if ($link && $linkedTask) {
+            $task = $linkedTask;
             $remoteUpdatedAt = isset($event['updated']) ? now()->parse($event['updated']) : null;
             $decision = $this->conflictResolver->resolve(
                 $link->last_synced_at,
@@ -119,18 +132,42 @@ class GoogleCalendarInboundSyncService
             'is_recurring' => false,
         ]);
 
-        $link = CalendarEventLink::query()->create([
-            'task_id' => $task->id,
-            'user_calendar_connection_id' => $connection->id,
-            'google_event_id' => $event['id'],
-            'google_event_etag' => $event['etag'] ?? null,
-            'remote_status' => $event['status'] ?? null,
-            'remote_updated_at' => isset($event['updated']) ? now()->parse($event['updated']) : null,
-            'last_synced_at' => now(),
-            'last_synced_payload_hash' => hash('sha256', json_encode($event, JSON_THROW_ON_ERROR)),
-            'sync_status' => 'synced',
-            'sync_error' => null,
-        ]);
+        $link = CalendarEventLink::query()->firstOrCreate(
+            [
+                'user_calendar_connection_id' => $connection->id,
+                'google_event_id' => $event['id'],
+            ],
+            [
+                'task_id' => $task->id,
+                'google_event_etag' => $event['etag'] ?? null,
+                'remote_status' => $event['status'] ?? null,
+                'remote_updated_at' => isset($event['updated']) ? now()->parse($event['updated']) : null,
+                'last_synced_at' => now(),
+                'last_synced_payload_hash' => hash('sha256', json_encode($event, JSON_THROW_ON_ERROR)),
+                'sync_status' => 'synced',
+                'sync_error' => null,
+            ],
+        );
+
+        if ((string) $link->task_id !== (string) $task->id) {
+            $task->delete();
+
+            $link->update([
+                'google_event_etag' => $event['etag'] ?? null,
+                'remote_status' => $event['status'] ?? null,
+                'remote_updated_at' => isset($event['updated']) ? now()->parse($event['updated']) : null,
+                'last_synced_at' => now(),
+                'last_synced_payload_hash' => hash('sha256', json_encode($event, JSON_THROW_ON_ERROR)),
+                'sync_status' => 'synced',
+                'sync_error' => null,
+            ]);
+
+            if ($linkedTask) {
+                $this->log($connection, $linkedTask, $link, 'update', 'success', $event);
+            }
+
+            return;
+        }
 
         $this->log($connection, $task, $link, 'create', 'success', $event);
     }
