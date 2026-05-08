@@ -183,6 +183,24 @@
             color: var(--muted);
         }
 
+        .legal-links {
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            margin-top: 18px;
+            font-size: 13px;
+        }
+
+        .legal-links a {
+            color: var(--muted);
+            text-decoration: none;
+            transition: color .2s ease;
+        }
+
+        .legal-links a:hover {
+            color: var(--purple-3);
+        }
+
         .panel {
             padding: 28px;
         }
@@ -388,6 +406,10 @@
                     <div class="mini"><strong>1. Google Auth</strong><span>Masuk pakai akun Google user.</span></div>
                     <div class="mini"><strong>2. Verify No. HP</strong><span>Kirim OTP ke WhatsApp, fallback ke email kalau perlu.</span></div>
                     <div class="mini"><strong>3. Connect Calendar</strong><span>Opsional, dilakukan setelah onboarding selesai.</span></div>
+                </div>
+                <div class="legal-links">
+                    <a href="/privacy">Privacy Policy</a>
+                    <a href="/terms">Terms of Service</a>
                 </div>
             </div>
 
