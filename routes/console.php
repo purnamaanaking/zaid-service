@@ -11,3 +11,10 @@ Artisan::command('inspire', function () {
 Artisan::command('google-calendar:sync-run', function () {
     $this->call(SyncGoogleCalendarChangesCommand::class);
 })->purpose('Dispatch Google Calendar sync jobs for connected users');
+
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('google-calendar:sync')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();

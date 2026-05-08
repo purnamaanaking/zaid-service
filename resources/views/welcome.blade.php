@@ -458,11 +458,35 @@
         }
 
         async function api(path, options = {}) {
-            const response = await fetch(apiBase + path, options);
+            const finalOptions = {
+                ...options,
+                headers: {
+                    Accept: 'application/json',
+                    ...(options.headers || {}),
+                },
+            };
+
+            const response = await fetch(apiBase + path, finalOptions);
             const text = await response.text();
             let data = null;
-            try { data = JSON.parse(text); } catch { data = { success: false, message: text || 'Unknown response' }; }
-            if (!response.ok) throw data;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                data = {
+                    success: false,
+                    message: response.status === 429
+                        ? 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.'
+                        : (text || 'Unknown response'),
+                };
+            }
+
+            if (!response.ok) {
+                if (response.status === 429 && !data.message) {
+                    data.message = 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.';
+                }
+                throw data;
+            }
+
             return data;
         }
 

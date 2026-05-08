@@ -36,7 +36,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('otp', function (Request $request) {
-            return Limit::perMinute(3)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(5)->by(($request->user()?->id ?: $request->ip()).'|'.($request->input('phone_number') ?? 'otp'));
         });
 
         RateLimiter::for('prompt', function (Request $request) {
