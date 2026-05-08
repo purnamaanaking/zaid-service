@@ -310,4 +310,36 @@ class WhatsappAgentTest extends TestCase
             return str_contains($request->url(), 'chat/completions');
         });
     }
+
+    public function test_quick_read_overdue_returns_only_overdue_pending_tasks(): void
+    {
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Task Overdue',
+            'scheduled_date' => now()->subDay()->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+        ]);
+
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Task Future',
+            'scheduled_date' => now()->addDay()->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+        ]);
+
+        Http::fake();
+
+        $this->sendWhatsApp('yang overdue apa?', 'wamid-overdue');
+
+        $reply = $this->getReplyText('wamid-overdue');
+
+        $this->assertStringContainsString('overdue', strtolower($reply));
+        $this->assertStringContainsString('Task Overdue', $reply);
+        $this->assertStringNotContainsString('Task Future', $reply);
+        Http::assertNotSent(function ($request) {
+            return str_contains($request->url(), 'chat/completions');
+        });
+    }
 }

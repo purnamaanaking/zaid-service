@@ -413,12 +413,40 @@ PROMPT;
         $asksTasks = preg_match('/\b(task|tasks|tugas|todo|to-do)\b/u', $text) === 1;
         $asksSchedule = preg_match('/\b(jadwal|agenda|calendar|kalender)\b/u', $text) === 1;
         $asksPending = preg_match('/\b(belum|blom|pending|belum selesai|belom selesai|belum kelar|blom kelar|belom kelar)\b/u', $text) === 1;
+        $asksOverdue = preg_match('/\b(overdue|telat|kelewat|lewat deadline|jatuh tempo)\b/u', $text) === 1;
         $asksToday = preg_match('/\b(hari ini|hr ini|today|sekarang)\b/u', $text) === 1;
         $asksMine = preg_match('/\b(gua|gue|gw|aku|saya|ku)\b/u', $text) === 1;
-        $asksList = preg_match('/\b(cek|lihat|list|apa|apa aja|apa saja|mana)\b/u', $text) === 1;
+        $asksList = preg_match('/\b(cek|lihat|list|apa|apa aja|apa saja|mana|yang)\b/u', $text) === 1;
 
-        if (! ($asksTasks || $asksSchedule) || ! ($asksList || $asksMine || $asksPending || $asksToday)) {
+        if (! ($asksTasks || $asksSchedule || $asksOverdue) || ! ($asksList || $asksMine || $asksPending || $asksToday || $asksOverdue)) {
             return null;
+        }
+
+        if ($asksOverdue) {
+            $items = Task::query()
+                ->where('user_id', $user->id)
+                ->whereNull('deleted_at')
+                ->where('status', 'pending')
+                ->whereNotNull('scheduled_date')
+                ->whereDate('scheduled_date', '<', $today)
+                ->orderBy('scheduled_date')
+                ->orderBy('scheduled_time')
+                ->limit(10)
+                ->get();
+
+            if ($items->isEmpty()) {
+                return 'Overdue kamu aman bro, lagi ga ada yang kelewat ✅';
+            }
+
+            $lines = $items->values()->map(function (Task $task, int $index) {
+                $suffix = $task->scheduled_time
+                    ? ' - '.$task->scheduled_date->format('Y-m-d').' '.substr((string) $task->scheduled_time, 0, 5)
+                    : ' - '.$task->scheduled_date->format('Y-m-d');
+
+                return ($index + 1).'. '.$task->title.$suffix;
+            })->implode("\n");
+
+            return "Yang overdue:\n{$lines}";
         }
 
         if ($asksToday && ($asksTasks || $asksSchedule)) {
