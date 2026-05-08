@@ -13,7 +13,7 @@ class GoogleCalendarStatusController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Google Calendar integration status fetched.',
+            'message' => 'Google Calendar & Tasks integration status fetched.',
             'data' => [
                 'connected' => $connection?->status === 'connected',
                 'connection' => $connection ? [
@@ -26,6 +26,10 @@ class GoogleCalendarStatusController extends Controller
                     'last_error_at' => $connection->last_error_at,
                     'last_error_message' => $connection->last_error_message,
                 ] : null,
+                'includes' => [
+                    'google_calendar' => true,
+                    'google_tasks' => true,
+                ],
             ],
         ]);
     }

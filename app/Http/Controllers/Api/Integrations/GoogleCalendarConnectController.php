@@ -12,7 +12,7 @@ class GoogleCalendarConnectController extends Controller
     {
         return response()->json([
             'success' => true,
-            'message' => 'Google Calendar connect URL generated.',
+            'message' => 'Google Calendar & Tasks connect URL generated.',
             'data' => [
                 'provider' => 'google_calendar',
                 'redirect_url' => $oauthService->buildConnectUrl(request()->user()),

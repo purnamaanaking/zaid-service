@@ -36,6 +36,22 @@ class MeController extends Controller
                         'status' => $calendarConnection?->status,
                         'last_synced_at' => $calendarConnection?->last_synced_at,
                         'last_error_message' => $calendarConnection?->last_error_message,
+                        'includes' => [
+                            'google_calendar' => true,
+                            'google_tasks' => true,
+                        ],
+                    ],
+                    'google_calendar_and_tasks' => [
+                        'connected' => $calendarConnection?->status === 'connected',
+                        'google_calendar_id' => $calendarConnection?->google_calendar_id,
+                        'google_calendar_summary' => $calendarConnection?->google_calendar_summary,
+                        'status' => $calendarConnection?->status,
+                        'last_synced_at' => $calendarConnection?->last_synced_at,
+                        'last_error_message' => $calendarConnection?->last_error_message,
+                        'includes' => [
+                            'google_calendar' => true,
+                            'google_tasks' => true,
+                        ],
                     ],
                 ],
             ],

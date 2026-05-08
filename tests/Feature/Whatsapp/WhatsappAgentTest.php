@@ -278,4 +278,36 @@ class WhatsappAgentTest extends TestCase
         $reply = $this->getReplyText('wamid-plain');
         $this->assertStringContainsString('Yo bro', $reply);
     }
+
+    public function test_quick_read_task_hari_ini_prioritizes_today_items_not_all_pending_tasks(): void
+    {
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Task Hari Ini',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+        ]);
+
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Task Lama',
+            'scheduled_date' => '2018-07-06',
+            'scheduled_time' => null,
+            'status' => 'pending',
+        ]);
+
+        Http::fake();
+
+        $this->sendWhatsApp('cek task hari ini', 'wamid-task-today');
+
+        $reply = $this->getReplyText('wamid-task-today');
+
+        $this->assertStringContainsString('hari ini', strtolower($reply));
+        $this->assertStringContainsString('Task Hari Ini', $reply);
+        $this->assertStringNotContainsString('Task Lama', $reply);
+        Http::assertNotSent(function ($request) {
+            return str_contains($request->url(), 'chat/completions');
+        });
+    }
 }

@@ -14,7 +14,7 @@ class GoogleCalendarDisconnectController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Google Calendar disconnected successfully.',
+            'message' => 'Google Calendar & Tasks disconnected successfully.',
         ]);
     }
 }

@@ -421,6 +421,35 @@ PROMPT;
             return null;
         }
 
+        if ($asksToday && ($asksTasks || $asksSchedule)) {
+            $items = Task::query()
+                ->where('user_id', $user->id)
+                ->whereNull('deleted_at')
+                ->whereDate('scheduled_date', $today)
+                ->orderByRaw('CASE WHEN scheduled_time IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('scheduled_time')
+                ->limit(10)
+                ->get();
+
+            if ($items->isEmpty()) {
+                return $asksTasks
+                    ? 'Task kamu buat hari ini kosong bro 👌'
+                    : 'Hari ini jadwal kamu kosong bro 👌';
+            }
+
+            $lines = $items->values()->map(function (Task $task, int $index) {
+                $suffix = $task->scheduled_time
+                    ? ' - '.substr((string) $task->scheduled_time, 0, 5)
+                    : ' - tanpa jam';
+
+                return ($index + 1).'. '.$task->title.$suffix;
+            })->implode("\n");
+
+            return $asksTasks
+                ? "Task kamu buat hari ini:\n{$lines}"
+                : "Jadwal kamu hari ini:\n{$lines}";
+        }
+
         if ($asksPending || $asksTasks) {
             $pendingTasks = Task::query()
                 ->where('user_id', $user->id)
