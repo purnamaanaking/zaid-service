@@ -131,6 +131,10 @@ PROMPT;
             'execution_status' => 'pending',
         ]);
 
+        if ($quickDelete = $this->handleQuickDeleteQueries($promptRequest, $user, $normalizedText, $channel)) {
+            return $quickDelete;
+        }
+
         if ($quickReply = $this->handleQuickReadQueries($user, $normalizedText, $today)) {
             $promptRequest->update([
                 'intent' => 'READ',
@@ -402,6 +406,73 @@ PROMPT;
         $normalized = preg_replace('/\s+/', ' ', trim((string) $normalized));
 
         return $normalized;
+    }
+
+    /**
+     * @return array{prompt_request_id: string, human_response: string}|null
+     */
+    private function handleQuickDeleteQueries(PromptRequest $promptRequest, User $user, string $text, string $channel): ?array
+    {
+        if ($text === '') {
+            return null;
+        }
+
+        $asksDelete = preg_match('/\b(hapus|delete|buang|remove)\b/u', $text) === 1;
+        $asksTasks = preg_match('/\b(task|tasks|tugas|todo|to-do)\b/u', $text) === 1;
+        $asksSchedule = preg_match('/\b(jadwal|agenda|calendar|kalender)\b/u', $text) === 1;
+        $asksPending = preg_match('/\b(belum|blom|pending|belum selesai|belom selesai|belum kelar|blom kelar|belom kelar)\b/u', $text) === 1;
+
+        if (! $asksDelete || ! $asksTasks || $asksSchedule || ! $asksPending) {
+            return null;
+        }
+
+        $task = Task::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->where('status', 'pending')
+            ->whereNull('scheduled_time')
+            ->orderByRaw('CASE WHEN scheduled_date IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('scheduled_date')
+            ->first();
+
+        if (! $task) {
+            $promptRequest->update([
+                'intent' => 'DELETE',
+                'parse_status' => 'parsed',
+                'execution_status' => 'executed',
+                'execution_summary' => ['action' => 'delete_quick_none'],
+            ]);
+
+            return [
+                'prompt_request_id' => $promptRequest->id,
+                'human_response' => 'Task pending yang bisa dihapus lagi kosong bro 👌',
+            ];
+        }
+
+        $title = $task->title;
+        $this->taskMutationService->delete($task, $user, $channel, $promptRequest->id);
+
+        PromptAction::query()->create([
+            'prompt_request_id' => $promptRequest->id,
+            'action_type' => 'delete',
+            'target_entity_type' => 'task',
+            'target_entity_id' => $task->id,
+            'status' => 'executed',
+            'payload' => ['title' => $title, 'mode' => 'quick_delete_pending_tasks'],
+            'result_payload' => ['task_id' => $task->id],
+        ]);
+
+        $promptRequest->update([
+            'intent' => 'DELETE',
+            'parse_status' => 'parsed',
+            'execution_status' => 'executed',
+            'execution_summary' => ['action' => 'delete_task', 'task_id' => $task->id],
+        ]);
+
+        return [
+            'prompt_request_id' => $promptRequest->id,
+            'human_response' => "Siap, task \"{$title}\" udah aku hapus.",
+        ];
     }
 
     private function handleQuickReadQueries(User $user, string $text, string $today): ?string

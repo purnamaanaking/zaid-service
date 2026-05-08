@@ -375,4 +375,38 @@ class WhatsappAgentTest extends TestCase
             return str_contains($request->url(), 'chat/completions');
         });
     }
+
+    public function test_quick_delete_pending_tasks_without_time_deletes_only_tasks_not_schedule_items(): void
+    {
+        $task = Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Task Pending',
+            'scheduled_date' => null,
+            'scheduled_time' => null,
+            'status' => 'pending',
+            'source_channel' => 'google_tasks',
+        ]);
+
+        $schedule = Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Schedule Pending',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => '10:00:00',
+            'status' => 'pending',
+            'source_channel' => 'google_calendar',
+        ]);
+
+        Http::fake();
+
+        $this->sendWhatsApp('hapus tasks yang belum selesai', 'wamid-delete-pending-tasks');
+
+        $reply = $this->getReplyText('wamid-delete-pending-tasks');
+
+        $this->assertStringContainsString('udah aku hapus', strtolower($reply));
+        $this->assertSoftDeleted('tasks', ['id' => $task->id]);
+        $this->assertDatabaseHas('tasks', ['id' => $schedule->id, 'deleted_at' => null]);
+        Http::assertNotSent(function ($request) {
+            return str_contains($request->url(), 'chat/completions');
+        });
+    }
 }
