@@ -114,23 +114,38 @@ PROMPT;
         $today = now()->format('Y-m-d');
         $dayName = now()->locale('id')->isoFormat('dddd');
         $now = now()->format('H:i');
+        $normalizedText = $this->normalizeIncomingText($text);
 
         $history = $this->getConversationHistory($user);
         $tasks = $this->getUserTaskContext($user, $today);
-
-        $messages = $this->buildMessages($today, $dayName, $now, $tasks, $history, $text, $attachments);
 
         $promptRequest = PromptRequest::query()->create([
             'user_id' => $user->id,
             'channel' => $channel,
             'raw_text' => $text,
-            'normalized_text' => $text,
+            'normalized_text' => $normalizedText,
             'intent' => null,
             'confidence_score' => 0,
             'parse_status' => 'pending',
             'extracted_entities' => null,
             'execution_status' => 'pending',
         ]);
+
+        if ($quickReply = $this->handleQuickReadQueries($user, $normalizedText, $today)) {
+            $promptRequest->update([
+                'intent' => 'READ',
+                'parse_status' => 'parsed',
+                'execution_status' => 'executed',
+                'execution_summary' => ['action' => 'read_quick'],
+            ]);
+
+            return [
+                'prompt_request_id' => $promptRequest->id,
+                'human_response' => $quickReply,
+            ];
+        }
+
+        $messages = $this->buildMessages($today, $dayName, $now, $tasks, $history, $normalizedText, $attachments);
 
         try {
             $aiResponse = $this->callOpenAi($messages, $user->id, ! empty($attachments));
@@ -378,6 +393,79 @@ PROMPT;
         }
 
         return $parsed;
+    }
+
+    private function normalizeIncomingText(string $text): string
+    {
+        $normalized = strtolower(trim($text));
+        $normalized = preg_replace('/\b(halo|hai|hi|bro|bos|sis|bang|kak|woy|woi|oi|permisi)\b/u', ' ', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', trim((string) $normalized));
+
+        return $normalized;
+    }
+
+    private function handleQuickReadQueries(User $user, string $text, string $today): ?string
+    {
+        if ($text === '') {
+            return null;
+        }
+
+        $asksTasks = preg_match('/\b(task|tasks|tugas|todo|to-do)\b/u', $text) === 1;
+        $asksSchedule = preg_match('/\b(jadwal|agenda|calendar|kalender)\b/u', $text) === 1;
+        $asksPending = preg_match('/\b(belum|blom|pending|belum selesai|belom selesai|belum kelar|blom kelar|belom kelar)\b/u', $text) === 1;
+        $asksToday = preg_match('/\b(hari ini|hr ini|today|sekarang)\b/u', $text) === 1;
+        $asksMine = preg_match('/\b(gua|gue|gw|aku|saya|ku)\b/u', $text) === 1;
+        $asksList = preg_match('/\b(cek|lihat|list|apa|apa aja|apa saja|mana)\b/u', $text) === 1;
+
+        if (! ($asksTasks || $asksSchedule) || ! ($asksList || $asksMine || $asksPending || $asksToday)) {
+            return null;
+        }
+
+        if ($asksPending || $asksTasks) {
+            $pendingTasks = Task::query()
+                ->where('user_id', $user->id)
+                ->whereNull('deleted_at')
+                ->where('status', 'pending')
+                ->orderByRaw('CASE WHEN scheduled_date IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('scheduled_date')
+                ->orderBy('scheduled_time')
+                ->limit(10)
+                ->get();
+
+            if ($pendingTasks->isEmpty()) {
+                return 'Task pending kamu lagi kosong bro ✅';
+            }
+
+            $lines = $pendingTasks->values()->map(function (Task $task, int $index) {
+                $when = '';
+                if ($task->scheduled_date && $task->scheduled_time) {
+                    $when = ' - '.$task->scheduled_date->format('Y-m-d').' '.substr((string) $task->scheduled_time, 0, 5);
+                } elseif ($task->scheduled_date) {
+                    $when = ' - '.$task->scheduled_date->format('Y-m-d');
+                }
+
+                return ($index + 1).'. '.$task->title.$when;
+            })->implode("\n");
+
+            return "Task kamu yang belum kelar:\n{$lines}";
+        }
+
+        if ($asksSchedule || $asksToday) {
+            $items = $this->agendaQueryService->dayAgenda($user, $today);
+
+            if ($items->isEmpty()) {
+                return 'Hari ini jadwal kamu kosong bro 👌';
+            }
+
+            $lines = $items->values()->map(function (Task $task, int $index) {
+                $time = $task->scheduled_time ? substr((string) $task->scheduled_time, 0, 5) : 'tanpa jam';
+                return ($index + 1).'. '.$task->title.' - '.$time;
+            })->implode("\n");
+
+            return "Jadwal kamu hari ini:\n{$lines}";
+        }
+
+        return null;
     }
 
     /**
