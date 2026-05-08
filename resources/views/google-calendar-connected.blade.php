@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Google Calendar Connected</title>
+    <meta http-equiv="refresh" content="2;url=/">
     <style>
         body {
             margin: 0;
@@ -45,13 +46,29 @@
             font-size: 28px;
             font-weight: 700;
         }
+        .hint {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #9e95bb;
+        }
+        .hint a {
+            color: #c084fc;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
     <main class="card">
         <div class="ok">✓</div>
         <h1>Google Calendar connected</h1>
-        <p>Koneksi Google Calendar berhasil disimpan. Sekarang Anda bisa kembali ke aplikasi dan lanjut memakai sinkronisasi kalender.</p>
+        <p>Koneksi Google Calendar berhasil disimpan. Anda akan diarahkan kembali ke halaman utama.</p>
+        <div class="hint">Kalau tidak pindah otomatis, <a href="/">klik di sini</a>.</div>
     </main>
+
+    <script>
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1500);
+    </script>
 </body>
 </html>
