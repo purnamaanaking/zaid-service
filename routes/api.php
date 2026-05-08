@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\Upload\FileUploadController;
 use App\Http\Controllers\Api\User\ChangePhoneController;
 use App\Http\Controllers\Api\User\MeController;
 use App\Http\Controllers\Api\User\UpdateProfileController;
+use App\Http\Controllers\Api\Webhooks\GoogleCalendarWebhookController;
 use App\Http\Controllers\Api\Webhooks\WhatsappWebhookController;
 use App\Http\Controllers\Api\Whatsapp\WahaSessionController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,9 @@ Route::prefix('v1')->group(function (): void {
     // WhatsApp webhook (public, provider-verified)
     Route::get('/webhooks/whatsapp', [WhatsappWebhookController::class, 'verify']);
     Route::post('/webhooks/whatsapp', [WhatsappWebhookController::class, 'handle']);
+
+    // Google Calendar push notification webhook (public, Google-verified via channel ID)
+    Route::post('/webhooks/google-calendar', GoogleCalendarWebhookController::class);
 
     Route::get('/integrations/google-calendar/callback', GoogleCalendarCallbackController::class);
 

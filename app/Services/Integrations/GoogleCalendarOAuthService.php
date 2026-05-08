@@ -142,12 +142,18 @@ class GoogleCalendarOAuthService
             ]);
         }
 
+        // Register push notification watch for real-time sync
+        app(GoogleCalendarWatchService::class)->registerWatch($connection);
+
         return redirect('/integrations/google-calendar/connected');
     }
 
     public function disconnect(User $user): void
     {
         $user->calendarConnections()->each(function ($connection): void {
+            // Stop push notification watch
+            app(GoogleCalendarWatchService::class)->stopWatch($connection);
+
             $connection->update([
                 'encrypted_access_token' => null,
                 'encrypted_refresh_token' => null,

@@ -12,9 +12,11 @@ Artisan::command('google-calendar:sync-run', function () {
     $this->call(SyncGoogleCalendarChangesCommand::class);
 })->purpose('Dispatch Google Calendar sync jobs for connected users');
 
+use App\Services\Integrations\GoogleCalendarWatchService;
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('google-calendar:sync')
-    ->everyFiveMinutes()
-    ->withoutOverlapping()
-    ->runInBackground();
+// Renew expiring Google Calendar push notification watches (daily check)
+Schedule::call(fn () => app(GoogleCalendarWatchService::class)->renewExpiringWatches())
+    ->hourly()
+    ->name('google-calendar-watch-renew')
+    ->withoutOverlapping();

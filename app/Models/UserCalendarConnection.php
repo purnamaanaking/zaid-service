@@ -25,6 +25,9 @@ class UserCalendarConnection extends Model
         'last_synced_at',
         'last_error_at',
         'last_error_message',
+        'watch_channel_id',
+        'watch_resource_id',
+        'watch_expiry',
     ];
 
     protected function casts(): array
@@ -34,6 +37,7 @@ class UserCalendarConnection extends Model
             'token_expires_at' => 'datetime',
             'last_synced_at' => 'datetime',
             'last_error_at' => 'datetime',
+            'watch_expiry' => 'datetime',
         ];
     }
 
