@@ -3,6 +3,7 @@
 namespace App\Services\Tasks;
 
 use App\Jobs\Calendar\SyncTaskToGoogleCalendarJob;
+use App\Jobs\Calendar\SyncTaskToGoogleTasksJob;
 use App\Models\Task;
 use App\Models\TaskChange;
 use App\Models\TaskRecurrence;
@@ -189,12 +190,28 @@ class TaskMutationService
             ->where('status', 'connected')
             ->exists();
 
-        $hasSchedule = $task->scheduled_date !== null || $task->scheduled_time !== null || $task->all_day;
-
-        if (! $hasConnection || ! $hasSchedule) {
+        if (! $hasConnection) {
             return;
         }
 
-        SyncTaskToGoogleCalendarJob::dispatch($task->id, $action);
+        // If deleting, check existing link type to dispatch correct job
+        if ($action === 'delete') {
+            $link = $task->calendarEventLink;
+            if ($link && $link->link_type === 'google_task') {
+                SyncTaskToGoogleTasksJob::dispatch($task->id, $action);
+            } elseif ($link) {
+                SyncTaskToGoogleCalendarJob::dispatch($task->id, $action);
+            }
+
+            return;
+        }
+
+        // Tasks with scheduled_time → Google Calendar Event
+        // Tasks without scheduled_time → Google Tasks
+        if ($task->scheduled_time !== null) {
+            SyncTaskToGoogleCalendarJob::dispatch($task->id, $action);
+        } else {
+            SyncTaskToGoogleTasksJob::dispatch($task->id, $action);
+        }
     }
 }

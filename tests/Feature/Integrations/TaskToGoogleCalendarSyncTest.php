@@ -124,6 +124,16 @@ class TaskToGoogleCalendarSyncTest extends TestCase
             'scheduled_time' => '10:00:00',
         ]);
 
+        // Create a calendar event link so delete knows to dispatch calendar job
+        $connection = $user->calendarConnections()->first();
+        \App\Models\CalendarEventLink::query()->create([
+            'task_id' => $task->id,
+            'user_calendar_connection_id' => $connection->id,
+            'link_type' => 'calendar_event',
+            'google_event_id' => 'test-event-id',
+            'sync_status' => 'synced',
+        ]);
+
         $response = $this->actingAs($user, 'sanctum')->deleteJson("/api/v1/tasks/{$task->id}");
 
         $response->assertOk();

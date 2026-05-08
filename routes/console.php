@@ -12,11 +12,24 @@ Artisan::command('google-calendar:sync-run', function () {
     $this->call(SyncGoogleCalendarChangesCommand::class);
 })->purpose('Dispatch Google Calendar sync jobs for connected users');
 
+use App\Jobs\Calendar\SyncGoogleTasksConnectionJob;
+use App\Models\UserCalendarConnection;
 use App\Services\Integrations\GoogleCalendarWatchService;
 use Illuminate\Support\Facades\Schedule;
 
-// Renew expiring Google Calendar push notification watches (daily check)
+// Renew expiring Google Calendar push notification watches
 Schedule::call(fn () => app(GoogleCalendarWatchService::class)->renewExpiringWatches())
     ->hourly()
     ->name('google-calendar-watch-renew')
+    ->withoutOverlapping();
+
+// Poll Google Tasks for inbound sync (no webhook support)
+Schedule::call(function () {
+    UserCalendarConnection::query()
+        ->where('provider', 'google_calendar')
+        ->where('status', 'connected')
+        ->each(fn ($c) => SyncGoogleTasksConnectionJob::dispatch($c->id));
+})
+    ->everyTwoMinutes()
+    ->name('google-tasks-inbound-sync')
     ->withoutOverlapping();

@@ -1,8 +1,8 @@
-# Google Calendar Sync
+# Google Calendar & Tasks Sync
 
 ## Overview
 
-Zaid supports Google Calendar OAuth connection plus two-way task/event synchronization in production.
+Zaid supports Google Calendar OAuth connection plus two-way synchronization for both **Calendar Events** and **Google Tasks** in production.
 
 Production domain used by the live server:
 - `https://zaid-assist.my.id`
@@ -41,32 +41,39 @@ Register this in the Google OAuth client:
 - `GOOGLE_CALENDAR_PRIMARY_ID`
 - `GOOGLE_CALENDAR_SYNC_INTERVAL_MINUTES`
 
+## Sync routing
+
+| Task has `scheduled_time`? | Syncs to | API |
+|---|---|---|
+| Yes | Google Calendar Event | Calendar API v3 |
+| No | Google Tasks | Tasks API v1 |
+
 ## Sync directions
 
-### Local → Google Calendar
+### Local → Google Calendar Events
 Task mutations dispatch `SyncTaskToGoogleCalendarJob` when:
 - the user has a connected Google Calendar integration
-- the task has schedule data
+- the task has `scheduled_time`
 
-Verified live:
-- create task → create Google event
-- update task → update Google event
-- delete task → delete Google event
+### Local → Google Tasks
+Task mutations dispatch `SyncTaskToGoogleTasksJob` when:
+- the user has a connected Google Calendar integration
+- the task does NOT have `scheduled_time`
 
-### Google Calendar → Local
-The inbound sync pipeline uses:
-- `SyncGoogleCalendarChangesCommand`
-- `SyncGoogleCalendarConnectionJob`
-- `GoogleCalendarInboundSyncService`
+Both directions support: create, update, delete, complete.
 
-Behavior:
-- paginates through all pages returned by Google Calendar
-- persists the final `sync_token`
-- reuses existing `calendar_event_links`
-- avoids recreating linked cancelled events on full/backfill syncs
+### Google Calendar → Local (real-time)
+Uses Google Calendar push notifications (webhooks):
+- Webhook endpoint: `POST /api/v1/webhooks/google-calendar`
+- Watch channel registered on OAuth connect
+- Auto-renewed hourly
+- Changes synced within seconds
 
-Verified live:
-- Google Calendar events on 22 May were imported into local tasks after pagination and link-reuse fixes
+### Google Tasks → Local (polling)
+Google Tasks API does not support push notifications, so we poll:
+- Every 2 minutes via scheduler
+- Uses incremental sync tokens
+- `SyncGoogleTasksConnectionJob` + `GoogleTasksInboundSyncService`
 
 ## Failure handling
 
@@ -82,3 +89,5 @@ Verified live:
 - Complex Google Calendar recurrence semantics are not fully implemented.
 - Multi-calendar support is not implemented; the integration targets the connected primary calendar.
 - The inbound first sync may be long on large calendars because it now walks all pages before storing `sync_token`.
+- Google Tasks API does not support webhooks, so inbound sync relies on 2-minute polling.
+- Google Tasks requires the `https://www.googleapis.com/auth/tasks` scope (added automatically). Users who connected before this feature must reconnect to grant the Tasks scope.

@@ -13,6 +13,7 @@ class CalendarEventLink extends Model
     protected $fillable = [
         'task_id',
         'user_calendar_connection_id',
+        'link_type',
         'google_event_id',
         'google_event_etag',
         'remote_status',

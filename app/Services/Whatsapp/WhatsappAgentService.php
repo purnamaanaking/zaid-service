@@ -215,43 +215,65 @@ PROMPT;
 
         $lines = [];
 
+        $formatTask = function (Task $task, bool $showDate = false): string {
+            $type = $task->scheduled_time ? 'jadwal' : 'task';
+            $time = $task->scheduled_time ? substr((string) $task->scheduled_time, 0, 5) : 'tanpa jam';
+            $date = $showDate && $task->scheduled_date ? $task->scheduled_date->format('Y-m-d') . ' ' : '';
+            return "- [{$task->id}] [{$type}] {$task->title} @ {$date}{$time} (status: {$task->status})";
+        };
+
         if ($todayTasks->isNotEmpty()) {
-            $lines[] = "TASK HARI INI ({$today}):";
+            $lines[] = "TASK & JADWAL HARI INI ({$today}):";
             foreach ($todayTasks as $task) {
-                $time = $task->scheduled_time ? substr((string) $task->scheduled_time, 0, 5) : 'all-day';
-                $lines[] = "- [{$task->id}] {$task->title} @ {$time} (status: {$task->status})";
+                $lines[] = $formatTask($task);
             }
         } else {
-            $lines[] = "TASK HARI INI ({$today}): kosong";
+            $lines[] = "TASK & JADWAL HARI INI ({$today}): kosong";
         }
 
         $tomorrow = Carbon::parse($today)->addDay()->format('Y-m-d');
         if ($tomorrowTasks->isNotEmpty()) {
-            $lines[] = "\nTASK BESOK ({$tomorrow}):";
+            $lines[] = "\nTASK & JADWAL BESOK ({$tomorrow}):";
             foreach ($tomorrowTasks as $task) {
-                $time = $task->scheduled_time ? substr((string) $task->scheduled_time, 0, 5) : 'all-day';
-                $lines[] = "- [{$task->id}] {$task->title} @ {$time} (status: {$task->status})";
+                $lines[] = $formatTask($task);
             }
         }
 
-        // Also include recent tasks from the last 7 days for update/delete context
+        // To-do tasks without date (pending)
+        $undatedTasks = Task::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->whereNull('scheduled_date')
+            ->where('status', 'pending')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        if ($undatedTasks->isNotEmpty()) {
+            $lines[] = "\nTASK TANPA TANGGAL (to-do):";
+            foreach ($undatedTasks as $task) {
+                $lines[] = "- [{$task->id}] [task] {$task->title} (status: {$task->status})";
+            }
+        }
+
+        // Recent tasks from nearby days
+        $excludeIds = $todayTasks->pluck('id')->merge($tomorrowTasks->pluck('id'))->merge($undatedTasks->pluck('id'))->all();
         $recentTasks = Task::query()
             ->where('user_id', $user->id)
             ->whereNull('deleted_at')
+            ->whereNotNull('scheduled_date')
             ->where('scheduled_date', '>=', Carbon::parse($today)->subDays(3)->format('Y-m-d'))
             ->where('scheduled_date', '<=', Carbon::parse($today)->addDays(7)->format('Y-m-d'))
-            ->whereNotIn('id', $todayTasks->pluck('id')->merge($tomorrowTasks->pluck('id'))->all())
+            ->whereNotIn('id', $excludeIds)
             ->orderBy('scheduled_date')
             ->orderBy('scheduled_time')
             ->limit(15)
             ->get();
 
         if ($recentTasks->isNotEmpty()) {
-            $lines[] = "\nTASK MINGGU INI (lainnya):";
+            $lines[] = "\nTASK & JADWAL MINGGU INI (lainnya):";
             foreach ($recentTasks as $task) {
-                $date = $task->scheduled_date?->format('Y-m-d') ?? '?';
-                $time = $task->scheduled_time ? substr((string) $task->scheduled_time, 0, 5) : 'all-day';
-                $lines[] = "- [{$task->id}] {$task->title} @ {$date} {$time} (status: {$task->status})";
+                $lines[] = $formatTask($task, true);
             }
         }
 

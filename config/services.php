@@ -14,7 +14,7 @@ return [
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
         'calendar_redirect' => env('GOOGLE_CALENDAR_REDIRECT_URI', env('GOOGLE_REDIRECT_URI')),
-        'calendar_scopes' => array_values(array_filter(array_map('trim', explode(',', (string) env('GOOGLE_CALENDAR_SCOPES', 'https://www.googleapis.com/auth/calendar'))))),
+        'calendar_scopes' => array_values(array_filter(array_map('trim', explode(',', (string) env('GOOGLE_CALENDAR_SCOPES', 'https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/tasks'))))),
         'calendar_primary_id' => env('GOOGLE_CALENDAR_PRIMARY_ID', 'primary'),
         'calendar_sync_interval_minutes' => (int) env('GOOGLE_CALENDAR_SYNC_INTERVAL_MINUTES', 5),
     ],

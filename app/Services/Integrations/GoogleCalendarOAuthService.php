@@ -142,8 +142,11 @@ class GoogleCalendarOAuthService
             ]);
         }
 
-        // Register push notification watch for real-time sync
+        // Register push notification watch for real-time calendar sync
         app(GoogleCalendarWatchService::class)->registerWatch($connection);
+
+        // Fetch default Google Tasks list ID
+        app(GoogleTasksApiService::class)->getOrCreateDefaultTaskList($connection);
 
         return redirect('/integrations/google-calendar/connected');
     }
