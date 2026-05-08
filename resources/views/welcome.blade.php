@@ -286,6 +286,33 @@
             gap: 10px;
         }
 
+        .panel-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logout-btn {
+            display: none;
+            width: auto;
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(192,132,252,.14);
+            background: rgba(255,255,255,.04);
+            color: #f3edff;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .logout-btn.show {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .status-box {
             margin-top: 16px;
             border-radius: 18px;
@@ -365,7 +392,10 @@
             </div>
 
             <div class="panel">
-                <h2>Simple test flow</h2>
+                <div class="panel-top">
+                    <h2>Simple test flow</h2>
+                    <button class="logout-btn" id="btn-logout">Logout</button>
+                </div>
                 <p class="lead">Gunakan panel ini untuk ngetes flow utama: login, no HP, OTP, dan connect Google Calendar.</p>
 
                 <div class="steps">
@@ -431,6 +461,7 @@
         const phoneInput = document.getElementById('phone_number');
         const otpInput = document.getElementById('otp_code');
         const userMeta = document.getElementById('user-meta');
+        const logoutButton = document.getElementById('btn-logout');
 
         function showStep(step) {
             [stepAuth, stepPhone, stepOtp, stepCalendar].forEach(el => el.classList.remove('active'));
@@ -448,6 +479,14 @@
 
         function setToken(token) {
             localStorage.setItem(tokenKey, token);
+            logoutButton.classList.add('show');
+        }
+
+        function clearSession() {
+            localStorage.removeItem(tokenKey);
+            localStorage.removeItem(verificationKey);
+            localStorage.removeItem(phoneKey);
+            logoutButton.classList.remove('show');
         }
 
         function authHeaders() {
@@ -518,10 +557,13 @@
         async function refreshState() {
             const token = getToken();
             if (!token) {
+                logoutButton.classList.remove('show');
                 showStep(stepAuth);
                 setStatus('Belum login. Mulai dari Google login.', '');
                 return;
             }
+
+            logoutButton.classList.add('show');
 
             try {
                 const status = await api('/onboarding/status', {
@@ -554,7 +596,7 @@
                 showStep(stepCalendar);
                 setStatus('Onboarding selesai. Google Calendar bisa dihubungkan kapan saja.', 'success');
             } catch (error) {
-                localStorage.removeItem(tokenKey);
+                clearSession();
                 showStep(stepAuth);
                 setStatus(error.message || 'Sesi tidak valid, silakan login ulang.', 'error');
             }
@@ -685,6 +727,26 @@
                 }
             } catch (error) {
                 setStatus(error.message || 'Gagal cek status Google Calendar.', 'error');
+            }
+        });
+
+        logoutButton.addEventListener('click', async () => {
+            try {
+                if (getToken()) {
+                    await api('/auth/logout', {
+                        method: 'POST',
+                        headers: authHeaders(),
+                    });
+                }
+            } catch (error) {
+                // ignore server logout failure and still clear local session
+            } finally {
+                clearSession();
+                phoneInput.value = '';
+                otpInput.value = '';
+                userMeta.innerHTML = '';
+                showStep(stepAuth);
+                setStatus('Berhasil logout. Silakan login lagi kalau mau lanjut test.', 'success');
             }
         });
 
