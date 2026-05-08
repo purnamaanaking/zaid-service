@@ -527,6 +527,8 @@ PROMPT;
                 ->where('user_id', $user->id)
                 ->whereNull('deleted_at')
                 ->whereDate('scheduled_date', $today)
+                ->when($asksTasks && ! $asksSchedule, fn ($query) => $query->whereNull('scheduled_time'))
+                ->when($asksSchedule && ! $asksTasks, fn ($query) => $query->whereNotNull('scheduled_time'))
                 ->orderByRaw('CASE WHEN scheduled_time IS NULL THEN 1 ELSE 0 END')
                 ->orderBy('scheduled_time')
                 ->limit(10)

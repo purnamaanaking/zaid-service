@@ -409,4 +409,37 @@ class WhatsappAgentTest extends TestCase
             return str_contains($request->url(), 'chat/completions');
         });
     }
+
+    public function test_quick_read_tasks_hari_ini_excludes_schedule_items_with_time(): void
+    {
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Task No Time',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+            'source_channel' => 'google_tasks',
+        ]);
+
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Gym',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => '20:00:00',
+            'status' => 'pending',
+            'source_channel' => 'google_calendar',
+        ]);
+
+        Http::fake();
+
+        $this->sendWhatsApp('tasks hari ini', 'wamid-tasks-today-split');
+
+        $reply = $this->getReplyText('wamid-tasks-today-split');
+
+        $this->assertStringContainsString('Task No Time', $reply);
+        $this->assertStringNotContainsString('Gym - 20:00', $reply);
+        Http::assertNotSent(function ($request) {
+            return str_contains($request->url(), 'chat/completions');
+        });
+    }
 }
