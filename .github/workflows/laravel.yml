@@ -125,7 +125,7 @@ jobs:
 
             echo "== Build frontend assets if package.json exists =="
             if [ -f package.json ]; then
-              npm ci
+              npm install --no-audit --no-fund
               npm run build
             fi
 
