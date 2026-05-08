@@ -342,4 +342,37 @@ class WhatsappAgentTest extends TestCase
             return str_contains($request->url(), 'chat/completions');
         });
     }
+
+    public function test_quick_read_tasks_overdue_excludes_old_calendar_events(): void
+    {
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Task Google Tasks Overdue',
+            'scheduled_date' => now()->subWeek()->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+            'source_channel' => 'google_tasks',
+        ]);
+
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Old Calendar Event',
+            'scheduled_date' => now()->subYears(2)->format('Y-m-d'),
+            'scheduled_time' => '10:00:00',
+            'status' => 'pending',
+            'source_channel' => 'google_calendar',
+        ]);
+
+        Http::fake();
+
+        $this->sendWhatsApp('cek tasks overdue', 'wamid-overdue-tasks');
+
+        $reply = $this->getReplyText('wamid-overdue-tasks');
+
+        $this->assertStringContainsString('Task Google Tasks Overdue', $reply);
+        $this->assertStringNotContainsString('Old Calendar Event', $reply);
+        Http::assertNotSent(function ($request) {
+            return str_contains($request->url(), 'chat/completions');
+        });
+    }
 }
