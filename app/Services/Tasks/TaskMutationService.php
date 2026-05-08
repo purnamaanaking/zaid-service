@@ -24,6 +24,8 @@ class TaskMutationService
                 'source_prompt_request_id' => $promptRequestId,
                 'title' => $data['title'],
                 'description' => $data['description'] ?? null,
+                'google_task_list_id' => $data['google_task_list_id'] ?? null,
+                'google_task_list_title' => $data['google_task_list_title'] ?? null,
                 'status' => 'pending',
                 'scheduled_date' => $data['scheduled_date'] ?? null,
                 'scheduled_time' => $data['scheduled_time'] ?? null,
@@ -74,6 +76,8 @@ class TaskMutationService
             $task->update(array_filter([
                 'title' => $data['title'] ?? null,
                 'description' => $data['description'] ?? null,
+                'google_task_list_id' => $data['google_task_list_id'] ?? null,
+                'google_task_list_title' => $data['google_task_list_title'] ?? null,
                 'scheduled_date' => $data['scheduled_date'] ?? null,
                 'scheduled_time' => $data['scheduled_time'] ?? null,
                 'timezone' => $data['timezone'] ?? null,

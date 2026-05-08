@@ -2,7 +2,9 @@
 
 namespace App\Services\Integrations;
 
+use App\Models\GoogleTaskList;
 use App\Models\UserCalendarConnection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -14,12 +16,11 @@ class GoogleTasksApiService
         private readonly GoogleCalendarApiService $calendarApiService,
     ) {}
 
-    public function getOrCreateDefaultTaskList(UserCalendarConnection $connection): ?string
+    /**
+     * @return Collection<int, GoogleTaskList>
+     */
+    public function syncTaskLists(UserCalendarConnection $connection): Collection
     {
-        if ($connection->google_task_list_id) {
-            return $connection->google_task_list_id;
-        }
-
         $accessToken = $this->calendarApiService->getValidAccessToken($connection);
 
         $response = Http::withToken($accessToken)
@@ -31,102 +32,144 @@ class GoogleTasksApiService
                 'status' => $response->status(),
             ]);
 
-            return null;
+            return collect();
         }
 
-        $lists = $response->json('items', []);
-        $defaultList = collect($lists)->first();
+        $lists = collect($response->json('items', []))->values();
+        $existingIds = [];
 
-        if (! $defaultList) {
-            return null;
+        foreach ($lists as $index => $list) {
+            $listId = $list['id'] ?? null;
+
+            if (! $listId) {
+                continue;
+            }
+
+            $existingIds[] = $listId;
+
+            $record = $connection->googleTaskLists()->firstOrNew([
+                'google_task_list_id' => $listId,
+            ]);
+
+            $record->title = $list['title'] ?? $record->title;
+            $record->is_default = $index === 0;
+            $record->save();
         }
 
-        $listId = $defaultList['id'];
-        $connection->update(['google_task_list_id' => $listId]);
+        if ($existingIds !== []) {
+            $connection->googleTaskLists()
+                ->whereNotIn('google_task_list_id', $existingIds)
+                ->delete();
 
-        return $listId;
+            $default = $connection->googleTaskLists()->where('is_default', true)->first();
+            if ($default) {
+                $connection->update(['google_task_list_id' => $default->google_task_list_id]);
+            }
+        }
+
+        return $connection->googleTaskLists()->orderByDesc('is_default')->orderBy('title')->get();
+    }
+
+    public function getOrCreateDefaultTaskList(UserCalendarConnection $connection): ?GoogleTaskList
+    {
+        $defaultList = $connection->defaultGoogleTaskList()->first();
+
+        if ($defaultList) {
+            return $defaultList;
+        }
+
+        return $this->syncTaskLists($connection)->first();
+    }
+
+    public function resolveTaskList(UserCalendarConnection $connection, ?string $preferredListId = null): ?GoogleTaskList
+    {
+        if ($preferredListId) {
+            $preferred = $connection->googleTaskLists()->where('google_task_list_id', $preferredListId)->first();
+            if ($preferred) {
+                return $preferred;
+            }
+        }
+
+        return $this->getOrCreateDefaultTaskList($connection);
     }
 
     /**
-     * @return array{ok: bool, status: int, data: array<string, mixed>}
+     * @return array{ok: bool, status: int, data: array<string, mixed>, task_list: GoogleTaskList|null}
      */
-    public function createTask(UserCalendarConnection $connection, array $payload): array
+    public function createTask(UserCalendarConnection $connection, array $payload, ?string $preferredListId = null): array
     {
-        $listId = $this->getOrCreateDefaultTaskList($connection);
+        $taskList = $this->resolveTaskList($connection, $preferredListId);
 
-        if (! $listId) {
-            return ['ok' => false, 'status' => 0, 'data' => ['error' => 'no_task_list']];
+        if (! $taskList) {
+            return ['ok' => false, 'status' => 0, 'data' => ['error' => 'no_task_list'], 'task_list' => null];
         }
 
         $accessToken = $this->calendarApiService->getValidAccessToken($connection);
 
         $response = Http::withToken($accessToken)
-            ->post(self::BASE_URL . "/lists/{$listId}/tasks", $payload);
+            ->post(self::BASE_URL . "/lists/{$taskList->google_task_list_id}/tasks", $payload);
 
         return [
             'ok' => $response->successful(),
             'status' => $response->status(),
             'data' => $response->json() ?? [],
+            'task_list' => $taskList,
         ];
     }
 
     /**
-     * @return array{ok: bool, status: int, data: array<string, mixed>}
+     * @return array{ok: bool, status: int, data: array<string, mixed>, task_list: GoogleTaskList|null}
      */
-    public function updateTask(UserCalendarConnection $connection, string $taskId, array $payload): array
+    public function updateTask(UserCalendarConnection $connection, string $taskId, array $payload, ?string $preferredListId = null): array
     {
-        $listId = $connection->google_task_list_id;
+        $taskList = $this->resolveTaskList($connection, $preferredListId);
 
-        if (! $listId) {
-            return ['ok' => false, 'status' => 0, 'data' => ['error' => 'no_task_list']];
+        if (! $taskList) {
+            return ['ok' => false, 'status' => 0, 'data' => ['error' => 'no_task_list'], 'task_list' => null];
         }
 
         $accessToken = $this->calendarApiService->getValidAccessToken($connection);
 
         $response = Http::withToken($accessToken)
-            ->patch(self::BASE_URL . "/lists/{$listId}/tasks/{$taskId}", $payload);
+            ->patch(self::BASE_URL . "/lists/{$taskList->google_task_list_id}/tasks/{$taskId}", $payload);
 
         return [
             'ok' => $response->successful(),
             'status' => $response->status(),
             'data' => $response->json() ?? [],
+            'task_list' => $taskList,
         ];
     }
 
     /**
-     * @return array{ok: bool, status: int, data: array<string, mixed>}
+     * @return array{ok: bool, status: int, data: array<string, mixed>, task_list: GoogleTaskList|null}
      */
-    public function deleteTask(UserCalendarConnection $connection, string $taskId): array
+    public function deleteTask(UserCalendarConnection $connection, string $taskId, ?string $preferredListId = null): array
     {
-        $listId = $connection->google_task_list_id;
+        $taskList = $this->resolveTaskList($connection, $preferredListId);
 
-        if (! $listId) {
-            return ['ok' => false, 'status' => 0, 'data' => ['error' => 'no_task_list']];
+        if (! $taskList) {
+            return ['ok' => false, 'status' => 0, 'data' => ['error' => 'no_task_list'], 'task_list' => null];
         }
 
         $accessToken = $this->calendarApiService->getValidAccessToken($connection);
 
         $response = Http::withToken($accessToken)
-            ->delete(self::BASE_URL . "/lists/{$listId}/tasks/{$taskId}");
+            ->delete(self::BASE_URL . "/lists/{$taskList->google_task_list_id}/tasks/{$taskId}");
 
         return [
             'ok' => $response->successful(),
             'status' => $response->status(),
             'data' => $response->json() ?? [],
+            'task_list' => $taskList,
         ];
     }
 
     /**
-     * @return array{ok: bool, items: array<int, mixed>, next_sync_token: string|null, status: int}
+     * @return array{ok: bool, items: array<int, mixed>, next_sync_token: string|null, status: int, task_list: GoogleTaskList|null}
      */
-    public function listChanges(UserCalendarConnection $connection, ?string $syncToken = null): array
+    public function listChanges(UserCalendarConnection $connection, GoogleTaskList $taskList, ?string $syncToken = null): array
     {
-        $listId = $this->getOrCreateDefaultTaskList($connection);
-
-        if (! $listId) {
-            return ['ok' => false, 'items' => [], 'next_sync_token' => null, 'status' => 0];
-        }
-
         $accessToken = $this->calendarApiService->getValidAccessToken($connection);
         $items = [];
         $nextPageToken = null;
@@ -142,15 +185,14 @@ class GoogleTasksApiService
             ], fn ($v) => $v !== null);
 
             $response = Http::withToken($accessToken)
-                ->get(self::BASE_URL . "/lists/{$listId}/tasks", $params);
+                ->get(self::BASE_URL . "/lists/{$taskList->google_task_list_id}/tasks", $params);
 
             if (! $response->successful()) {
                 if ($response->status() === 410 && $syncToken) {
-                    // Sync token expired, do full sync
-                    return $this->listChanges($connection, null);
+                    return $this->listChanges($connection, $taskList, null);
                 }
 
-                return ['ok' => false, 'items' => [], 'next_sync_token' => null, 'status' => $response->status()];
+                return ['ok' => false, 'items' => [], 'next_sync_token' => null, 'status' => $response->status(), 'task_list' => $taskList];
             }
 
             $items = array_merge($items, $response->json('items', []));
@@ -163,6 +205,7 @@ class GoogleTasksApiService
             'items' => $items,
             'next_sync_token' => $nextSyncToken,
             'status' => 200,
+            'task_list' => $taskList,
         ];
     }
 
@@ -178,7 +221,6 @@ class GoogleTasksApiService
         ];
 
         if ($task->scheduled_date) {
-            // Google Tasks uses RFC 3339 date for 'due'
             $payload['due'] = $task->scheduled_date->format('Y-m-d') . 'T00:00:00.000Z';
         }
 

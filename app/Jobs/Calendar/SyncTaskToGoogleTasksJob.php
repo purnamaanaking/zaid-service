@@ -38,7 +38,7 @@ class SyncTaskToGoogleTasksJob implements ShouldQueue
         }
 
         if ($this->action === 'delete' && $link) {
-            $response = $tasksApi->deleteTask($connection, $link->google_event_id);
+            $response = $tasksApi->deleteTask($connection, $link->google_event_id, $link->google_task_list_id ?: $task->google_task_list_id);
 
             $link->update([
                 'remote_status' => 'deleted',
@@ -55,10 +55,18 @@ class SyncTaskToGoogleTasksJob implements ShouldQueue
         $payload = $tasksApi->taskToGoogleTask($task);
 
         $response = $link
-            ? $tasksApi->updateTask($connection, $link->google_event_id, $payload)
-            : $tasksApi->createTask($connection, $payload);
+            ? $tasksApi->updateTask($connection, $link->google_event_id, $payload, $link->google_task_list_id ?: $task->google_task_list_id)
+            : $tasksApi->createTask($connection, $payload, $task->google_task_list_id);
 
         $data = $response['data'];
+        $taskList = $response['task_list'];
+
+        if ($taskList) {
+            $task->update([
+                'google_task_list_id' => $taskList->google_task_list_id,
+                'google_task_list_title' => $taskList->title,
+            ]);
+        }
 
         $link = CalendarEventLink::query()->updateOrCreate(
             ['task_id' => $task->id],
@@ -66,6 +74,7 @@ class SyncTaskToGoogleTasksJob implements ShouldQueue
                 'user_calendar_connection_id' => $connection->id,
                 'link_type' => 'google_task',
                 'google_event_id' => $data['id'] ?? $link?->google_event_id ?? '',
+                'google_task_list_id' => $taskList?->google_task_list_id ?? $link?->google_task_list_id ?? $task->google_task_list_id,
                 'google_event_etag' => $data['etag'] ?? null,
                 'remote_status' => $data['status'] ?? null,
                 'remote_updated_at' => isset($data['updated']) ? now()->parse($data['updated']) : now(),

@@ -19,6 +19,8 @@ class UpdateTaskRequest extends FormRequest
         return [
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'google_task_list_id' => ['nullable', 'string', 'max:255'],
+            'google_task_list_title' => ['nullable', 'string', 'max:255'],
             'scheduled_date' => ['nullable', 'date', 'date_format:Y-m-d'],
             'scheduled_time' => ['nullable', 'date_format:H:i:s'],
             'timezone' => ['nullable', 'string'],

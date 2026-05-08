@@ -23,6 +23,8 @@ class TaskResource extends JsonResource
             'all_day' => $this->all_day,
             'is_recurring' => $this->is_recurring,
             'source_channel' => $this->source_channel,
+            'google_task_list_id' => $this->google_task_list_id,
+            'google_task_list_title' => $this->google_task_list_title,
             'recurrence' => $this->whenLoaded('recurrence', function () {
                 return [
                     'type' => $this->recurrence->recurrence_type,

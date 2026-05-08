@@ -578,7 +578,11 @@ PROMPT;
                     $when = ' - '.$task->scheduled_date->format('Y-m-d');
                 }
 
-                return ($index + 1).'. '.$task->title.$when;
+                $listLabel = $task->google_task_list_title
+                    ? ' ['.$task->google_task_list_title.']'
+                    : '';
+
+                return ($index + 1).'. '.$task->title.$when.$listLabel;
             })->implode("\n");
 
             return "Task kamu yang belum kelar:\n{$lines}";

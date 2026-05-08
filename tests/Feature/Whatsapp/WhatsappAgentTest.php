@@ -442,4 +442,41 @@ class WhatsappAgentTest extends TestCase
             return str_contains($request->url(), 'chat/completions');
         });
     }
+
+    public function test_quick_read_pending_tasks_lists_items_from_multiple_google_task_lists(): void
+    {
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Penelitian',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+            'source_channel' => 'google_tasks',
+            'google_task_list_id' => 'list-my-tasks',
+            'google_task_list_title' => 'My Tasks',
+        ]);
+
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'skema api',
+            'scheduled_date' => null,
+            'scheduled_time' => null,
+            'status' => 'pending',
+            'source_channel' => 'google_tasks',
+            'google_task_list_id' => 'list-kuliah',
+            'google_task_list_title' => 'KULIAH',
+        ]);
+
+        Http::fake();
+
+        $this->sendWhatsApp('cek tasks apa aja', 'wamid-multi-list-read');
+
+        $reply = $this->getReplyText('wamid-multi-list-read');
+
+        $this->assertStringContainsString('Penelitian', $reply);
+        $this->assertStringContainsString('skema api', $reply);
+        Http::assertNotSent(function ($request) {
+            return str_contains($request->url(), 'chat/completions');
+        });
+    }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class UserCalendarConnection extends Model
 {
@@ -51,6 +52,16 @@ class UserCalendarConnection extends Model
     public function calendarEventLinks(): HasMany
     {
         return $this->hasMany(CalendarEventLink::class);
+    }
+
+    public function googleTaskLists(): HasMany
+    {
+        return $this->hasMany(GoogleTaskList::class);
+    }
+
+    public function defaultGoogleTaskList(): HasOne
+    {
+        return $this->hasOne(GoogleTaskList::class)->where('is_default', true);
     }
 
     public function syncLogs(): HasMany

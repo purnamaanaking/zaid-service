@@ -18,6 +18,8 @@ class Task extends Model
         'user_id',
         'source_channel',
         'source_prompt_request_id',
+        'google_task_list_id',
+        'google_task_list_title',
         'title',
         'description',
         'status',

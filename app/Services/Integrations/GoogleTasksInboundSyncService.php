@@ -4,6 +4,7 @@ namespace App\Services\Integrations;
 
 use App\Models\CalendarEventLink;
 use App\Models\CalendarSyncLog;
+use App\Models\GoogleTaskList;
 use App\Models\Task;
 use App\Models\UserCalendarConnection;
 
@@ -15,28 +16,36 @@ class GoogleTasksInboundSyncService
 
     public function syncConnection(UserCalendarConnection $connection): void
     {
-        $result = $this->tasksApi->listChanges($connection, $connection->tasks_sync_token);
+        $taskLists = $this->tasksApi->syncTaskLists($connection);
 
-        if (! $result['ok']) {
-            return;
+        foreach ($taskLists as $taskList) {
+            $result = $this->tasksApi->listChanges($connection, $taskList, $taskList->sync_token);
+
+            if (! $result['ok']) {
+                continue;
+            }
+
+            foreach ($result['items'] as $item) {
+                $this->applyItem($connection, $taskList, $item);
+            }
+
+            if ($result['next_sync_token']) {
+                $taskList->update([
+                    'sync_token' => $result['next_sync_token'],
+                    'last_synced_at' => now(),
+                ]);
+            }
         }
 
-        foreach ($result['items'] as $item) {
-            $this->applyItem($connection, $item);
-        }
-
-        if ($result['next_sync_token']) {
-            $connection->update([
-                'tasks_sync_token' => $result['next_sync_token'],
-                'last_synced_at' => now(),
-            ]);
-        }
+        $connection->update([
+            'last_synced_at' => now(),
+        ]);
     }
 
     /**
      * @param  array<string, mixed>  $item
      */
-    private function applyItem(UserCalendarConnection $connection, array $item): void
+    private function applyItem(UserCalendarConnection $connection, GoogleTaskList $taskList, array $item): void
     {
         $googleTaskId = $item['id'] ?? null;
 
@@ -47,12 +56,12 @@ class GoogleTasksInboundSyncService
         $link = CalendarEventLink::query()
             ->where('user_calendar_connection_id', $connection->id)
             ->where('google_event_id', $googleTaskId)
+            ->where('google_task_list_id', $taskList->google_task_list_id)
             ->where('link_type', 'google_task')
             ->first();
 
         $linkedTask = $link?->task()->withTrashed()->first();
 
-        // Deleted task
         if (($item['deleted'] ?? false) === true && $link && $linkedTask) {
             if (! $linkedTask->trashed()) {
                 $linkedTask->delete();
@@ -69,7 +78,6 @@ class GoogleTasksInboundSyncService
             return;
         }
 
-        // Hidden (completed and cleared) tasks
         if (($item['hidden'] ?? false) === true && $link && $linkedTask) {
             if ($linkedTask->status !== 'completed') {
                 $linkedTask->update([
@@ -84,9 +92,8 @@ class GoogleTasksInboundSyncService
             return;
         }
 
-        $taskData = $this->googleTaskToLocalData($item);
+        $taskData = $this->googleTaskToLocalData($item, $taskList);
 
-        // Update existing
         if ($link && $linkedTask) {
             $linkedTask->update(array_filter([
                 'title' => $taskData['title'],
@@ -94,9 +101,12 @@ class GoogleTasksInboundSyncService
                 'scheduled_date' => $taskData['scheduled_date'],
                 'status' => $taskData['status'],
                 'completed_at' => $taskData['completed_at'],
+                'google_task_list_id' => $taskList->google_task_list_id,
+                'google_task_list_title' => $taskList->title,
             ], fn ($v) => $v !== null));
 
             $link->update([
+                'google_task_list_id' => $taskList->google_task_list_id,
                 'google_event_etag' => $item['etag'] ?? null,
                 'remote_status' => $item['status'] ?? null,
                 'remote_updated_at' => isset($item['updated']) ? now()->parse($item['updated']) : now(),
@@ -109,10 +119,11 @@ class GoogleTasksInboundSyncService
             return;
         }
 
-        // Create new
         $task = Task::query()->create([
             'user_id' => $connection->user_id,
             'source_channel' => 'google_tasks',
+            'google_task_list_id' => $taskList->google_task_list_id,
+            'google_task_list_title' => $taskList->title,
             'title' => $taskData['title'] ?? 'Untitled',
             'description' => $taskData['description'],
             'status' => $taskData['status'],
@@ -128,6 +139,7 @@ class GoogleTasksInboundSyncService
             [
                 'user_calendar_connection_id' => $connection->id,
                 'google_event_id' => $googleTaskId,
+                'google_task_list_id' => $taskList->google_task_list_id,
             ],
             [
                 'task_id' => $task->id,
@@ -154,7 +166,7 @@ class GoogleTasksInboundSyncService
      * @param  array<string, mixed>  $item
      * @return array<string, mixed>
      */
-    private function googleTaskToLocalData(array $item): array
+    private function googleTaskToLocalData(array $item, GoogleTaskList $taskList): array
     {
         $status = ($item['status'] ?? 'needsAction') === 'completed' ? 'completed' : 'pending';
         $due = $item['due'] ?? null;
@@ -169,6 +181,8 @@ class GoogleTasksInboundSyncService
             'description' => $item['notes'] ?? null,
             'scheduled_date' => $scheduledDate,
             'status' => $status,
+            'google_task_list_id' => $taskList->google_task_list_id,
+            'google_task_list_title' => $taskList->title,
             'completed_at' => $status === 'completed' && isset($item['completed'])
                 ? now()->parse($item['completed'])
                 : null,
