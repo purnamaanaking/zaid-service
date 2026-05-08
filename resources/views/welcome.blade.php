@@ -405,7 +405,7 @@
                 <div class="hero-footer">
                     <div class="mini"><strong>1. Google Auth</strong><span>Masuk pakai akun Google user.</span></div>
                     <div class="mini"><strong>2. Verify No. HP</strong><span>Kirim OTP ke WhatsApp, fallback ke email kalau perlu.</span></div>
-                    <div class="mini"><strong>3. Connect Calendar</strong><span>Opsional, dilakukan setelah onboarding selesai.</span></div>
+                    <div class="mini"><strong>3. Connect Calendar & Tasks</strong><span>Opsional. Sync jadwal + to-do ke Google.</span></div>
                 </div>
                 <div class="legal-links">
                     <a href="/privacy">Privacy Policy</a>
@@ -452,14 +452,14 @@
                     </div>
 
                     <div class="step" id="step-calendar">
-                        <div class="step-title">Step 4 — Connect Google Calendar</div>
-                        <div class="step-desc">Step ini optional. Kalau mau, sambungkan calendar sekarang. Kalau belum, user tetap sudah bisa lanjut pakai sistem.</div>
+                        <div class="step-title">Step 4 — Connect Google Calendar & Tasks</div>
+                        <div class="step-desc">Sambungkan Google Calendar + Google Tasks. Task dengan jam masuk ke Calendar, task tanpa jam masuk ke Google Tasks.</div>
                         <div class="user-meta" id="user-meta"></div>
                         <div class="inline-actions">
-                            <button class="btn btn-primary" id="btn-connect-calendar">Connect Google Calendar</button>
+                            <button class="btn btn-primary" id="btn-connect-calendar">Connect Calendar & Tasks</button>
                             <button class="btn btn-secondary" id="btn-check-calendar">Check Status</button>
                         </div>
-                        <div class="tiny">Kalau sudah connected, callback akan kembali ke halaman sukses lalu status bisa dicek lagi di sini.</div>
+                        <div class="tiny">Kalau sudah connected sebelumnya tapi mau tambah permission Tasks, klik Connect lagi untuk reconnect.</div>
                     </div>
                 </div>
 
