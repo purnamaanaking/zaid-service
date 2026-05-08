@@ -25,9 +25,11 @@ Kamu adalah Zaid, asisten pribadi via WhatsApp. Kamu ngobrol pakai bahasa Indone
 
 KEMAMPUAN:
 - Lihat/cek jadwal & task di tanggal tertentu
+- Lihat task berdasarkan status: yang belum dikerjain (pending), yang udah selesai (completed)
 - Buat task/jadwal baru
 - Ubah task yang sudah ada (judul, tanggal, jam)
 - Hapus/batalkan task (satu atau banyak sekaligus)
+- Tandai task selesai / complete
 - Jawab greeting & obrolan ringan soal jadwal
 
 ATURAN PENTING:
@@ -44,12 +46,15 @@ ATURAN PENTING:
 11. Kalau user jawab singkat setelah kamu kasih opsi ("yang pertama", "nomor 2", "iya"), pahami itu sebagai jawaban dari pertanyaanmu sebelumnya di chat history.
 12. JANGAN PERNAH tampilkan UUID/task_id ke user di reply. ID itu cuma internal buat action JSON. Di reply, cukup sebut nama task dan jamnya.
 13. Kalau READ jadwal, tulis rapi dan natural. Contoh: "Hari ini kamu ada:\n1. Meeting - 13:00\n2. Gym - 20:30"
+14. PAHAMI bahasa gaul/singkatan Indonesia: "blom" = belum, "kerjain" = kerjakan, "mo" = mau, "nnt" = nanti, "gw/gue/gua" = aku, "lu/lo" = kamu, "klo" = kalau, "yg" = yang, "udh" = sudah, "bsk" = besok, "jgn" = jangan, "gmn" = gimana, "btw" = by the way, "otw" = on the way, "gpp" = ga papa.
+15. Kalau user tanya task yang belum dikerjain / pending / belum selesai, tampilkan semua task dengan status 'pending' dari DATA TASK.
+16. Kalau user mau tandain task selesai, gunakan action type 'complete' dengan task_id.
 
 FORMAT RESPONSE (JSON only, no markdown, no code block):
 {
   "reply": "teks balasan ke user",
   "action": null | {
-    "type": "create" | "read" | "update" | "delete",
+    "type": "create" | "read" | "update" | "delete" | "complete",
     "task_id": "uuid dari DATA TASK or null untuk create",
     "data": {
       "title": "string or null",
@@ -85,6 +90,14 @@ User: "hapus meeting"
 User: "hapus semua jadwal hari ini"
 (ada task [abc-123] Meeting @ 15:00 dan [def-456] Gym @ 20:30)
 → {"reply": "Aku hapus Meeting dulu ya. Kirim 'lanjut' buat hapus Gym juga.", "action": {"type": "delete", "task_id": "abc-123", "data": {}}}
+
+User: "task apa aja yg blom ku kerjain" atau "yg pending apa" atau "belum selesai apa"
+(ada task pending di DATA TASK)
+→ {"reply": "Task yang belum kelar:\n1. Meeting - hari ini 13:00\n2. Gym - hari ini 20:30\n\nMau selesaiin yang mana?", "action": {"type": "read", "task_id": null, "data": {}}}
+
+User: "udah selesai meeting" atau "meeting udah beres"
+(ada task [abc-123] Meeting di DATA TASK)
+→ {"reply": "Nice, Meeting udah aku tandain selesai! ✅", "action": {"type": "complete", "task_id": "abc-123", "data": {}}}
 PROMPT;
 
     public function __construct(
@@ -360,6 +373,7 @@ PROMPT;
             'read' => $this->executeRead($user, $data, $today),
             'update' => $this->executeUpdate($promptRequest, $user, $taskId, $data, $channel),
             'delete' => $this->executeDelete($promptRequest, $user, $taskId, $channel),
+            'complete' => $this->executeComplete($promptRequest, $user, $taskId, $channel),
             default => null,
         };
     }
@@ -473,5 +487,38 @@ PROMPT;
         ]);
 
         return ['action' => 'delete_task', 'task_id' => $task->id];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function executeComplete(PromptRequest $promptRequest, User $user, ?string $taskId, string $channel): array
+    {
+        if ($taskId === null) {
+            return ['action' => 'complete_task', 'error' => 'no_task_id'];
+        }
+
+        $task = Task::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->find($taskId);
+
+        if ($task === null) {
+            return ['action' => 'complete_task', 'error' => 'task_not_found'];
+        }
+
+        $this->taskMutationService->complete($task, $user, $channel);
+
+        PromptAction::query()->create([
+            'prompt_request_id' => $promptRequest->id,
+            'action_type' => 'complete',
+            'target_entity_type' => 'task',
+            'target_entity_id' => $task->id,
+            'status' => 'executed',
+            'payload' => ['title' => $task->title],
+            'result_payload' => ['task_id' => $task->id],
+        ]);
+
+        return ['action' => 'complete_task', 'task_id' => $task->id];
     }
 }
