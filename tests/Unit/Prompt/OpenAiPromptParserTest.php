@@ -59,8 +59,8 @@ class OpenAiPromptParserTest extends TestCase
         ]);
 
         $parser = new OpenAiPromptParser(
-            modelText: 'gpt-5-mini',
-            modelMultimodal: 'gpt-5-mini',
+            modelText: 'gpt-5.4',
+            modelMultimodal: 'gpt-5.4',
             apiKey: 'test-key',
             apiBase: 'https://example.test',
         );
