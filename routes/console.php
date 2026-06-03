@@ -23,13 +23,4 @@ Schedule::call(fn () => app(GoogleCalendarWatchService::class)->renewExpiringWat
     ->name('google-calendar-watch-renew')
     ->withoutOverlapping();
 
-// Poll Google Tasks for inbound sync (no webhook support)
-Schedule::call(function () {
-    UserCalendarConnection::query()
-        ->where('provider', 'google_calendar')
-        ->where('status', 'connected')
-        ->each(fn ($c) => SyncGoogleTasksConnectionJob::dispatch($c->id));
-})
-    ->everyTwoMinutes()
-    ->name('google-tasks-inbound-sync')
-    ->withoutOverlapping();
+// Google Tasks inbound sync disabled: it was re-importing old remote tasks after local cleanup.
