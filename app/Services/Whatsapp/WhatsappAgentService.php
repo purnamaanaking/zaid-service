@@ -135,20 +135,6 @@ PROMPT;
             return $quickDelete;
         }
 
-        if ($quickReply = $this->handleQuickReadQueries($user, $normalizedText, $today)) {
-            $promptRequest->update([
-                'intent' => 'READ',
-                'parse_status' => 'parsed',
-                'execution_status' => 'executed',
-                'execution_summary' => ['action' => 'read_quick'],
-            ]);
-
-            return [
-                'prompt_request_id' => $promptRequest->id,
-                'human_response' => $quickReply,
-            ];
-        }
-
         $messages = $this->buildMessages($today, $dayName, $now, $tasks, $history, $normalizedText, $attachments);
 
         try {
