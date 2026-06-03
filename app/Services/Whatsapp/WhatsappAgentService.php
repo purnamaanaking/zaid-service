@@ -486,6 +486,7 @@ PROMPT;
         $asksPending = preg_match('/\b(belum|blom|pending|belum selesai|belom selesai|belum kelar|blom kelar|belom kelar)\b/u', $text) === 1;
         $asksOverdue = preg_match('/\b(overdue|telat|kelewat|lewat deadline|jatuh tempo)\b/u', $text) === 1;
         $asksToday = preg_match('/\b(hari ini|hr ini|today|sekarang)\b/u', $text) === 1;
+        $asksTomorrow = preg_match('/\b(besok|bsk|tomorrow)\b/u', $text) === 1;
         $asksMine = preg_match('/\b(gua|gue|gw|aku|saya|ku)\b/u', $text) === 1;
         $asksList = preg_match('/\b(cek|lihat|list|apa|apa aja|apa saja|mana|yang)\b/u', $text) === 1;
 
@@ -551,6 +552,38 @@ PROMPT;
             return $asksTasks
                 ? "Task kamu buat hari ini:\n{$lines}"
                 : "Jadwal kamu hari ini:\n{$lines}";
+        }
+
+        if ($asksTomorrow && ($asksTasks || $asksSchedule)) {
+            $tomorrow = Carbon::parse($today)->addDay()->format('Y-m-d');
+            $items = Task::query()
+                ->where('user_id', $user->id)
+                ->whereNull('deleted_at')
+                ->whereDate('scheduled_date', $tomorrow)
+                ->when($asksTasks && ! $asksSchedule, fn ($query) => $query->whereNull('scheduled_time'))
+                ->when($asksSchedule && ! $asksTasks, fn ($query) => $query->whereNotNull('scheduled_time'))
+                ->orderByRaw('CASE WHEN scheduled_time IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('scheduled_time')
+                ->limit(10)
+                ->get();
+
+            if ($items->isEmpty()) {
+                return $asksTasks
+                    ? 'Task kamu buat besok kosong bro 👌'
+                    : 'Besok belum ada jadwal ya bro 😌';
+            }
+
+            $lines = $items->values()->map(function (Task $task, int $index) {
+                $suffix = $task->scheduled_time
+                    ? ' - '.substr((string) $task->scheduled_time, 0, 5)
+                    : ' - tanpa jam';
+
+                return ($index + 1).'. '.$task->title.$suffix;
+            })->implode("\n");
+
+            return $asksTasks
+                ? "Task kamu buat besok:\n{$lines}"
+                : "Jadwal kamu besok:\n{$lines}";
         }
 
         if ($asksPending || $asksTasks) {
