@@ -4,6 +4,7 @@ namespace Tests\Feature\Whatsapp;
 
 use App\Models\User;
 use App\Models\UserPhone;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class WhatsappWebhookTest extends TestCase
@@ -29,6 +30,13 @@ class WhatsappWebhookTest extends TestCase
 
     public function test_inbound_from_unknown_sender_returns_202(): void
     {
+        config([
+            'services.whatsapp.driver' => 'meta',
+            'services.whatsapp.phone_number_id' => 'bot-phone-id',
+            'services.whatsapp.access_token' => 'test-token',
+        ]);
+        Http::fake();
+
         $response = $this->postJson('/api/v1/webhooks/whatsapp', [
             'object' => 'whatsapp_business_account',
             'entry' => [
@@ -53,6 +61,10 @@ class WhatsappWebhookTest extends TestCase
         ]);
 
         $response->assertStatus(202);
+        Http::assertSent(fn ($request) =>
+            str_contains($request['text']['body'], 'https://zaid-assist.my.id/')
+            && str_contains($request['text']['body'], 'Nomor kamu belum terdaftar')
+        );
     }
 
     public function test_inbound_from_verified_sender_is_processed(): void
