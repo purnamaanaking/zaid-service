@@ -154,7 +154,7 @@ class WhatsappWebhookService
             }
 
             $this->senderService->send(
-                $senderRaw,
+                $senderE164,
                 'Nomor kamu belum terdaftar di Zaid. Silakan masuk dulu lewat web https://zaid-assist.my.id/ lalu verifikasi nomor HP kamu untuk mulai pakai WhatsApp assistant.',
             );
 

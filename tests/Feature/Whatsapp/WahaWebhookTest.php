@@ -55,6 +55,41 @@ class WahaWebhookTest extends TestCase
         $response->assertStatus(202);
     }
 
+    public function test_waha_unknown_sender_receives_web_registration_reply(): void
+    {
+        config([
+            'services.whatsapp.driver' => 'waha',
+            'services.waha.base_url' => 'http://waha.test',
+            'services.waha.api_key' => 'test-key',
+        ]);
+
+        Http::fake([
+            'http://waha.test/api/sendText' => Http::response(['success' => true], 201),
+        ]);
+
+        $response = $this->postJson('/api/v1/webhooks/whatsapp', [
+            'event' => 'message',
+            'session' => 'default',
+            'payload' => [
+                'id' => 'false_628999999999@c.us_UNKNOWN_1',
+                'from' => '628999999999@c.us',
+                'fromMe' => false,
+                'to' => '628111111111@c.us',
+                'body' => 'halo',
+                'hasMedia' => false,
+                'source' => 'app',
+            ],
+        ]);
+
+        $response->assertStatus(202);
+
+        Http::assertSent(fn ($request) =>
+            $request->url() === 'http://waha.test/api/sendText'
+            && $request['chatId'] === '628999999999@c.us'
+            && str_contains($request['text'], 'https://zaid-assist.my.id/')
+        );
+    }
+
     public function test_waha_image_message_is_processed_using_downloaded_media(): void
     {
         config([
