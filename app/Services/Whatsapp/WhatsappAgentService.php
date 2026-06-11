@@ -27,6 +27,7 @@ KEMAMPUAN:
 - Lihat/cek jadwal & task di tanggal tertentu
 - Lihat task berdasarkan status: yang belum dikerjain (pending), yang udah selesai (completed)
 - Buat task/jadwal baru
+- Baca poster/screenshot/pengumuman event, ekstrak detailnya, lalu minta konfirmasi sebelum masuk kalender
 - Ubah task yang sudah ada (judul, tanggal, jam)
 - Hapus/batalkan task (satu atau banyak sekaligus)
 - Tandai task selesai / complete
@@ -49,12 +50,15 @@ ATURAN PENTING:
 14. PAHAMI bahasa gaul/singkatan Indonesia: "blom" = belum, "kerjain" = kerjakan, "mo" = mau, "nnt" = nanti, "gw/gue/gua" = aku, "lu/lo" = kamu, "klo" = kalau, "yg" = yang, "udh" = sudah, "bsk" = besok, "jgn" = jangan, "gmn" = gimana, "btw" = by the way, "otw" = on the way, "gpp" = ga papa.
 15. Kalau user tanya task yang belum dikerjain / pending / belum selesai, tampilkan semua task dengan status 'pending' dari DATA TASK.
 16. Kalau user mau tandain task selesai, gunakan action type 'complete' dengan task_id.
+17. Kalau user mengirim gambar/poster/pengumuman/event, JANGAN langsung create. Ekstrak judul, tanggal, jam, lokasi, deskripsi lalu return action type 'confirm_create' dan tanya user mau ditambahkan ke kalender atau tidak.
+18. Kalau user menjawab setuju setelah kamu menawarkan event/task sebelumnya (misal: "iya", "gas", "tambahkan", "boleh", "ok"), gunakan action type 'confirm' agar sistem mengeksekusi pending action terakhir.
+19. Kalau user menolak (misal: "jangan", "ga usah", "batal"), gunakan action type 'cancel' agar pending action terakhir dibatalkan.
 
 FORMAT RESPONSE (JSON only, no markdown, no code block):
 {
   "reply": "teks balasan ke user",
   "action": null | {
-    "type": "create" | "read" | "update" | "delete" | "complete",
+    "type": "create" | "read" | "update" | "delete" | "complete" | "confirm_create" | "confirm" | "cancel",
     "task_id": "uuid dari DATA TASK or null untuk create",
     "data": {
       "title": "string or null",
@@ -98,6 +102,12 @@ User: "task apa aja yg blom ku kerjain" atau "yg pending apa" atau "belum selesa
 User: "udah selesai meeting" atau "meeting udah beres"
 (ada task [abc-123] Meeting di DATA TASK)
 → {"reply": "Nice, Meeting udah aku tandain selesai! ✅", "action": {"type": "complete", "task_id": "abc-123", "data": {}}}
+
+User mengirim poster event cek gula darah gratis
+→ {"reply": "Aku nemu event nih: Cek Gula Darah Gratis, Senin 8 Juni 2026 jam 08:00 di Ruang Harmony, Telkom University Lt. 3. Mau aku tambahin ke kalender?", "action": {"type": "confirm_create", "task_id": null, "data": {"title": "Cek Gula Darah Gratis", "scheduled_date": "2026-06-08", "scheduled_time": "08:00:00", "description": "Gratis cek gula darah. Lokasi: Ruang Harmony, Telkom University Lt. 3. Catatan: kuota 50 orang, sampai jajan habis.", "all_day": false}}}
+
+User: "iya tambahin"
+→ {"reply": "Siap, aku tambahin ke kalender ya 👍", "action": {"type": "confirm", "task_id": null, "data": {}}}
 PROMPT;
 
     public function __construct(
@@ -133,6 +143,10 @@ PROMPT;
 
         if ($quickDelete = $this->handleQuickDeleteQueries($promptRequest, $user, $normalizedText, $channel)) {
             return $quickDelete;
+        }
+
+        if ($confirmation = $this->handlePendingConfirmation($promptRequest, $user, $normalizedText, $channel)) {
+            return $confirmation;
         }
 
         $messages = $this->buildMessages($today, $dayName, $now, $tasks, $history, $normalizedText, $attachments);
@@ -394,6 +408,45 @@ PROMPT;
         return $normalized;
     }
 
+
+    /**
+     * @return array{prompt_request_id: string, human_response: string}|null
+     */
+    private function handlePendingConfirmation(PromptRequest $promptRequest, User $user, string $text, string $channel): ?array
+    {
+        $pending = $this->latestPendingConfirmation($user);
+
+        if (! $pending) {
+            return null;
+        }
+
+        $isConfirm = preg_match('/\b(iya|ya|yes|y|gas|gass|ok|oke|boleh|tambahkan|tambahin|add|sip|siap|lanjut)\b/u', $text) === 1;
+        $isCancel = preg_match('/\b(jangan|ga usah|gak usah|ngga|nggak|tidak|batal|cancel|skip)\b/u', $text) === 1;
+
+        if (! $isConfirm && ! $isCancel) {
+            return null;
+        }
+
+        $result = $isConfirm
+            ? $this->executePendingCreateAction($promptRequest, $user, $pending, $channel)
+            : $this->cancelPendingAction($promptRequest, $pending);
+
+        return [
+            'prompt_request_id' => $promptRequest->id,
+            'human_response' => $result['reply'],
+        ];
+    }
+
+    private function latestPendingConfirmation(User $user): ?PromptAction
+    {
+        return PromptAction::query()
+            ->whereHas('promptRequest', fn ($query) => $query->where('user_id', $user->id))
+            ->where('action_type', 'create')
+            ->where('status', 'pending_confirmation')
+            ->latest()
+            ->first();
+    }
+
     /**
      * @return array{prompt_request_id: string, human_response: string}|null
      */
@@ -641,8 +694,107 @@ PROMPT;
             'update' => $this->executeUpdate($promptRequest, $user, $taskId, $data, $channel),
             'delete' => $this->executeDelete($promptRequest, $user, $taskId, $channel),
             'complete' => $this->executeComplete($promptRequest, $user, $taskId, $channel),
+            'confirm_create' => $this->storePendingCreate($promptRequest, $data),
+            'confirm' => $this->executePendingConfirmation($promptRequest, $user, $channel),
+            'cancel' => $this->cancelPendingConfirmation($promptRequest, $user),
             default => null,
         };
+    }
+
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function storePendingCreate(PromptRequest $promptRequest, array $data): array
+    {
+        PromptAction::query()->create([
+            'prompt_request_id' => $promptRequest->id,
+            'action_type' => 'create',
+            'target_entity_type' => 'task',
+            'status' => 'pending_confirmation',
+            'payload' => $this->normalizeCreatePayload($data),
+        ]);
+
+        return ['action' => 'pending_create_confirmation', 'data' => $this->normalizeCreatePayload($data)];
+    }
+
+    private function executePendingConfirmation(PromptRequest $promptRequest, User $user, string $channel): array
+    {
+        $pending = $this->latestPendingConfirmation($user);
+
+        if (! $pending) {
+            return ['action' => 'confirm_pending', 'reply' => 'Belum ada event/task yang nunggu konfirmasi bro.'];
+        }
+
+        return $this->executePendingCreateAction($promptRequest, $user, $pending, $channel);
+    }
+
+    private function cancelPendingConfirmation(PromptRequest $promptRequest, User $user): array
+    {
+        $pending = $this->latestPendingConfirmation($user);
+
+        if (! $pending) {
+            return ['action' => 'cancel_pending', 'reply' => 'Belum ada yang perlu dibatalin bro.'];
+        }
+
+        return $this->cancelPendingAction($promptRequest, $pending);
+    }
+
+    private function executePendingCreateAction(PromptRequest $promptRequest, User $user, PromptAction $pending, string $channel): array
+    {
+        $data = $this->normalizeCreatePayload($pending->payload ?? []);
+        $task = $this->taskMutationService->create($user, $data, $channel, $promptRequest->id);
+
+        $pending->update([
+            'status' => 'executed',
+            'target_entity_id' => $task->id,
+            'result_payload' => ['task_id' => $task->id, 'confirmed_by_prompt_request_id' => $promptRequest->id],
+        ]);
+
+        PromptAction::query()->create([
+            'prompt_request_id' => $promptRequest->id,
+            'action_type' => 'confirm_create',
+            'target_entity_type' => 'task',
+            'target_entity_id' => $task->id,
+            'status' => 'executed',
+            'payload' => $data,
+            'result_payload' => ['task_id' => $task->id, 'pending_action_id' => $pending->id],
+        ]);
+
+        $when = $data['scheduled_date'] ? ' tanggal '.$data['scheduled_date'] : '';
+        $time = $data['scheduled_time'] ? ' jam '.substr((string) $data['scheduled_time'], 0, 5) : '';
+
+        return [
+            'action' => 'confirm_create_task',
+            'task_id' => $task->id,
+            'reply' => 'Siap, '.$task->title.$when.$time.' udah aku tambahin ke kalender 👍',
+        ];
+    }
+
+    private function cancelPendingAction(PromptRequest $promptRequest, PromptAction $pending): array
+    {
+        $pending->update([
+            'status' => 'cancelled',
+            'result_payload' => ['cancelled_by_prompt_request_id' => $promptRequest->id],
+        ]);
+
+        return ['action' => 'cancel_pending_create', 'reply' => 'Oke, ga aku tambahin ke kalender ya bro.'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalizeCreatePayload(array $data): array
+    {
+        return [
+            'title' => $data['title'] ?? 'Task baru',
+            'description' => $data['description'] ?? null,
+            'scheduled_date' => $data['scheduled_date'] ?? null,
+            'scheduled_time' => $data['scheduled_time'] ?? null,
+            'all_day' => $data['all_day'] ?? false,
+        ];
     }
 
     /**
@@ -651,13 +803,9 @@ PROMPT;
      */
     private function executeCreate(PromptRequest $promptRequest, User $user, array $data, string $channel): array
     {
-        $task = $this->taskMutationService->create($user, [
-            'title' => $data['title'] ?? 'Task baru',
-            'description' => $data['description'] ?? null,
-            'scheduled_date' => $data['scheduled_date'] ?? null,
-            'scheduled_time' => $data['scheduled_time'] ?? null,
-            'all_day' => $data['all_day'] ?? false,
-        ], $channel, $promptRequest->id);
+        $data = $this->normalizeCreatePayload($data);
+
+        $task = $this->taskMutationService->create($user, $data, $channel, $promptRequest->id);
 
         PromptAction::query()->create([
             'prompt_request_id' => $promptRequest->id,
