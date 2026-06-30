@@ -1,0 +1,49 @@
+<svg width="1440" height="980" viewBox="0 0 1440 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="980" rx="54" fill="#12071f"/>
+  <g opacity="0.75">
+    <circle cx="720" cy="474" r="322" stroke="#a855f7" stroke-width="2" stroke-dasharray="10 18"/>
+    <circle cx="720" cy="474" r="244" stroke="#f0abfc" stroke-width="2" stroke-opacity="0.55"/>
+    <circle cx="720" cy="474" r="162" stroke="#d8b4fe" stroke-width="2" stroke-opacity="0.65" stroke-dasharray="4 12"/>
+  </g>
+  <g filter="url(#glow)">
+    <rect x="481" y="303" width="478" height="342" rx="38" fill="url(#panel)" stroke="#e9d5ff" stroke-opacity="0.42"/>
+    <rect x="522" y="352" width="396" height="58" rx="18" fill="#1b1030" stroke="#a855f7" stroke-opacity="0.35"/>
+    <circle cx="555" cy="381" r="9" fill="#d8b4fe"/>
+    <rect x="581" y="373" width="218" height="16" rx="8" fill="#faf5ff" fill-opacity="0.82"/>
+    <rect x="522" y="438" width="180" height="128" rx="24" fill="#24123f" stroke="#a855f7" stroke-opacity="0.26"/>
+    <rect x="738" y="438" width="180" height="128" rx="24" fill="#24123f" stroke="#f0abfc" stroke-opacity="0.32"/>
+    <path d="M562 519L604 477L647 520" stroke="#d8b4fe" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M778 492H878M778 526H838" stroke="#f0abfc" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <g opacity="0.92">
+    <rect x="193" y="188" width="276" height="126" rx="26" fill="#1b1030" stroke="#a855f7" stroke-opacity="0.35"/>
+    <text x="226" y="238" fill="#faf5ff" font-family="Space Grotesk, Arial" font-size="25" font-weight="700">09:00 Standup</text>
+    <text x="226" y="276" fill="#c4b5fd" font-family="Arial" font-size="18">Auto reminder aktif</text>
+    <rect x="984" y="256" width="264" height="144" rx="28" fill="#231234" stroke="#d8b4fe" stroke-opacity="0.38"/>
+    <text x="1018" y="310" fill="#f5d0fe" font-family="Space Grotesk, Arial" font-size="25" font-weight="700">AI parsed</text>
+    <text x="1018" y="350" fill="#c4b5fd" font-family="Arial" font-size="18">3 tasks dari chat</text>
+    <rect x="235" y="665" width="306" height="132" rx="28" fill="#211331" stroke="#f0abfc" stroke-opacity="0.38"/>
+    <text x="269" y="718" fill="#fce7f3" font-family="Space Grotesk, Arial" font-size="25" font-weight="700">Calendar sync</text>
+    <text x="269" y="758" fill="#d8b4fe" font-family="Arial" font-size="18">Opsional, user-controlled</text>
+    <rect x="947" y="650" width="286" height="126" rx="28" fill="#1b1030" stroke="#a855f7" stroke-opacity="0.35"/>
+    <text x="981" y="702" fill="#faf5ff" font-family="Space Grotesk, Arial" font-size="25" font-weight="700">Phone verified</text>
+    <text x="981" y="742" fill="#c4b5fd" font-family="Arial" font-size="18">Secure onboarding</text>
+  </g>
+  <g opacity="0.9">
+    <circle cx="446" cy="257" r="8" fill="#a855f7"/>
+    <circle cx="993" cy="334" r="8" fill="#d8b4fe"/>
+    <circle cx="523" cy="718" r="8" fill="#f0abfc"/>
+    <circle cx="958" cy="700" r="8" fill="#a855f7"/>
+  </g>
+  <defs>
+    <filter id="glow" x="381" y="203" width="678" height="542" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feBlend in="SourceGraphic" in2="blur" mode="screen"/>
+    </filter>
+    <linearGradient id="panel" x1="481" y1="303" x2="959" y2="645" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102A43"/>
+      <stop offset="0.52" stop-color="#170b2a"/>
+      <stop offset="1" stop-color="#251039"/>
+    </linearGradient>
+  </defs>
+</svg>
