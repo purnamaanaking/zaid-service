@@ -82,7 +82,8 @@
             border-radius: 999px; border: 1px dashed rgba(216,180,254,.18);
             box-shadow: inset 0 0 70px rgba(168,85,247,.08);
         }
-        .brand { display: inline-flex; align-items: baseline; gap: 6px; margin-bottom: 22px; color: var(--soft); font-size: 20px; font-weight: 550; letter-spacing: -.055em; text-decoration: none; }
+        .brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 22px; color: var(--soft); font-size: 20px; font-weight: 550; letter-spacing: -.055em; text-decoration: none; }
+        .brand img { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(168,85,247,.45)); }
         .brand strong { color: var(--lavender); font-weight: 800; }
         .badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(216,180,254,.24); background: rgba(216,180,254,.08); color: var(--lavender); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 22px; }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lavender); box-shadow: 0 0 0 8px rgba(216,180,254,.12), 0 0 22px rgba(216,180,254,.75); }
@@ -425,7 +426,7 @@
         <section class="shell">
             <div class="hero">
                 <div>
-                    <a class="brand" href="/" aria-label="Zaid Assistant home"><span>Zaid</span><strong>Assistant</strong></a>
+                    <a class="brand" href="/" aria-label="Zaid Assistant home"><img src="/images/brand/zaid-logo.png" alt=""><span>Zaid <strong>Assistant</strong></span></a>
                     <div class="badge"><span class="dot"></span> Web Onboarding</div>
                     <h1>
                         <span class="solid">Plan clearly.</span>

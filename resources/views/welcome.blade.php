@@ -37,6 +37,7 @@
     <header class="relative z-20 mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
         <nav aria-label="Primary navigation" class="flex min-h-16 items-center justify-between gap-4 rounded-full bg-[#160d22]/90 px-3 py-2 shadow-[0_16px_60px_rgba(61,25,94,0.28),inset_0_1px_0_rgba(255,255,255,0.09)] ring-1 ring-white/10 backdrop-blur-xl sm:px-4">
             <a href="/" class="wordmark focus-ring min-h-11 rounded-full" aria-label="Zaid Assistant home">
+                <img src="/images/brand/zaid-logo.png" alt="">
                 <span>Zaid</span><strong>Assistant</strong>
             </a>
 
@@ -290,7 +291,7 @@
     <footer class="relative z-10 px-4 pb-8 sm:px-6 lg:px-8">
         <div class="mx-auto flex w-full max-w-7xl flex-col gap-6 rounded-3xl bg-[#150c20] px-6 py-7 ring-1 ring-white/8 md:flex-row md:items-center md:justify-between">
             <div class="wordmark-footer">
-                <strong>Zaid Assistant</strong>
+                <span class="footer-brand-row"><img src="/images/brand/zaid-logo.png" alt=""><strong>Zaid Assistant</strong></span>
                 <span>Copyright © 2026</span>
             </div>
             <nav aria-label="Legal navigation" class="flex flex-wrap gap-x-5 gap-y-3 text-sm text-[#c8bdd2]">

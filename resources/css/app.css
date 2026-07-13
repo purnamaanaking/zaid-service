@@ -107,6 +107,13 @@ summary {
     text-decoration: none;
 }
 
+.wordmark img {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+    filter: drop-shadow(0 0 12px rgb(168 85 247 / 0.42));
+}
+
 .wordmark strong {
     color: #d8b4fe;
     font-weight: 700;
@@ -673,6 +680,19 @@ summary {
 .wordmark-footer {
     display: grid;
     gap: 0.2rem;
+}
+
+.footer-brand-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.footer-brand-row img {
+    width: 1.5rem;
+    height: 1.5rem;
+    object-fit: contain;
+    filter: drop-shadow(0 0 8px rgb(168 85 247 / 0.35));
 }
 
 .wordmark-footer strong {
