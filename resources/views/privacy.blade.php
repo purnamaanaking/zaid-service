@@ -1,112 +1,86 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Privacy Policy — Zaid</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background: #0b0619;
-            color: #f8f7ff;
-            line-height: 1.75;
-            padding: 40px 20px;
-        }
-        .container {
-            max-width: 860px;
-            margin: 0 auto;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(192, 132, 252, 0.14);
-            border-radius: 24px;
-            padding: 36px;
-            box-shadow: 0 20px 60px rgba(90, 24, 170, 0.22);
-        }
-        .brand {
-            font-size: 30px;
-            font-weight: 900;
-            letter-spacing: -1.4px;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, #ffffff 0%, #d8b4fe 40%, #a855f7 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        h1 { font-size: 32px; margin-bottom: 12px; }
-        h2 { font-size: 20px; margin: 28px 0 10px; }
-        p, li { color: #d7d0e8; font-size: 15px; }
-        ul { padding-left: 20px; }
-        .muted { color: #9b92b6; font-size: 13px; }
-        a { color: #c084fc; text-decoration: none; }
-        .back { display: inline-block; margin-top: 28px; }
-    </style>
+    <title>Privacy Policy | Zaid Assistant</title>
+    <meta name="description" content="Privacy Policy for Zaid Assistant, including Google Calendar and Google Tasks data use.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://zaidassistant.id/privacy">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body>
-    <main class="container">
-        <div class="brand">Zaid</div>
-        <h1>Privacy Policy</h1>
-        <p class="muted">Last updated: {{ now()->format('F j, Y') }}</p>
+<body class="min-h-[100dvh] bg-[#0c0614] text-[#fbf8ff]">
+    <div class="site-glow" aria-hidden="true"></div>
+    <header class="relative z-10 mx-auto w-full max-w-5xl px-4 pt-4 sm:px-6">
+        <nav class="flex min-h-16 items-center justify-between rounded-full bg-[#160d22]/90 px-5 shadow-[0_16px_60px_rgba(61,25,94,0.28),inset_0_1px_0_rgba(255,255,255,0.09)] ring-1 ring-white/10 backdrop-blur-xl">
+            <a href="/" class="wordmark focus-ring min-h-11 rounded-full" aria-label="Zaid Assistant home"><span>Zaid</span><strong>Assistant</strong></a>
+            <a href="/app" class="button-primary min-h-11 px-5">Get Started</a>
+        </nav>
+    </header>
 
-        <p style="margin-top: 18px;">
-            Zaid menghargai privasi pengguna. Kebijakan privasi ini menjelaskan bagaimana Zaid mengumpulkan,
-            menggunakan, menyimpan, dan melindungi informasi pengguna saat menggunakan layanan kami.
-        </p>
+    <main class="relative z-10 mx-auto w-full max-w-5xl px-4 py-16 sm:px-6 md:py-24">
+        <article class="legal-document">
+            <p class="section-kicker">Legal</p>
+            <h1 class="text-balance text-4xl font-semibold tracking-[-0.055em] sm:text-6xl">Privacy Policy</h1>
+            <p class="mt-5 text-sm text-[#aa9db7]">Last updated: {{ now()->format('F j, Y') }}</p>
+            <p class="legal-lead">This Privacy Policy explains how Zaid Assistant collects, uses, protects, and controls personal information when you use our productivity service.</p>
 
-        <h2>1. Informasi yang kami kumpulkan</h2>
-        <p>Kami dapat mengumpulkan informasi berikut:</p>
-        <ul>
-            <li>Informasi akun seperti nama, email, dan identitas Google.</li>
-            <li>Nomor HP / WhatsApp yang digunakan untuk verifikasi dan interaksi layanan.</li>
-            <li>Data task, jadwal, agenda, dan input prompt yang Anda kirim ke sistem.</li>
-            <li>Data integrasi seperti Google Calendar jika Anda memilih menghubungkannya.</li>
-        </ul>
+            <section>
+                <h2>Information we collect</h2>
+                <ul>
+                    <li>Basic account information from Google Sign-In, including name, email address, and Google account identifier.</li>
+                    <li>Phone or WhatsApp number you provide for account verification and service communication.</li>
+                    <li>Tasks, schedules, reminders, prompts, and other information you submit to use Zaid Assistant.</li>
+                    <li>Connection details needed to maintain Google Calendar and Google Tasks integrations you authorize.</li>
+                </ul>
+            </section>
 
-        <h2>2. Cara kami menggunakan informasi</h2>
-        <ul>
-            <li>Mengautentikasi pengguna dan mengamankan akun.</li>
-            <li>Menyediakan fitur task, agenda, pengingat, dan sinkronisasi layanan.</li>
-            <li>Memproses perintah yang dikirim melalui aplikasi atau WhatsApp.</li>
-            <li>Meningkatkan kualitas layanan, keamanan, dan pengalaman pengguna.</li>
-        </ul>
+            <section>
+                <h2>How we use information</h2>
+                <p>We use information to authenticate your account, provide requested productivity features, maintain service security, and respond to support requests. We do not sell personal information or use Google user data for advertising.</p>
+            </section>
 
-        <h2>3. Penyimpanan dan keamanan data</h2>
-        <p>
-            Kami berupaya menjaga keamanan data pengguna dengan mekanisme autentikasi, pembatasan akses,
-            logging, dan pengamanan infrastruktur yang wajar. Namun, tidak ada sistem yang sepenuhnya bebas risiko.
-        </p>
+            <section>
+                <h2>Google Calendar data</h2>
+                <p>Google Calendar data is used only to create, read, edit, update, or delete calendar events that you directly request through Zaid Assistant. We do not access or modify your calendar without your interaction or permission.</p>
+            </section>
 
-        <h2>4. Integrasi pihak ketiga</h2>
-        <p>
-            Layanan Zaid dapat menggunakan layanan pihak ketiga seperti Google OAuth, Google Calendar,
-            WhatsApp, penyedia email, dan penyedia model AI untuk memberikan fungsionalitas tertentu.
-        </p>
+            <section>
+                <h2>Google Tasks data</h2>
+                <p>Google Tasks data is used only to create, read, organize, complete, update, or delete tasks that you directly request through Zaid Assistant. We do not access or modify your tasks without your interaction or permission.</p>
+            </section>
 
-        <h2>5. Pembagian data</h2>
-        <p>
-            Kami tidak menjual data pribadi pengguna. Data hanya digunakan untuk kebutuhan operasional layanan,
-            integrasi yang Anda setujui, atau kewajiban hukum jika diperlukan.
-        </p>
+            <section>
+                <h2>Google API Services User Data Policy</h2>
+                <p>Zaid Assistant's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+            </section>
 
-        <h2>6. Hak pengguna</h2>
-        <p>
-            Pengguna dapat meminta perubahan, pembaruan, atau penghapusan data tertentu sesuai kebijakan layanan
-            dan kemampuan sistem yang tersedia.
-        </p>
+            <section>
+                <h2>Data sharing and service providers</h2>
+                <p>We share data only when needed to operate a feature you request, with service providers that support our infrastructure, or when required by law. We do not sell Google user data or personal data.</p>
+            </section>
 
-        <h2>7. Perubahan kebijakan</h2>
-        <p>
-            Kebijakan privasi ini dapat diperbarui dari waktu ke waktu. Perubahan signifikan akan ditampilkan
-            pada halaman ini.
-        </p>
+            <section>
+                <h2>Security and retention</h2>
+                <p>We use OAuth 2.0 authentication, HTTPS communication, access controls, and reasonable operational safeguards to protect information. We retain data only as long as needed to provide the service, meet legal obligations, resolve disputes, or enforce agreements.</p>
+            </section>
 
-        <h2>8. Kontak</h2>
-        <p>
-            Jika Anda memiliki pertanyaan terkait privasi, silakan hubungi kami di
-            <a href="mailto:zaidassist@gmail.com">zaidassist@gmail.com</a>.
-        </p>
+            <section>
+                <h2>Your choices</h2>
+                <ul>
+                    <li>You can revoke access to your Google account at any time through <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">Google Account permissions</a>.</li>
+                    <li>You can update information available in the service where supported.</li>
+                    <li>You can request deletion of your account or applicable personal data by contacting us.</li>
+                </ul>
+            </section>
 
-        <a class="back" href="/">← Kembali ke Zaid</a>
+            <section>
+                <h2>Changes and contact</h2>
+                <p>We may update this policy when our service or legal obligations change. For privacy questions or to request deletion, contact <a href="mailto:zaidassistant@gmail.com">zaidassistant@gmail.com</a>.</p>
+            </section>
+        </article>
     </main>
+
+    <footer class="relative z-10 px-4 pb-8 sm:px-6"><div class="mx-auto flex max-w-5xl flex-wrap gap-x-5 gap-y-3 text-sm text-[#b9adbf]"><a class="footer-link" href="/">Home</a><a class="footer-link" href="/terms">Terms of Service</a><a class="footer-link" href="mailto:zaidassistant@gmail.com">Contact</a></div></footer>
 </body>
 </html>

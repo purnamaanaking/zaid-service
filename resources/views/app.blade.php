@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Zaid App Flow</title>
+    <title>Zaid Assistant Onboarding</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
@@ -83,8 +83,8 @@
             border-radius: 999px; border: 1px dashed rgba(216,180,254,.18);
             box-shadow: inset 0 0 70px rgba(168,85,247,.08);
         }
-        .brand { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 22px; font-weight: 800; letter-spacing: -.04em; }
-        .brand::before { content: "Z"; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 14px; color: #12071f; background: linear-gradient(135deg, var(--lavender), var(--purple)); box-shadow: 0 0 34px rgba(216,180,254,.28); }
+        .brand { display: inline-flex; align-items: baseline; gap: 6px; margin-bottom: 22px; color: var(--soft); font-size: 20px; font-weight: 550; letter-spacing: -.055em; text-decoration: none; }
+        .brand strong { color: var(--lavender); font-weight: 800; }
         .badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(216,180,254,.24); background: rgba(216,180,254,.08); color: var(--lavender); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 22px; }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lavender); box-shadow: 0 0 0 8px rgba(216,180,254,.12), 0 0 22px rgba(216,180,254,.75); }
         h1 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(46px, 6vw, 82px); line-height: .9; letter-spacing: -.06em; margin-bottom: 22px; }
@@ -122,6 +122,9 @@
         .user-meta { display: grid; gap: 8px; margin-bottom: 14px; color: var(--soft); font-size: 13px; }
         .tiny { margin-top: 12px; font-size: 12px; color: var(--muted); }
         #google-signin-button { min-height: 44px; }
+        .legal-links { width: min(1120px, 100%); display: flex; gap: 18px; padding: 2px 6px 0; color: var(--muted); font-size: 13px; }
+        .legal-links a { color: inherit; text-decoration: none; }
+        .legal-links a:hover { color: var(--lavender); }
 
         @media (max-width: 980px) {
             .page { place-items: start center; }
@@ -149,7 +152,7 @@
         <section class="shell">
             <div class="hero">
                 <div>
-                    <div class="brand">Zaid</div>
+                    <a class="brand" href="/" aria-label="Zaid Assistant home"><span>Zaid</span><strong>Assistant</strong></a>
                     <div class="badge"><span class="dot"></span> Web Onboarding</div>
                     <h1>
                         <span class="solid">Auth once.</span>
@@ -177,14 +180,14 @@
 
                 <div class="steps">
                     <div class="step active" id="step-auth">
-                        <div class="step-title">Step 1 — Login / daftar</div>
-                        <div class="step-desc">Pakai tombol Google di bawah ini untuk masuk. Setelah berhasil, sistem akan cek apakah user perlu isi nomor HP atau sudah bisa lanjut.</div>
+                        <div class="step-title">Continue with Google</div>
+                        <div class="step-desc">Sign in securely with your Google account. After sign-in, Zaid Assistant checks whether phone verification is still required.</div>
                         <div id="google-signin-button"></div>
                         <div class="tiny">Google Client ID aktif akan dipakai dari konfigurasi backend.</div>
                     </div>
 
                     <div class="step" id="step-phone">
-                        <div class="step-title">Step 2 — Input nomor HP</div>
+                        <div class="step-title">Verify your phone</div>
                         <div class="step-desc">Masukkan nomor WhatsApp aktif. OTP akan dikirim ke WhatsApp dulu, lalu fallback ke email kalau kirim WA gagal.</div>
                         <div class="field">
                             <label class="label" for="phone_number">Nomor HP / WhatsApp</label>
@@ -194,7 +197,7 @@
                     </div>
 
                     <div class="step" id="step-otp">
-                        <div class="step-title">Step 3 — Verifikasi OTP</div>
+                        <div class="step-title">Verify OTP</div>
                         <div class="step-desc">Masukkan OTP yang masuk ke WhatsApp atau email.</div>
                         <div class="field">
                             <label class="label" for="otp_code">Kode OTP</label>
@@ -207,8 +210,8 @@
                     </div>
 
                     <div class="step" id="step-calendar">
-                        <div class="step-title">Step 4 — Connect Google Calendar & Tasks</div>
-                        <div class="step-desc">Sambungkan Google Calendar + Google Tasks. Task dengan jam masuk ke Calendar, task tanpa jam masuk ke Google Tasks.</div>
+                        <div class="step-title">Connect Calendar and Tasks</div>
+                        <div class="step-desc">Connect Google Calendar and Google Tasks after verification. Zaid Assistant uses these permissions only for actions you directly request.</div>
                         <div class="user-meta" id="user-meta"></div>
                         <div class="inline-actions">
                             <button class="btn btn-primary" id="btn-connect-calendar">Connect Calendar & Tasks</button>
@@ -221,6 +224,10 @@
                 <div id="status-box" class="status-box">Belum ada aksi.</div>
             </div>
         </section>
+        <nav class="legal-links" aria-label="Legal navigation">
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
+        </nav>
     </main>
 
     <script>
