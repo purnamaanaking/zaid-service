@@ -69,6 +69,10 @@ class LandingPageTest extends TestCase
             ->assertSee('Continue with Google')
             ->assertSee('Verify your phone')
             ->assertSee('Connect Calendar and Tasks')
+            ->assertSee('Plan clearly.')
+            ->assertSee('Connect your workspace')
+            ->assertSee('Onboarding progress')
+            ->assertSee('Waiting for your first step.')
             ->assertSee('Privacy Policy')
             ->assertSee('Terms of Service');
     }

@@ -6,7 +6,6 @@
     <title>Zaid Assistant Onboarding</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
         :root {
             --ink: #12071f;
@@ -68,8 +67,8 @@
             transform: translate3d(calc(var(--pointer-x) * 1.1), calc(var(--scroll-y) * -.28 + var(--pointer-y)), 0) rotate(calc(var(--scroll-y) * .018deg));
         }
 
-        .page { position: relative; z-index: 1; min-height: 100vh; padding: 28px; display: grid; place-items: center; }
-        .shell { width: min(1120px, 100%); display: grid; grid-template-columns: .95fr 1.05fr; gap: 22px; align-items: stretch; }
+        .page { position: relative; z-index: 1; min-height: 100vh; padding: clamp(24px, 5vw, 64px) 28px 28px; display: grid; place-items: center; }
+        .shell { width: min(1280px, 100%); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(18px, 3vw, 32px); align-items: start; }
         .hero, .panel {
             border: 1px solid var(--line);
             background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.028));
@@ -77,7 +76,7 @@
             backdrop-filter: blur(18px);
             -webkit-backdrop-filter: blur(18px);
         }
-        .hero { border-radius: 36px; padding: clamp(26px, 4vw, 42px); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; position: relative; }
+        .hero { min-height: 620px; border-radius: 36px; padding: clamp(28px, 4vw, 52px); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; position: relative; }
         .hero::before {
             content: ""; position: absolute; inset: 90px -80px auto auto; width: 360px; height: 360px;
             border-radius: 999px; border: 1px dashed rgba(216,180,254,.18);
@@ -87,24 +86,26 @@
         .brand strong { color: var(--lavender); font-weight: 800; }
         .badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(216,180,254,.24); background: rgba(216,180,254,.08); color: var(--lavender); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 22px; }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lavender); box-shadow: 0 0 0 8px rgba(216,180,254,.12), 0 0 22px rgba(216,180,254,.75); }
-        h1 { font-family: 'Fraunces', Georgia, serif; font-size: clamp(46px, 6vw, 82px); line-height: .9; letter-spacing: -.06em; margin-bottom: 22px; }
+        h1 { max-width: 9ch; font-family: 'Fraunces', Georgia, serif; font-size: clamp(54px, 6vw, 86px); line-height: .88; letter-spacing: -.065em; margin-bottom: 26px; }
         h1 .solid, h1 .gradient { display: block; }
         h1 .gradient { color: var(--lavender); text-shadow: 0 0 40px rgba(216,180,254,.22); }
-        .hero p { color: var(--soft); font-size: 17px; line-height: 1.75; max-width: 560px; }
-        .hero-footer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 38px; }
-        .mini { border-radius: 22px; padding: 18px 16px; background: rgba(255,255,255,.045); border: 1px solid var(--line); }
+        .hero p { max-width: 44ch; color: var(--soft); font-size: 17px; line-height: 1.75; }
+        .hero-footer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 48px; }
+        .mini { min-height: 132px; border-radius: 20px; padding: 16px 14px; background: rgba(255,255,255,.045); border: 1px solid var(--line); transition: transform .28s cubic-bezier(.23,1,.32,1), background .28s ease, border-color .28s ease; }
+        .mini:hover { transform: translateY(-4px); background: rgba(255,255,255,.075); border-color: rgba(216,180,254,.28); }
         .mini strong { display: block; font-size: 14px; margin-bottom: 7px; color: var(--soft); }
         .mini span { display: block; font-size: 13px; line-height: 1.55; color: var(--muted); }
 
-        .panel { border-radius: 32px; padding: clamp(22px, 3vw, 32px); }
+        .panel { min-height: 620px; border-radius: 32px; padding: clamp(24px, 3vw, 40px); }
         .panel-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-        .panel h2 { font-family: 'Fraunces', Georgia, serif; font-size: 34px; letter-spacing: -.05em; }
+        .panel h2 { font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; font-size: clamp(27px, 3vw, 38px); font-weight: 700; letter-spacing: -.06em; }
         .panel p.lead { color: var(--muted); font-size: 14px; line-height: 1.75; margin-bottom: 22px; }
         .logout-btn { display: none; width: auto; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--soft); font-size: 12px; font-weight: 800; cursor: pointer; }
         .logout-btn.show { display: inline-flex; align-items: center; justify-content: center; }
-        .steps { display: grid; gap: 14px; }
+        .steps { display: grid; gap: 14px; min-height: 300px; }
         .step { display: none; border-radius: 24px; padding: 20px; background: rgba(12,4,23,.58); border: 1px solid rgba(216,180,254,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
-        .step.active { display: block; }
+        .step.active { display: block; animation: step-enter .45s cubic-bezier(.23,1,.32,1) both; }
+        @keyframes step-enter { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .step-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; color: var(--soft); }
         .step-desc { color: var(--muted); font-size: 13px; line-height: 1.65; margin-bottom: 16px; }
         .field { display: grid; gap: 8px; margin-bottom: 12px; }
@@ -122,26 +123,298 @@
         .user-meta { display: grid; gap: 8px; margin-bottom: 14px; color: var(--soft); font-size: 13px; }
         .tiny { margin-top: 12px; font-size: 12px; color: var(--muted); }
         #google-signin-button { min-height: 44px; }
-        .legal-links { width: min(1120px, 100%); display: flex; gap: 18px; padding: 2px 6px 0; color: var(--muted); font-size: 13px; }
+        .legal-links { width: min(1280px, 100%); display: flex; gap: 18px; padding: 18px 6px 0; color: var(--muted); font-size: 13px; }
         .legal-links a { color: inherit; text-decoration: none; }
         .legal-links a:hover { color: var(--lavender); }
 
+        /* Workspace redesign */
+        body {
+            min-height: 100dvh;
+            font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+            background:
+                radial-gradient(circle at 16% 8%, rgba(126, 34, 206, .15), transparent 32rem),
+                radial-gradient(circle at 88% 88%, rgba(168, 85, 247, .08), transparent 36rem),
+                #0c0614;
+            -webkit-font-smoothing: antialiased;
+        }
+        body::before {
+            opacity: .22;
+            background-size: 96px 96px;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,.65), transparent 82%);
+            transform: none;
+        }
+        body::after, .bg-orb { display: none; }
+        .page {
+            align-content: center;
+            padding: clamp(28px, 5vw, 72px) 24px 30px;
+        }
+        .shell {
+            width: min(1180px, 100%);
+            grid-template-columns: minmax(300px, .72fr) minmax(0, 1.28fr);
+            align-items: stretch;
+            gap: 1px;
+            overflow: hidden;
+            border-radius: 34px;
+            padding: 1px;
+            background: rgba(255,255,255,.10);
+            box-shadow: 0 40px 120px rgba(42, 10, 63, .38), inset 0 1px 0 rgba(255,255,255,.08);
+        }
+        .hero, .panel {
+            min-height: 610px;
+            border: 0;
+            border-radius: 0;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+        }
+        .hero {
+            padding: clamp(30px, 4vw, 46px);
+            background:
+                radial-gradient(circle at 10% 10%, rgba(216,180,254,.10), transparent 20rem),
+                #140b1e;
+        }
+        .hero::before {
+            inset: auto -90px -130px auto;
+            width: 320px;
+            height: 320px;
+            border: 1px solid rgba(216,180,254,.10);
+            box-shadow: none;
+        }
+        .brand {
+            margin-bottom: 70px;
+            font-size: 18px;
+        }
+        .badge {
+            margin-bottom: 18px;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            font-size: 10px;
+            letter-spacing: .16em;
+        }
+        .dot {
+            width: 6px;
+            height: 6px;
+            box-shadow: 0 0 16px rgba(216,180,254,.55);
+        }
+        h1 {
+            max-width: 10ch;
+            margin-bottom: 22px;
+            font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+            font-size: clamp(42px, 4.4vw, 64px);
+            font-weight: 650;
+            line-height: .94;
+            letter-spacing: -.065em;
+        }
+        h1 .gradient {
+            color: #d8b4fe;
+            text-shadow: none;
+        }
+        .hero p {
+            max-width: 38ch;
+            color: #b9adbf;
+            font-size: 15px;
+            line-height: 1.72;
+        }
+        .hero-footer {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0;
+            margin-top: 48px;
+            border-top: 1px solid rgba(255,255,255,.10);
+        }
+        .mini {
+            min-height: auto;
+            display: grid;
+            grid-template-columns: 6.5rem 1fr;
+            gap: 12px;
+            border: 0;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            border-radius: 0;
+            padding: 15px 2px;
+            background: transparent;
+        }
+        .mini:hover {
+            transform: translateX(4px);
+            border-color: rgba(216,180,254,.22);
+            background: transparent;
+        }
+        .mini strong { margin: 0; font-size: 12px; color: #e2d7e9; }
+        .mini span { font-size: 12px; line-height: 1.5; }
+        .panel {
+            padding: clamp(30px, 4vw, 50px);
+            background:
+                radial-gradient(circle at 100% 0%, rgba(168,85,247,.08), transparent 24rem),
+                #181022;
+        }
+        .panel-top { margin-bottom: 8px; }
+        .panel h2 {
+            max-width: 16ch;
+            font-size: clamp(30px, 3.2vw, 46px);
+            font-weight: 650;
+            line-height: 1;
+        }
+        .panel p.lead {
+            max-width: 56ch;
+            margin-bottom: 30px;
+            color: #9f92aa;
+        }
+        .logout-btn {
+            min-height: 40px;
+            border: 0;
+            background: rgba(255,255,255,.06);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.09);
+            transition: transform .14s cubic-bezier(.23,1,.32,1), background .24s ease;
+        }
+        .logout-btn:active { transform: scale(.96); }
+        .progress-rail {
+            display: grid;
+            grid-template-columns: auto 1fr auto 1fr auto 1fr auto;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        .progress-item {
+            display: grid;
+            gap: 4px;
+            color: #776b82;
+            transition: color .28s cubic-bezier(.23,1,.32,1), transform .28s cubic-bezier(.23,1,.32,1);
+        }
+        .progress-item span {
+            display: grid;
+            width: 32px;
+            height: 32px;
+            place-items: center;
+            border-radius: 10px;
+            background: rgba(255,255,255,.045);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.07);
+            font-size: 10px;
+            font-variant-numeric: tabular-nums;
+            transition: background .28s ease, box-shadow .28s ease;
+        }
+        .progress-item strong { font-size: 10px; font-weight: 600; }
+        .progress-item.active { color: #f4ecf9; transform: translateY(-2px); }
+        .progress-item.active span {
+            color: #180923;
+            background: #d8b4fe;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 8px 22px rgba(126,34,206,.22);
+        }
+        .progress-item.complete { color: #b9adbf; }
+        .progress-item.complete span { color: #d8b4fe; background: rgba(168,85,247,.15); }
+        .progress-line { height: 1px; background: rgba(255,255,255,.09); }
+        .steps { min-height: 278px; }
+        .step {
+            min-height: 278px;
+            border: 0;
+            border-radius: 22px;
+            padding: clamp(22px, 3vw, 30px);
+            background: #100817;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.055), inset 0 0 0 1px rgba(255,255,255,.07);
+        }
+        .step-title { font-size: 18px; letter-spacing: -.025em; }
+        .step-desc { max-width: 58ch; color: #9f92aa; font-size: 13px; }
+        .field { margin-top: 22px; margin-bottom: 16px; }
+        .label { color: #d7cde2; }
+        .input {
+            min-height: 50px;
+            border: 0;
+            border-radius: 14px;
+            background: rgba(255,255,255,.055);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), inset 0 1px 0 rgba(255,255,255,.04);
+            transition: box-shadow .22s cubic-bezier(.23,1,.32,1), background .22s ease;
+        }
+        .input:focus {
+            border: 0;
+            background: rgba(255,255,255,.075);
+            box-shadow: inset 0 0 0 1px rgba(216,180,254,.42), 0 0 0 4px rgba(168,85,247,.10);
+        }
+        .code-input { font-variant-numeric: tabular-nums; letter-spacing: .28em; }
+        .btn {
+            min-height: 48px;
+            transition: transform .14s cubic-bezier(.23,1,.32,1), box-shadow .24s ease, background .24s ease, opacity .2s ease;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:active { transform: scale(.96); }
+        .btn-primary {
+            color: #180923;
+            background: #d8b4fe;
+            box-shadow: 0 14px 34px rgba(126,34,206,.22), inset 0 1px 0 rgba(255,255,255,.65);
+        }
+        .btn-secondary {
+            border: 0;
+            background: rgba(255,255,255,.055);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
+        }
+        #google-signin-button { min-height: 44px; max-width: 320px; }
+        .tiny { color: #786d82; }
+        .user-meta {
+            gap: 0;
+            overflow: hidden;
+            border-radius: 14px;
+            background: rgba(255,255,255,.035);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.07);
+        }
+        .user-meta div { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.06); }
+        .status-box {
+            position: relative;
+            margin-top: 14px;
+            border: 0;
+            border-radius: 14px;
+            padding: 14px 16px 14px 42px;
+            color: #a99db7;
+            background: rgba(255,255,255,.035);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.07);
+        }
+        .status-box::before {
+            content: "";
+            position: absolute;
+            left: 17px;
+            top: 50%;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #786d82;
+            transform: translateY(-50%);
+            transition: background .2s ease, box-shadow .2s ease;
+        }
+        .status-box.success { border: 0; color: #c9f7dd; background: rgba(34,197,94,.07); box-shadow: inset 0 0 0 1px rgba(74,222,128,.20); }
+        .status-box.success::before { background: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,.55); }
+        .status-box.error { border: 0; background: rgba(239,68,68,.07); box-shadow: inset 0 0 0 1px rgba(252,165,165,.22); }
+        .status-box.error::before { background: #fca5a5; }
+        .legal-links { width: min(1180px, 100%); padding-top: 18px; }
+
         @media (max-width: 980px) {
-            .page { place-items: start center; }
-            .shell { grid-template-columns: 1fr; }
-            .hero-footer { grid-template-columns: 1fr 1fr 1fr; }
+            .page { place-items: start center; padding-top: 28px; }
+            .shell { grid-template-columns: 1fr; gap: 1px; }
+            .hero, .panel { min-height: auto; }
+            .hero { padding-bottom: 32px; }
+            .brand { margin-bottom: 48px; }
+            .hero-footer { grid-template-columns: repeat(3, 1fr); }
+            .panel { padding-top: 36px; }
         }
         @media (max-width: 640px) {
-            .page { padding: 16px; }
-            .hero, .panel { border-radius: 26px; }
-            .hero-footer, .inline-actions { grid-template-columns: 1fr; }
-            h1 { font-size: clamp(42px, 15vw, 62px); }
+            .page { padding: 14px; }
+            .shell { border-radius: 26px; }
+            .hero, .panel { padding: 26px 22px; }
+            .brand { margin-bottom: 42px; }
+            h1 { max-width: 9ch; font-size: clamp(40px, 13vw, 56px); }
+            .hero-footer { grid-template-columns: 1fr; margin-top: 34px; }
+            .mini { grid-template-columns: 5.6rem 1fr; }
             .panel-top { align-items: flex-start; }
-            .bg-orb { opacity: .5; right: -340px; }
+            .panel h2 { font-size: 30px; }
+            .progress-rail { gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+            .progress-item strong { display: none; }
+            .steps, .step { min-height: auto; }
+            .step { padding: 22px 18px; }
+            .inline-actions { grid-template-columns: 1fr; }
+            .legal-links { padding-inline: 4px; }
         }
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
             body::before, body::after, .bg-orb { transform: none !important; }
+            .step.active { animation: none; }
         }
     </style>
 </head>
@@ -155,28 +428,37 @@
                     <a class="brand" href="/" aria-label="Zaid Assistant home"><span>Zaid</span><strong>Assistant</strong></a>
                     <div class="badge"><span class="dot"></span> Web Onboarding</div>
                     <h1>
-                        <span class="solid">Auth once.</span>
-                        <span class="gradient">Connect everything.</span>
+                        <span class="solid">Plan clearly.</span>
+                        <span class="gradient">Move with intent.</span>
                     </h1>
                     <p>
-                        Login dengan Google, verifikasi nomor HP, lalu sambungkan Google Calendar & Tasks.
-                        Semua flow dasar produk bisa lu tes langsung dari web ini.
+                        Sign in with Google, verify your phone, then connect Google Calendar and Google Tasks. Zaid Assistant keeps every permission and action under your control.
                     </p>
                 </div>
 
                 <div class="hero-footer">
-                    <div class="mini"><strong>1. Google Auth</strong><span>Masuk pakai akun Google user.</span></div>
-                    <div class="mini"><strong>2. Verify No. HP</strong><span>Kirim OTP ke WhatsApp, fallback ke email kalau perlu.</span></div>
-                    <div class="mini"><strong>3. Connect Calendar & Tasks</strong><span>Opsional, dilakukan setelah onboarding selesai.</span></div>
+                    <div class="mini"><strong>01 · Sign in</strong><span>Use your Google account to authenticate securely.</span></div>
+                    <div class="mini"><strong>02 · Verify</strong><span>Confirm your phone before connecting services.</span></div>
+                    <div class="mini"><strong>03 · Connect</strong><span>Grant Calendar and Tasks access when ready.</span></div>
                 </div>
             </div>
 
             <div class="panel">
                 <div class="panel-top">
-                    <h2>Simple test flow</h2>
+                    <h2>Connect your workspace</h2>
                     <button class="logout-btn" id="btn-logout">Logout</button>
                 </div>
-                <p class="lead">Gunakan panel ini untuk ngetes flow utama: login, no HP, OTP, dan connect Google Calendar & Tasks.</p>
+                <p class="lead">Complete four short steps to set up Zaid Assistant. You decide when Google access is granted.</p>
+
+                <div class="progress-rail" aria-label="Onboarding progress">
+                    <div class="progress-item active" data-progress="step-auth" aria-current="step"><span>01</span><strong>Sign in</strong></div>
+                    <div class="progress-line" aria-hidden="true"></div>
+                    <div class="progress-item" data-progress="step-phone"><span>02</span><strong>Verify</strong></div>
+                    <div class="progress-line" aria-hidden="true"></div>
+                    <div class="progress-item" data-progress="step-otp"><span>03</span><strong>Confirm</strong></div>
+                    <div class="progress-line" aria-hidden="true"></div>
+                    <div class="progress-item" data-progress="step-calendar"><span>04</span><strong>Connect</strong></div>
+                </div>
 
                 <div class="steps">
                     <div class="step active" id="step-auth">
@@ -188,24 +470,24 @@
 
                     <div class="step" id="step-phone">
                         <div class="step-title">Verify your phone</div>
-                        <div class="step-desc">Masukkan nomor WhatsApp aktif. OTP akan dikirim ke WhatsApp dulu, lalu fallback ke email kalau kirim WA gagal.</div>
+                        <div class="step-desc">Add an active phone number. We will send a one-time verification code before you connect Google services.</div>
                         <div class="field">
-                            <label class="label" for="phone_number">Nomor HP / WhatsApp</label>
-                            <input class="input" id="phone_number" type="text" placeholder="0812xxxxxxx">
+                            <label class="label" for="phone_number">Phone number</label>
+                            <input class="input" id="phone_number" type="tel" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx">
                         </div>
-                        <button class="btn btn-primary" id="btn-submit-phone">Kirim OTP</button>
+                        <button class="btn btn-primary" id="btn-submit-phone">Send verification code</button>
                     </div>
 
                     <div class="step" id="step-otp">
                         <div class="step-title">Verify OTP</div>
-                        <div class="step-desc">Masukkan OTP yang masuk ke WhatsApp atau email.</div>
+                        <div class="step-desc">Enter the six-digit code sent to your verified phone or fallback email.</div>
                         <div class="field">
-                            <label class="label" for="otp_code">Kode OTP</label>
-                            <input class="input" id="otp_code" type="text" placeholder="123456">
+                            <label class="label" for="otp_code">Verification code</label>
+                            <input class="input code-input" id="otp_code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
                         </div>
                         <div class="inline-actions">
-                            <button class="btn btn-primary" id="btn-verify-otp">Verifikasi OTP</button>
-                            <button class="btn btn-secondary" id="btn-resend-otp">Kirim Ulang</button>
+                            <button class="btn btn-primary" id="btn-verify-otp">Verify code</button>
+                            <button class="btn btn-secondary" id="btn-resend-otp">Resend code</button>
                         </div>
                     </div>
 
@@ -214,14 +496,14 @@
                         <div class="step-desc">Connect Google Calendar and Google Tasks after verification. Zaid Assistant uses these permissions only for actions you directly request.</div>
                         <div class="user-meta" id="user-meta"></div>
                         <div class="inline-actions">
-                            <button class="btn btn-primary" id="btn-connect-calendar">Connect Calendar & Tasks</button>
-                            <button class="btn btn-secondary" id="btn-check-calendar">Check Status</button>
+                            <button class="btn btn-primary" id="btn-connect-calendar">Connect Calendar and Tasks</button>
+                            <button class="btn btn-secondary" id="btn-check-calendar">Check connection</button>
                         </div>
-                        <div class="tiny">Kalau sudah connected sebelumnya tapi mau tambah permission Tasks, klik Connect lagi untuk reconnect.</div>
+                        <div class="tiny">Already connected? Use this button again if you want to add or refresh Tasks permission.</div>
                     </div>
                 </div>
 
-                <div id="status-box" class="status-box">Belum ada aksi.</div>
+                <div id="status-box" class="status-box" role="status" aria-live="polite">Waiting for your first step.</div>
             </div>
         </section>
         <nav class="legal-links" aria-label="Legal navigation">
@@ -248,8 +530,22 @@
         const logoutButton = document.getElementById('btn-logout');
 
         function showStep(step) {
-            [stepAuth, stepPhone, stepOtp, stepCalendar].forEach(el => el.classList.remove('active'));
+            const allSteps = [stepAuth, stepPhone, stepOtp, stepCalendar];
+            const activeIndex = allSteps.indexOf(step);
+
+            allSteps.forEach(el => el.classList.remove('active'));
             step.classList.add('active');
+
+            document.querySelectorAll('[data-progress]').forEach((item, index) => {
+                item.classList.toggle('active', index === activeIndex);
+                item.classList.toggle('complete', index < activeIndex);
+
+                if (index === activeIndex) {
+                    item.setAttribute('aria-current', 'step');
+                } else {
+                    item.removeAttribute('aria-current');
+                }
+            });
         }
 
         function setStatus(message, type = '') {
@@ -343,7 +639,7 @@
             if (!token) {
                 logoutButton.classList.remove('show');
                 showStep(stepAuth);
-                setStatus('Belum login. Mulai dari Google login.', '');
+                setStatus('Sign in with Google to begin setup.', '');
                 return;
             }
 
@@ -367,18 +663,18 @@
 
                 if (status.data.next_step === 'phone_input') {
                     showStep(stepPhone);
-                    setStatus('Silakan isi nomor HP.', '');
+                    setStatus('Add your phone number to continue.', '');
                     return;
                 }
 
                 if (status.data.next_step === 'verify_otp') {
                     showStep(stepOtp);
-                    setStatus('Silakan verifikasi OTP.', '');
+                    setStatus('Enter your verification code to continue.', '');
                     return;
                 }
 
                 showStep(stepCalendar);
-                setStatus('Onboarding selesai. Google Calendar & Tasks bisa dihubungkan kapan saja.', 'success');
+                setStatus('Setup complete. You can connect Google Calendar and Google Tasks now.', 'success');
             } catch (error) {
                 clearSession();
                 showStep(stepAuth);
@@ -410,7 +706,7 @@
 
         function initGoogleButton() {
             if (!window.google || !googleClientId) {
-                setStatus('Google Client ID belum siap di backend.', 'error');
+                setStatus('Google Sign-In is not configured yet. Please contact support.', 'error');
                 return;
             }
 
