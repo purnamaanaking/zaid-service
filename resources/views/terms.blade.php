@@ -13,7 +13,7 @@
     <div class="site-glow" aria-hidden="true"></div>
     <header class="relative z-10 mx-auto w-full max-w-5xl px-4 pt-4 sm:px-6">
         <nav class="flex min-h-16 items-center justify-between rounded-full bg-[#160d22]/90 px-5 shadow-[0_16px_60px_rgba(61,25,94,0.28),inset_0_1px_0_rgba(255,255,255,0.09)] ring-1 ring-white/10 backdrop-blur-xl">
-            <a href="/" class="wordmark focus-ring min-h-11 rounded-full" aria-label="Zaid Assistant home"><img src="/images/brand/zaid-logo.png" alt=""><span>Zaid</span><strong>Assistant</strong></a>
+            <a href="/" class="logo-only focus-ring" aria-label="Zaid Assistant home"><img src="/images/brand/zaid-logo.png" alt=""></a>
             <a href="/app" class="button-primary min-h-11 px-5">Get Started</a>
         </nav>
     </header>

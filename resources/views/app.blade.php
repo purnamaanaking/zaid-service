@@ -426,7 +426,7 @@
         <section class="shell">
             <div class="hero">
                 <div>
-                    <a class="brand" href="/" aria-label="Zaid Assistant home"><img src="/images/brand/zaid-logo.png" alt=""><span>Zaid <strong>Assistant</strong></span></a>
+                    <a class="brand logo-only" href="/" aria-label="Zaid Assistant home"><img src="/images/brand/zaid-logo.png" alt=""></a>
                     <div class="badge"><span class="dot"></span> Web Onboarding</div>
                     <h1>
                         <span class="solid">Plan clearly.</span>
