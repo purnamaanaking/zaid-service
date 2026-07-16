@@ -95,7 +95,7 @@ class WhatsappAgentTest extends TestCase
             ],
         ]);
 
-        $this->sendWhatsApp('bikin meeting besok jam 9', 'wamid-create');
+        $this->sendWhatsApp('bikin task meeting besok jam 9', 'wamid-create');
 
         $reply = $this->getReplyText('wamid-create');
         $this->assertStringContainsString('meeting', strtolower($reply));
@@ -105,6 +105,59 @@ class WhatsappAgentTest extends TestCase
             'title' => 'Meeting',
             'scheduled_date' => '2026-05-08',
             'scheduled_time' => '09:00:00',
+        ]);
+    }
+
+    public function test_agent_creates_calendar_event_when_ai_marks_event(): void
+    {
+        $this->fakeAiResponse('Siap, meeting penelitian jam 07:00 sudah aku catat.', [
+            'type' => 'create',
+            'task_id' => null,
+            'data' => [
+                'entity_type' => 'event',
+                'title' => 'Meeting penelitian',
+                'scheduled_date' => '2026-05-08',
+                'scheduled_time' => '07:00:00',
+                'all_day' => false,
+            ],
+        ]);
+
+        $this->sendWhatsApp('buat meeting penelitian jam 7 pagi', 'wamid-event');
+
+        $this->assertDatabaseHas('calendar_events', [
+            'user_id' => $this->user->id,
+            'title' => 'Meeting penelitian',
+            'all_day' => false,
+        ]);
+        $this->assertDatabaseMissing('tasks', [
+            'user_id' => $this->user->id,
+            'title' => 'Meeting penelitian',
+        ]);
+    }
+
+    public function test_explicit_task_wins_when_ai_mislabels_it_as_event(): void
+    {
+        $this->fakeAiResponse('Siap.', [
+            'type' => 'create',
+            'task_id' => null,
+            'data' => [
+                'entity_type' => 'event',
+                'title' => 'Follow up dosen',
+                'scheduled_date' => '2026-05-08',
+                'scheduled_time' => null,
+                'all_day' => true,
+            ],
+        ]);
+
+        $this->sendWhatsApp('buat task follow up dosen', 'wamid-task-over-event');
+
+        $this->assertDatabaseHas('tasks', [
+            'user_id' => $this->user->id,
+            'title' => 'Follow up dosen',
+        ]);
+        $this->assertDatabaseMissing('calendar_events', [
+            'user_id' => $this->user->id,
+            'title' => 'Follow up dosen',
         ]);
     }
 
@@ -292,7 +345,7 @@ class WhatsappAgentTest extends TestCase
             ],
         ]);
 
-        $this->sendWhatsApp('Buat jadwal hari ini ada meeting penelitian jam 7 pagi', 'wamid-create-schedule');
+        $this->sendWhatsApp('Buat task meeting penelitian hari ini jam 7 pagi', 'wamid-create-schedule');
 
         $this->assertDatabaseHas('tasks', [
             'user_id' => $this->user->id,

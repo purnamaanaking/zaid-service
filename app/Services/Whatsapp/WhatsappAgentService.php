@@ -2,6 +2,7 @@
 
 namespace App\Services\Whatsapp;
 
+use App\Models\CalendarEvent;
 use App\Models\PromptAction;
 use App\Models\PromptRequest;
 use App\Models\Task;
@@ -35,24 +36,25 @@ KEMAMPUAN:
 
 ATURAN PENTING:
 1. Balas singkat, santai, kayak chat temen. Jangan formal/kaku.
-2. LANGSUNG EKSEKUSI. Jangan tanya deskripsi, lokasi, atau detail tambahan kecuali user sendiri yang mau tambahin. Kalau user bilang "buat meeting jam 3", langsung buat dengan title "Meeting" dan jam 15:00. Selesai.
-3. Kalau user mau ubah/hapus dan ada task yang cocok di DATA TASK, WAJIB sertakan task_id dari data. Jangan pernah return action tanpa task_id kalau ada match.
-4. Kalau user bilang "hapus semua" atau "hapus semuanya", hapus satu-satu dengan multiple action. Tapi karena kamu cuma bisa 1 action per response, hapus yang pertama dulu dan bilang "Aku hapus [nama] dulu ya, kirim 'lanjut' buat hapus sisanya."
-5. Kalau user mau ubah/hapus tapi ada beberapa task mirip, kasih list bernomor dan tanya yang mana.
-6. Kalau cuma greeting ("bro", "halo", "hey"), bales santai dan tanya ada yang bisa dibantu.
-7. Kalau user ngasih koreksi/info tambahan (misal "hari ini tanggal 8"), terima dan gunakan info itu.
-8. Format jam pakai HH:MM (24h), tanggal pakai format natural Indonesia.
-9. Jangan pernah bilang "aku belum bisa bantu". Kalau ga ngerti, tanya balik.
-10. Bisa handle typo dan bahasa casual/slang Indonesia.
-11. Kalau user jawab singkat setelah kamu kasih opsi ("yang pertama", "nomor 2", "iya"), pahami itu sebagai jawaban dari pertanyaanmu sebelumnya di chat history.
-12. JANGAN PERNAH tampilkan UUID/task_id ke user di reply. ID itu cuma internal buat action JSON. Di reply, cukup sebut nama task dan jamnya.
-13. Kalau READ jadwal, tulis rapi dan natural. Contoh: "Hari ini kamu ada:\n1. Meeting - 13:00\n2. Gym - 20:30"
-14. PAHAMI bahasa gaul/singkatan Indonesia: "blom" = belum, "kerjain" = kerjakan, "mo" = mau, "nnt" = nanti, "gw/gue/gua" = aku, "lu/lo" = kamu, "klo" = kalau, "yg" = yang, "udh" = sudah, "bsk" = besok, "jgn" = jangan, "gmn" = gimana, "btw" = by the way, "otw" = on the way, "gpp" = ga papa.
-15. Kalau user tanya task yang belum dikerjain / pending / belum selesai, tampilkan semua task dengan status 'pending' dari DATA TASK.
-16. Kalau user mau tandain task selesai, gunakan action type 'complete' dengan task_id.
-17. Kalau user mengirim gambar/poster/pengumuman/event, JANGAN langsung create. Ekstrak judul, tanggal, jam, lokasi, deskripsi lalu return action type 'confirm_create' dan tanya user mau ditambahkan ke kalender atau tidak.
-18. Kalau user menjawab setuju setelah kamu menawarkan event/task sebelumnya (misal: "iya", "gas", "tambahkan", "boleh", "ok"), gunakan action type 'confirm' agar sistem mengeksekusi pending action terakhir.
-19. Kalau user menolak (misal: "jangan", "ga usah", "batal"), gunakan action type 'cancel' agar pending action terakhir dibatalkan.
+2. LANGSUNG EKSEKUSI. Jangan tanya deskripsi, lokasi, atau detail tambahan kecuali user sendiri yang mau tambahin.
+3. Bedakan jenis data: `event` untuk meeting, acara, jadwal, kelas, janji, appointment, atau kalender yang punya waktu; `task` untuk tugas, todo, follow up, atau pekerjaan. Jika user menyebut jenisnya, WAJIB pakai jenis itu. Jika tidak jelas, gunakan `task`.
+4. Kalau user mau ubah/hapus dan ada task yang cocok di DATA TASK, WAJIB sertakan task_id dari data. Jangan pernah return action tanpa task_id kalau ada match.
+5. Kalau user bilang "hapus semua" atau "hapus semuanya", hapus satu-satu dengan multiple action. Tapi karena kamu cuma bisa 1 action per response, hapus yang pertama dulu dan bilang "Aku hapus [nama] dulu ya, kirim 'lanjut' buat hapus sisanya."
+6. Kalau user mau ubah/hapus tapi ada beberapa task mirip, kasih list bernomor dan tanya yang mana.
+7. Kalau cuma greeting ("bro", "halo", "hey"), bales santai dan tanya ada yang bisa dibantu.
+8. Kalau user ngasih koreksi/info tambahan (misal "hari ini tanggal 8"), terima dan gunakan info itu.
+9. Format jam pakai HH:MM:SS (24h), tanggal pakai YYYY-MM-DD di action. "jam 7 pagi" = 07:00:00, "jam 7 malam" = 19:00:00.
+10. Jangan pernah bilang "aku belum bisa bantu". Kalau ga ngerti, tanya balik.
+11. Bisa handle typo dan bahasa casual/slang Indonesia.
+12. Kalau user jawab singkat setelah kamu kasih opsi ("yang pertama", "nomor 2", "iya"), pahami itu sebagai jawaban dari pertanyaanmu sebelumnya di chat history.
+13. JANGAN PERNAH tampilkan UUID/task_id ke user di reply. ID itu cuma internal buat action JSON. Di reply, cukup sebut nama task dan jamnya.
+14. Kalau READ jadwal, tulis rapi dan natural. Contoh: "Hari ini kamu ada:\n1. Meeting - 13:00\n2. Gym - 20:30"
+15. PAHAMI bahasa gaul/singkatan Indonesia: "blom" = belum, "kerjain" = kerjakan, "mo" = mau, "nnt" = nanti, "gw/gue/gua" = aku, "lu/lo" = kamu, "klo" = kalau, "yg" = yang, "udh" = sudah, "bsk" = besok, "jgn" = jangan, "gmn" = gimana, "btw" = by the way, "otw" = on the way, "gpp" = ga papa.
+16. Kalau user tanya task yang belum dikerjain / pending / belum selesai, tampilkan semua task dengan status 'pending' dari DATA TASK.
+17. Kalau user mau tandain task selesai, gunakan action type 'complete' dengan task_id.
+18. Kalau user mengirim gambar/poster/pengumuman/event, JANGAN langsung create. Ekstrak judul, tanggal, jam, lokasi, deskripsi lalu return action type 'confirm_create' dan tanya user mau ditambahkan ke kalender atau tidak.
+19. Kalau user menjawab setuju setelah kamu menawarkan event/task sebelumnya (misal: "iya", "gas", "tambahkan", "boleh", "ok"), gunakan action type 'confirm' agar sistem mengeksekusi pending action terakhir.
+20. Kalau user menolak (misal: "jangan", "ga usah", "batal"), gunakan action type 'cancel' agar pending action terakhir dibatalkan.
 
 FORMAT RESPONSE (JSON only, no markdown, no code block):
 {
@@ -61,6 +63,7 @@ FORMAT RESPONSE (JSON only, no markdown, no code block):
     "type": "create" | "read" | "update" | "delete" | "complete" | "confirm_create" | "confirm" | "cancel",
     "task_id": "uuid dari DATA TASK or null untuk create",
     "data": {
+      "entity_type": "task" | "event",
       "title": "string or null",
       "scheduled_date": "YYYY-MM-DD or null",
       "scheduled_time": "HH:MM:SS or null",
@@ -80,7 +83,10 @@ User: "list jadwal hari ini" atau "cek jadwal" atau "jadwal apa hari ini"
 (JANGAN tampilkan UUID di reply! Cukup nama + jam)
 
 User: "tambah meeting jam 3 sore"
-→ {"reply": "Siap, meeting jam 15:00 udah aku catat! 👍", "action": {"type": "create", "task_id": null, "data": {"title": "Meeting", "scheduled_date": "2026-05-08", "scheduled_time": "15:00:00"}}}
+→ {"reply": "Siap, meeting jam 15:00 udah aku catat! 👍", "action": {"type": "create", "task_id": null, "data": {"entity_type": "event", "title": "Meeting", "scheduled_date": "2026-05-08", "scheduled_time": "15:00:00", "all_day": false}}}
+
+User: "buat task follow up dosen besok"
+→ {"reply": "Siap, follow up dosen besok udah aku buat!", "action": {"type": "create", "task_id": null, "data": {"entity_type": "task", "title": "Follow up dosen", "scheduled_date": "2026-05-09", "scheduled_time": null, "all_day": true}}}
 (JANGAN tanya deskripsi/lokasi, langsung buat!)
 
 User: "ubah meeting jadi jam 10 malam"
@@ -185,6 +191,10 @@ PROMPT;
 
         $reply = $aiResponse['reply'] ?? 'Hmm, aku kurang nangkep. Coba ulangin dong?';
         $action = $aiResponse['action'] ?? null;
+
+        if (($action['type'] ?? null) === 'create') {
+            $action['data']['entity_type'] = $this->creationEntityType($normalizedText, $action['data']['entity_type'] ?? null);
+        }
 
         $intent = $action['type'] ?? null;
         $promptRequest->update([
@@ -410,6 +420,19 @@ PROMPT;
         }
 
         return $parsed;
+    }
+
+    private function creationEntityType(string $text, mixed $aiChoice): string
+    {
+        if (preg_match('/\b(task|tugas|todo|to-do|follow\s*up|kerjakan)\b/u', $text)) {
+            return 'task';
+        }
+
+        if (preg_match('/\b(meeting|acara|event|jadwal|kelas|janji|appointment|kalender)\b/u', $text)) {
+            return 'event';
+        }
+
+        return $aiChoice === 'event' ? 'event' : 'task';
     }
 
     private function normalizeIncomingText(string $text): string
@@ -703,7 +726,9 @@ PROMPT;
         $taskId = $action['task_id'] ?? null;
 
         return match ($type) {
-            'create' => $this->executeCreate($promptRequest, $user, $data, $channel),
+            'create' => ($data['entity_type'] ?? 'task') === 'event'
+                ? $this->executeCreateEvent($promptRequest, $user, $data)
+                : $this->executeCreate($promptRequest, $user, $data, $channel),
             'read' => $this->executeRead($user, $data, $today),
             'update' => $this->executeUpdate($promptRequest, $user, $taskId, $data, $channel),
             'delete' => $this->executeDelete($promptRequest, $user, $taskId, $channel),
@@ -815,6 +840,35 @@ PROMPT;
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
+    private function executeCreateEvent(PromptRequest $promptRequest, User $user, array $data): array
+    {
+        $date = $data['scheduled_date'] ?? now()->format('Y-m-d');
+        $time = $data['scheduled_time'] ?? null;
+        $allDay = (bool) ($data['all_day'] ?? $time === null);
+        $startsAt = Carbon::parse($date.' '.($time ?: '00:00:00'), 'Asia/Jakarta');
+
+        $event = CalendarEvent::query()->create([
+            'user_id' => $user->id,
+            'title' => $data['title'] ?? 'Event baru',
+            'description' => $data['description'] ?? null,
+            'starts_at' => $startsAt,
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => $allDay,
+        ]);
+
+        PromptAction::query()->create([
+            'prompt_request_id' => $promptRequest->id,
+            'action_type' => 'create',
+            'target_entity_type' => 'event',
+            'target_entity_id' => $event->id,
+            'status' => 'executed',
+            'payload' => $data,
+            'result_payload' => ['event_id' => $event->id],
+        ]);
+
+        return ['action' => 'create_event', 'event_id' => $event->id];
+    }
+
     private function executeCreate(PromptRequest $promptRequest, User $user, array $data, string $channel): array
     {
         $data = $this->normalizeCreatePayload($data);
