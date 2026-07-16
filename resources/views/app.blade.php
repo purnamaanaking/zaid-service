@@ -433,23 +433,23 @@
                         <span class="gradient">Move with intent.</span>
                     </h1>
                     <p>
-                        Sign in with Google, verify your phone, then connect Google Calendar and Google Tasks. Zaid Assistant keeps every permission and action under your control.
+Sign in with Google, then verify your phone to start planning with Zaid Assistant.
                     </p>
                 </div>
 
                 <div class="hero-footer">
                     <div class="mini"><strong>01 · Sign in</strong><span>Use your Google account to authenticate securely.</span></div>
-                    <div class="mini"><strong>02 · Verify</strong><span>Confirm your phone before connecting services.</span></div>
-                    <div class="mini"><strong>03 · Connect</strong><span>Grant Calendar and Tasks access when ready.</span></div>
+                    <div class="mini"><strong>02 · Verify</strong><span>Confirm your phone number with a one-time code.</span></div>
+                    <div class="mini"><strong>03 · Start</strong><span>Manage tasks, schedules, and reminders in Zaid.</span></div>
                 </div>
             </div>
 
             <div class="panel">
                 <div class="panel-top">
-                    <h2>Connect your workspace</h2>
+                    <h2>Set up your workspace</h2>
                     <button class="logout-btn" id="btn-logout">Logout</button>
                 </div>
-                <p class="lead">Complete four short steps to set up Zaid Assistant. You decide when Google access is granted.</p>
+                <p class="lead">Complete three short steps to set up Zaid Assistant.</p>
 
                 <div class="progress-rail" aria-label="Onboarding progress">
                     <div class="progress-item active" data-progress="step-auth" aria-current="step"><span>01</span><strong>Sign in</strong></div>
@@ -457,8 +457,6 @@
                     <div class="progress-item" data-progress="step-phone"><span>02</span><strong>Verify</strong></div>
                     <div class="progress-line" aria-hidden="true"></div>
                     <div class="progress-item" data-progress="step-otp"><span>03</span><strong>Confirm</strong></div>
-                    <div class="progress-line" aria-hidden="true"></div>
-                    <div class="progress-item" data-progress="step-calendar"><span>04</span><strong>Connect</strong></div>
                 </div>
 
                 <div class="steps">
@@ -471,7 +469,7 @@
 
                     <div class="step" id="step-phone">
                         <div class="step-title">Verify your phone</div>
-                        <div class="step-desc">Add an active phone number. We will send a one-time verification code before you connect Google services.</div>
+                        <div class="step-desc">Add an active phone number. We will send a one-time verification code.</div>
                         <div class="field">
                             <label class="label" for="phone_number">Phone number</label>
                             <input class="input" id="phone_number" type="tel" inputmode="tel" autocomplete="tel" placeholder="0812xxxxxxx">
@@ -492,16 +490,6 @@
                         </div>
                     </div>
 
-                    <div class="step" id="step-calendar">
-                        <div class="step-title">Connect Calendar and Tasks</div>
-                        <div class="step-desc">Connect Google Calendar and Google Tasks after verification. Zaid Assistant uses these permissions only for actions you directly request.</div>
-                        <div class="user-meta" id="user-meta"></div>
-                        <div class="inline-actions">
-                            <button class="btn btn-primary" id="btn-connect-calendar">Connect Calendar and Tasks</button>
-                            <button class="btn btn-secondary" id="btn-check-calendar">Check connection</button>
-                        </div>
-                        <div class="tiny">Already connected? Use this button again if you want to add or refresh Tasks permission.</div>
-                    </div>
                 </div>
 
                 <div id="status-box" class="status-box" role="status" aria-live="polite">Waiting for your first step.</div>
@@ -524,14 +512,12 @@
         const stepAuth = document.getElementById('step-auth');
         const stepPhone = document.getElementById('step-phone');
         const stepOtp = document.getElementById('step-otp');
-        const stepCalendar = document.getElementById('step-calendar');
         const phoneInput = document.getElementById('phone_number');
         const otpInput = document.getElementById('otp_code');
-        const userMeta = document.getElementById('user-meta');
         const logoutButton = document.getElementById('btn-logout');
 
         function showStep(step) {
-            const allSteps = [stepAuth, stepPhone, stepOtp, stepCalendar];
+            const allSteps = [stepAuth, stepPhone, stepOtp];
             const activeIndex = allSteps.indexOf(step);
 
             allSteps.forEach(el => el.classList.remove('active'));
@@ -612,12 +598,6 @@
 
         async function afterLoginFlow(authData) {
             const onboarding = authData.data.onboarding;
-            const user = authData.data.user;
-
-            userMeta.innerHTML = `
-                <div><strong>User:</strong> ${user.full_name || '-'} (${user.email})</div>
-                <div><strong>Status:</strong> ${user.status}</div>
-            `;
 
             if (onboarding.next_step === 'phone_input') {
                 showStep(stepPhone);
@@ -631,8 +611,8 @@
                 return;
             }
 
-            showStep(stepCalendar);
-            setStatus('Login dan onboarding dasar sudah selesai. Sekarang lu bisa connect Google Calendar & Tasks kalau mau.', 'success');
+            showStep(stepOtp);
+            setStatus('Setup selesai. Zaid siap dipakai.', 'success');
         }
 
         async function refreshState() {
@@ -651,17 +631,6 @@
                     method: 'GET',
                     headers: authHeaders(),
                 });
-                const me = await api('/me', {
-                    method: 'GET',
-                    headers: authHeaders(),
-                });
-
-                userMeta.innerHTML = `
-                    <div><strong>User:</strong> ${me.data.full_name || '-'} (${me.data.email})</div>
-                    <div><strong>Phone verified:</strong> ${me.data.phone_verified ? 'Yes' : 'No'}</div>
-                    <div><strong>Status:</strong> ${me.data.status}</div>
-                `;
-
                 if (status.data.next_step === 'phone_input') {
                     showStep(stepPhone);
                     setStatus('Add your phone number to continue.', '');
@@ -674,8 +643,8 @@
                     return;
                 }
 
-                showStep(stepCalendar);
-                setStatus('Setup complete. You can connect Google Calendar and Google Tasks now.', 'success');
+                showStep(stepOtp);
+                setStatus('Setup complete. Zaid is ready to use.', 'success');
             } catch (error) {
                 clearSession();
                 showStep(stepAuth);
@@ -759,8 +728,8 @@
                     }),
                 });
 
-                showStep(stepCalendar);
-                setStatus(result.message || 'OTP berhasil diverifikasi.', 'success');
+                showStep(stepOtp);
+                setStatus(result.message || 'OTP berhasil diverifikasi. Zaid siap dipakai.', 'success');
                 await refreshState();
             } catch (error) {
                 setStatus(error.message || 'OTP tidak valid.', 'error');
@@ -782,35 +751,6 @@
             }
         });
 
-        document.getElementById('btn-connect-calendar').addEventListener('click', async () => {
-            try {
-                const result = await api('/integrations/google-calendar/connect', {
-                    method: 'GET',
-                    headers: authHeaders(),
-                });
-                window.location.href = result.data.redirect_url;
-            } catch (error) {
-                setStatus(error.message || 'Gagal generate Google Calendar connect URL.', 'error');
-            }
-        });
-
-        document.getElementById('btn-check-calendar').addEventListener('click', async () => {
-            try {
-                const result = await api('/integrations/google-calendar/status', {
-                    method: 'GET',
-                    headers: authHeaders(),
-                });
-
-                if (result.data.connected) {
-                    setStatus('Google Calendar & Tasks sudah connected.', 'success');
-                } else {
-                    setStatus('Google Calendar & Tasks belum connected.', '');
-                }
-            } catch (error) {
-                setStatus(error.message || 'Gagal cek status Google Calendar & Tasks.', 'error');
-            }
-        });
-
         logoutButton.addEventListener('click', async () => {
             try {
                 if (getToken()) {
@@ -825,7 +765,7 @@
                 clearSession();
                 phoneInput.value = '';
                 otpInput.value = '';
-                userMeta.innerHTML = '';
+
                 showStep(stepAuth);
                 setStatus('Berhasil logout. Silakan login lagi kalau mau lanjut test.', 'success');
             }

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Privacy Policy | Zaid Assistant</title>
-    <meta name="description" content="Privacy Policy for Zaid Assistant, including Google Calendar and Google Tasks data use.">
+    <meta name="description" content="Privacy Policy for Zaid Assistant.">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://zaidassistant.id/privacy">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -31,28 +31,12 @@
                     <li>Basic account information from Google Sign-In, including name, email address, and Google account identifier.</li>
                     <li>Phone or WhatsApp number you provide for account verification and service communication.</li>
                     <li>Tasks, schedules, reminders, prompts, and other information you submit to use Zaid Assistant.</li>
-                    <li>Connection details needed to maintain Google Calendar and Google Tasks integrations you authorize.</li>
                 </ul>
             </section>
 
             <section>
                 <h2>How we use information</h2>
                 <p>We use information to authenticate your account, provide requested productivity features, maintain service security, and respond to support requests. We do not sell personal information or use Google user data for advertising.</p>
-            </section>
-
-            <section>
-                <h2>Google Calendar data</h2>
-                <p>Google Calendar data is used only to create, read, edit, update, or delete calendar events that you directly request through Zaid Assistant. We do not access or modify your calendar without your interaction or permission.</p>
-            </section>
-
-            <section>
-                <h2>Google Tasks data</h2>
-                <p>Google Tasks data is used only to create, read, organize, complete, update, or delete tasks that you directly request through Zaid Assistant. We do not access or modify your tasks without your interaction or permission.</p>
-            </section>
-
-            <section>
-                <h2>Google API Services User Data Policy</h2>
-                <p>Zaid Assistant's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
             </section>
 
             <section>

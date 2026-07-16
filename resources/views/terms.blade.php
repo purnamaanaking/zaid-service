@@ -27,26 +27,21 @@
 
             <section>
                 <h2>Using Zaid Assistant</h2>
-                <p>Zaid Assistant is a productivity service that helps users manage tasks, schedules, reminders, and supported integrations. You are responsible for the requests you make and for keeping your account credentials secure.</p>
+                <p>Zaid Assistant is a productivity service that helps users manage tasks, schedules, and reminders. You are responsible for the requests you make and for keeping your account credentials secure.</p>
             </section>
 
             <section>
                 <h2>Your account</h2>
                 <ul>
                     <li>Provide accurate information when signing in and completing onboarding.</li>
-                    <li>Protect access to your Google account, phone, and Zaid Assistant session.</li>
+                    <li>Protect access to your Google Sign-In account, phone, and Zaid Assistant session.</li>
                     <li>Do not use the service for unlawful, abusive, fraudulent, or harmful activity.</li>
                 </ul>
             </section>
 
             <section>
-                <h2>Google Calendar and Google Tasks</h2>
-                <p>When you grant Google permissions, Zaid Assistant may interact with Google Calendar and Google Tasks only to provide actions you directly request. You remain responsible for reviewing requests and the resulting changes. You can revoke access at any time through <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">Google Account permissions</a>.</p>
-            </section>
-
-            <section>
                 <h2>Third-party services</h2>
-                <p>Some features rely on third-party services, including Google authentication, Google Calendar, Google Tasks, WhatsApp, email providers, and AI providers. Your use of those services may also be subject to their terms and privacy policies.</p>
+                <p>Some features rely on third-party services, including Google Sign-In, WhatsApp, email providers, and AI providers. Your use of those services may also be subject to their terms and privacy policies.</p>
             </section>
 
             <section>

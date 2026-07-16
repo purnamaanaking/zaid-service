@@ -12,20 +12,15 @@ class LandingPageTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Zaid Assistant')
-            ->assertSee('Manage Google Calendar events')
-            ->assertSee('Manage Google Tasks')
             ->assertSee('Why Google Sign-In is required')
-            ->assertSee('Requested permissions')
-            ->assertSee('Google Calendar')
-            ->assertSee('Google Tasks')
-            ->assertSee('User Profile')
-            ->assertSee('Email Address')
-            ->assertSee('We never access, modify, or share user data without user interaction or permission.')
+            ->assertSee('Google Sign-In only to securely authenticate users')
+            ->assertSee('Does Zaid access my Google Calendar or Tasks?')
+            ->assertDontSee('Google Calendar Sync')
+            ->assertDontSee('Google Tasks Sync')
             ->assertSee('OAuth 2.0 authentication')
             ->assertSee('How it works')
             ->assertSee('zaidassistant@gmail.com')
-            ->assertSee('https://zaidassistant.id')
-            ->assertSee('Google API Services User Data Policy');
+            ->assertSee('https://zaidassistant.id');
     }
 
     public function test_homepage_exposes_required_public_links(): void
@@ -36,29 +31,26 @@ class LandingPageTest extends TestCase
             ->assertSee('href="/app"', false)
             ->assertSee('href="/privacy"', false)
             ->assertSee('href="/terms"', false)
-            ->assertSee('href="mailto:zaidassistant@gmail.com"', false)
-            ->assertSee('href="https://developers.google.com/terms/api-services-user-data-policy"', false);
+            ->assertSee('href="mailto:zaidassistant@gmail.com"', false);
     }
 
-    public function test_privacy_policy_explains_google_data_use_and_user_controls(): void
+    public function test_privacy_policy_explains_google_sign_in_only(): void
     {
         $this->get('/privacy')
             ->assertOk()
-            ->assertSee('Google Calendar data')
-            ->assertSee('Google Tasks data')
-            ->assertSee('Google API Services User Data Policy')
-            ->assertSee('revoke access')
+            ->assertSee('Google Sign-In')
+            ->assertDontSee('Google Calendar data')
+            ->assertDontSee('Google Tasks data')
             ->assertSee('request deletion')
             ->assertSee('zaidassistant@gmail.com');
     }
 
-    public function test_terms_explain_google_integrations_and_user_responsibility(): void
+    public function test_terms_explain_google_sign_in_only(): void
     {
         $this->get('/terms')
             ->assertOk()
-            ->assertSee('Google Calendar and Google Tasks')
-            ->assertSee('directly request')
-            ->assertSee('revoke access')
+            ->assertSee('Google Sign-In')
+            ->assertDontSee('Google Calendar and Google Tasks')
             ->assertSee('zaidassistant@gmail.com');
     }
 
@@ -68,9 +60,10 @@ class LandingPageTest extends TestCase
             ->assertOk()
             ->assertSee('Continue with Google')
             ->assertSee('Verify your phone')
-            ->assertSee('Connect Calendar and Tasks')
+            ->assertDontSee('Connect Calendar and Tasks')
+            ->assertDontSee('/integrations/google-calendar/connect')
             ->assertSee('Plan clearly.')
-            ->assertSee('Connect your workspace')
+            ->assertSee('Set up your workspace')
             ->assertSee('Onboarding progress')
             ->assertSee('Waiting for your first step.')
             ->assertSee('Privacy Policy')
