@@ -40,6 +40,7 @@ jobs:
       QUEUE_CONNECTION: sync
       SESSION_DRIVER: array
       MAIL_MAILER: array
+      WHATSAPP_DRIVER: meta
       OPENAI_API_KEY: test-key
       OPENAI_API_BASE: https://ai.sumopod.com/v1
       OPENAI_MODEL_TEXT: MiniMax-M2.7-highspeed

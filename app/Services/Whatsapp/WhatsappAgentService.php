@@ -149,6 +149,19 @@ PROMPT;
             return $confirmation;
         }
 
+        if ($quickRead = $this->handleQuickReadQueries($user, $normalizedText, $today)) {
+            $promptRequest->update([
+                'intent' => 'READ',
+                'parse_status' => 'parsed',
+                'execution_status' => 'executed',
+            ]);
+
+            return [
+                'prompt_request_id' => $promptRequest->id,
+                'human_response' => $quickRead,
+            ];
+        }
+
         $messages = $this->buildMessages($today, $dayName, $now, $tasks, $history, $normalizedText, $attachments);
 
         try {
