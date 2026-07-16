@@ -190,35 +190,32 @@ PROMPT;
         }
 
         $reply = $aiResponse['reply'] ?? 'Hmm, aku kurang nangkep. Coba ulangin dong?';
-        $action = $aiResponse['action'] ?? null;
+        $actions = $aiResponse['actions'] ?? [];
+        $results = [];
 
-        if (($action['type'] ?? null) === 'create') {
-            $action['data']['entity_type'] = $this->creationEntityType($normalizedText, $action['data']['entity_type'] ?? null);
+        foreach (array_slice($actions, 0, 5) as $action) {
+            if (! is_array($action)) {
+                continue;
+            }
+
+            if (($action['type'] ?? null) === 'create') {
+                $action['data']['entity_type'] = $this->creationEntityType($normalizedText, $action['data']['entity_type'] ?? null);
+            }
+
+            $result = $this->executeAction($promptRequest, $user, $action, $channel, $today);
+            if ($result !== null) {
+                $results[] = $result;
+            }
         }
 
-        $intent = $action['type'] ?? null;
+        $intent = $actions[0]['type'] ?? null;
         $promptRequest->update([
             'intent' => $intent ? strtoupper($intent) : null,
             'parse_status' => 'parsed',
-            'extracted_entities' => $action['data'] ?? null,
+            'extracted_entities' => $actions[0]['data'] ?? null,
+            'execution_status' => 'executed',
+            'execution_summary' => $results,
         ]);
-
-        if ($action !== null) {
-            $result = $this->executeAction($promptRequest, $user, $action, $channel, $today);
-
-            if ($result !== null) {
-                $reply = $result['reply'] ?? $reply;
-
-                $promptRequest->update([
-                    'execution_status' => 'executed',
-                    'execution_summary' => $result,
-                ]);
-            } else {
-                $promptRequest->update(['execution_status' => 'executed']);
-            }
-        } else {
-            $promptRequest->update(['execution_status' => 'executed']);
-        }
 
         return [
             'prompt_request_id' => $promptRequest->id,
@@ -367,7 +364,7 @@ PROMPT;
 
     /**
      * @param  array<int, array{role: string, content: mixed}>  $messages
-     * @return array{reply: string, action: array|null}
+     * @return array{reply: string, actions: array<int, array<string, mixed>>}
      */
     private function callOpenAi(array $messages, string $userId, bool $hasMedia): array
     {
@@ -415,8 +412,14 @@ PROMPT;
             // If AI responded with plain text, use it directly
             return [
                 'reply' => is_string($content) && strlen($content) > 0 ? $content : 'Hmm, coba ulangin dong?',
-                'action' => null,
+                'actions' => [],
             ];
+        }
+
+        if (! isset($parsed['actions'])) {
+            $parsed['actions'] = isset($parsed['action']) && is_array($parsed['action'])
+                ? [$parsed['action']]
+                : [];
         }
 
         return $parsed;
@@ -424,12 +427,11 @@ PROMPT;
 
     private function creationEntityType(string $text, mixed $aiChoice): string
     {
-        if (preg_match('/\b(task|tugas|todo|to-do|follow\s*up|kerjakan)\b/u', $text)) {
-            return 'task';
-        }
+        $isTask = preg_match('/\b(task|tugas|todo|to-do|follow\s*up|kerjakan)\b/u', $text) === 1;
+        $isEvent = preg_match('/\b(meeting|acara|event|jadwal|kelas|janji|appointment|kalender)\b/u', $text) === 1;
 
-        if (preg_match('/\b(meeting|acara|event|jadwal|kelas|janji|appointment|kalender)\b/u', $text)) {
-            return 'event';
+        if ($isTask xor $isEvent) {
+            return $isEvent ? 'event' : 'task';
         }
 
         return $aiChoice === 'event' ? 'event' : 'task';
