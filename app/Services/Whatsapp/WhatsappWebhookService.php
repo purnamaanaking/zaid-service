@@ -95,7 +95,7 @@ class WhatsappWebhookService
 
         $this->processNormalizedMessage([
             'id' => $payload['id'] ?? null,
-            'from' => $payload['from'] ?? null,
+            'from' => $payload['_data']['key']['remoteJidAlt'] ?? $payload['from'] ?? null,
             'to' => $payload['to'] ?? ($webhookPayload['me']['id'] ?? 'bot'),
             'text' => $payload['body'] ?? '',
             'source' => 'waha',

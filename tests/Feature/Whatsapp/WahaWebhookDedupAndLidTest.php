@@ -76,6 +76,39 @@ class WahaWebhookDedupAndLidTest extends TestCase
         });
     }
 
+    public function test_waha_lid_message_prefers_embedded_phone_number(): void
+    {
+        config(['services.whatsapp.driver' => 'waha']);
+        $this->fakeAgentAndWaha();
+
+        $user = User::factory()->active()->create();
+        UserPhone::query()->create([
+            'user_id' => $user->id,
+            'phone_e164' => '+6281556796240',
+            'is_verified' => true,
+            'linked_for_whatsapp_at' => now(),
+        ]);
+
+        app(\App\Services\Whatsapp\WhatsappWebhookService::class)->handleInbound([
+            'event' => 'message',
+            'payload' => [
+                'id' => 'lid-with-alt-phone',
+                'from' => '192002369028278@lid',
+                'fromMe' => false,
+                'to' => '6285182302209@c.us',
+                'body' => 'halo',
+                '_data' => ['key' => ['remoteJidAlt' => '6281556796240@s.whatsapp.net']],
+            ],
+        ]);
+
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'wa_message_id' => 'lid-with-alt-phone',
+            'user_id' => $user->id,
+            'sender_phone_e164' => '+6281556796240',
+            'processing_status' => 'executed',
+        ]);
+    }
+
     public function test_duplicate_waha_events_with_same_message_id_are_ignored_without_failing(): void
     {
         config([
