@@ -72,18 +72,24 @@ class LandingPageTest extends TestCase
             ->assertSee('Terms of Service');
     }
 
-    public function test_dashboard_renders_workspace_shell(): void
+    public function test_dashboard_renders_calendar_workspace(): void
     {
         $this->get('/dashboard')
             ->assertOk()
             ->assertSee('Zaid Workspace')
-            ->assertSee('Calendar')
-            ->assertSee('Tasks')
-            ->assertSee('Ask Zaid')
+            ->assertSee('href="/dashboard"', false)
+            ->assertSee('href="/dashboard/tasks"', false)
             ->assertSee('calendar-view')
-            ->assertSee('tasks-view')
             ->assertSee('/calendar/month')
-            ->assertSee('/agenda/day')
+            ->assertSee('/agenda/day');
+    }
+
+    public function test_tasks_dashboard_renders_task_workspace(): void
+    {
+        $this->get('/dashboard/tasks')
+            ->assertOk()
+            ->assertSee('tasks-view')
+            ->assertSee('initialView = "tasks"', false)
             ->assertSee('/tasks?include_completed=false');
     }
 }
