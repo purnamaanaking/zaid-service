@@ -28,7 +28,7 @@ class PromptCommandService
      */
     public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null): array
     {
-        $parsed = $this->parser->parse($text, $user->id, $attachments);
+        $parsed = $this->parser->parse($this->conversationContext($user, $text), $user->id, $attachments);
 
         $promptRequest = PromptRequest::query()->create([
             'user_id' => $user->id,
@@ -303,6 +303,29 @@ class PromptCommandService
             'action' => 'delete_task',
             'human_response' => "Oke, task \"{$title}\" udah aku hapus.",
         ];
+    }
+
+    private function conversationContext(User $user, string $text): string
+    {
+        $history = PromptRequest::query()
+            ->where('user_id', $user->id)
+            ->where('channel', 'app_prompt')
+            ->latest()
+            ->limit(6)
+            ->get()
+            ->reverse()
+            ->map(function (PromptRequest $prompt): string {
+                $response = data_get($prompt->execution_summary, 'human_response');
+
+                return "User: {$prompt->raw_text}".($response ? "\nZaid: {$response}" : '');
+            })
+            ->implode("\n");
+
+        if ($history === '') {
+            return $text;
+        }
+
+        return "Conversation context:\n{$history}\n\nCurrent user message: {$text}\nInterpret and act only on current user message, using context for references such as 'ini', 'itu', or 'yang tadi'.";
     }
 
     /**

@@ -39,6 +39,7 @@ JSON format:
 
 Rules:
 - TODAY is provided. Use it for relative dates like "hari ini", "besok", "minggu depan", "lusa", and conversational variants like "malam ini", "nanti", or "tanggal 22 mei".
+- Conversation context may precede current message. Use it to resolve casual follow-ups like "halo", "yang ini", "hapus itu", or "yang tadi". Parse only CURRENT USER MESSAGE as action; context is reference only.
 - Infer the most likely task/calendar intent even if the user does not speak in command format.
 - READ includes asking what schedule exists on a date, whether a day is free, when a task happens, or what agenda exists.
 - UPDATE includes moving/rescheduling/renaming an existing task even when the user says things like "geser", "pindahin", "ganti", or "yang gym itu ubah ke pagi".
