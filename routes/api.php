@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\RefreshTokenController;
 use App\Http\Controllers\Api\Calendar\MonthCalendarController;
+use App\Http\Controllers\Api\Events\EventController;
 use App\Http\Controllers\Api\Integrations\GoogleCalendarCallbackController;
 use App\Http\Controllers\Api\Integrations\GoogleCalendarConnectController;
 use App\Http\Controllers\Api\Integrations\GoogleCalendarDisconnectController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Api\Onboarding\ResendOtpController;
 use App\Http\Controllers\Api\Onboarding\VerifyPhoneOtpController;
 use App\Http\Controllers\Api\Prompts\PromptController;
 use App\Http\Controllers\Api\Settings\SettingsController;
+use App\Http\Controllers\Api\TaskLists\TaskListController;
 use App\Http\Controllers\Api\Tasks\TaskController;
 use App\Http\Controllers\Api\Upload\FileUploadController;
 use App\Http\Controllers\Api\User\ChangePhoneController;
@@ -84,6 +86,13 @@ Route::prefix('v1')->group(function (): void {
             // Agenda & Calendar
             Route::get('/agenda/day', DayAgendaController::class);
             Route::get('/calendar/month', MonthCalendarController::class);
+            Route::get('/events', [EventController::class, 'index']);
+            Route::post('/events', [EventController::class, 'store']);
+            Route::patch('/events/{event}', [EventController::class, 'update']);
+            Route::delete('/events/{event}', [EventController::class, 'destroy']);
+
+            // Task lists
+            Route::apiResource('task-lists', TaskListController::class)->only(['index', 'store', 'update', 'destroy']);
 
             // Prompts
             Route::middleware('throttle:prompt')->group(function (): void {

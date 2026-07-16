@@ -20,6 +20,7 @@ class TaskMutationService
         return DB::transaction(function () use ($user, $data, $channel, $promptRequestId): Task {
             $task = Task::query()->create([
                 'user_id' => $user->id,
+                'task_list_id' => $data['task_list_id'] ?? null,
                 'source_channel' => $channel,
                 'source_prompt_request_id' => $promptRequestId,
                 'title' => $data['title'],
@@ -76,6 +77,7 @@ class TaskMutationService
             $task->update(array_filter([
                 'title' => $data['title'] ?? null,
                 'description' => $data['description'] ?? null,
+                'task_list_id' => $data['task_list_id'] ?? null,
                 'google_task_list_id' => $data['google_task_list_id'] ?? null,
                 'google_task_list_title' => $data['google_task_list_title'] ?? null,
                 'scheduled_date' => $data['scheduled_date'] ?? null,

@@ -80,10 +80,10 @@ class LandingPageTest extends TestCase
             ->assertSee('href="/dashboard"', false)
             ->assertSee('href="/dashboard/tasks"', false)
             ->assertSee('calendar-view')
-            ->assertSee('agenda-modal')
+            ->assertSee('date-action-modal')
+            ->assertSee('event-modal')
             ->assertSee('Ask Zaid')
-            ->assertSee('/calendar/month')
-            ->assertSee('/agenda/day');
+            ->assertSee('/events?from=');
     }
 
     public function test_tasks_dashboard_renders_task_workspace(): void

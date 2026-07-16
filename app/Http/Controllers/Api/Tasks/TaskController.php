@@ -54,9 +54,12 @@ class TaskController extends Controller
 
     public function store(StoreTaskRequest $request): JsonResponse
     {
+        $data = $request->validated();
+        $this->ensureTaskListBelongsToUser($request, $data['task_list_id'] ?? null);
+
         $task = $this->taskMutationService->create(
             $request->user(),
-            $request->validated(),
+            $data,
         );
 
         return response()->json([
@@ -85,10 +88,13 @@ class TaskController extends Controller
             ->where('user_id', $request->user()->id)
             ->findOrFail($taskId);
 
+        $data = $request->validated();
+        $this->ensureTaskListBelongsToUser($request, $data['task_list_id'] ?? null);
+
         $task = $this->taskMutationService->update(
             $task,
             $request->user(),
-            $request->validated(),
+            $data,
         );
 
         return response()->json([
@@ -126,6 +132,13 @@ class TaskController extends Controller
             'message' => 'Task completed',
             'data' => ['task' => new TaskResource($task)],
         ]);
+    }
+
+    private function ensureTaskListBelongsToUser(Request $request, ?string $taskListId): void
+    {
+        if ($taskListId !== null && ! $request->user()->taskLists()->whereKey($taskListId)->exists()) {
+            abort(422, 'Task list does not belong to the authenticated user.');
+        }
     }
 
     public function restore(Request $request, string $taskId): JsonResponse

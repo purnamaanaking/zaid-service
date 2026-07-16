@@ -16,6 +16,7 @@ class Task extends Model
 
     protected $fillable = [
         'user_id',
+        'task_list_id',
         'source_channel',
         'source_prompt_request_id',
         'google_task_list_id',
@@ -47,6 +48,11 @@ class Task extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function taskList(): BelongsTo
+    {
+        return $this->belongsTo(TaskList::class);
     }
 
     public function recurrence(): HasOne

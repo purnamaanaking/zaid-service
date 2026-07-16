@@ -60,6 +60,16 @@ class User extends Authenticatable
         return $this->hasMany(Task::class);
     }
 
+    public function calendarEvents(): HasMany
+    {
+        return $this->hasMany(CalendarEvent::class);
+    }
+
+    public function taskLists(): HasMany
+    {
+        return $this->hasMany(TaskList::class);
+    }
+
     public function promptRequests(): HasMany
     {
         return $this->hasMany(PromptRequest::class);

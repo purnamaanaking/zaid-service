@@ -19,6 +19,7 @@ class StoreTaskRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'task_list_id' => ['nullable', 'uuid'],
             'google_task_list_id' => ['nullable', 'string', 'max:255'],
             'google_task_list_title' => ['nullable', 'string', 'max:255'],
             'scheduled_date' => ['nullable', 'date', 'date_format:Y-m-d'],
