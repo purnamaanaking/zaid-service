@@ -60,7 +60,7 @@ class LandingPageTest extends TestCase
             ->assertOk()
             ->assertSee('Continue with Google')
             ->assertSee('Verify your phone')
-            ->assertSee('Setup complete')
+            ->assertSee("window.location.assign('/dashboard')", false)
             ->assertSee('OTP session expired. Send a new code.')
             ->assertDontSee('Connect Calendar and Tasks')
             ->assertDontSee('/integrations/google-calendar/connect')
@@ -70,5 +70,16 @@ class LandingPageTest extends TestCase
             ->assertSee('Waiting for your first step.')
             ->assertSee('Privacy Policy')
             ->assertSee('Terms of Service');
+    }
+
+    public function test_dashboard_renders_workspace_shell(): void
+    {
+        $this->get('/dashboard')
+            ->assertOk()
+            ->assertSee('Zaid Workspace')
+            ->assertSee('Calendar')
+            ->assertSee('Ask Zaid')
+            ->assertSee('/calendar/month')
+            ->assertSee('/agenda/day');
     }
 }
