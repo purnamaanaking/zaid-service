@@ -60,6 +60,8 @@ class LandingPageTest extends TestCase
             ->assertOk()
             ->assertSee('Continue with Google')
             ->assertSee('Verify your phone')
+            ->assertSee('Setup complete')
+            ->assertSee('OTP session expired. Send a new code.')
             ->assertDontSee('Connect Calendar and Tasks')
             ->assertDontSee('/integrations/google-calendar/connect')
             ->assertSee('Plan clearly.')

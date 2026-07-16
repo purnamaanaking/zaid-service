@@ -490,6 +490,12 @@ Sign in with Google, then verify your phone to start planning with Zaid Assistan
                         </div>
                     </div>
 
+                    <div class="step" id="step-done">
+                        <div class="step-title">Setup complete</div>
+                        <div class="step-desc">Your phone is verified. Zaid Assistant is ready to use.</div>
+                        <a class="btn btn-primary" href="/">Back to home</a>
+                    </div>
+
                 </div>
 
                 <div id="status-box" class="status-box" role="status" aria-live="polite">Waiting for your first step.</div>
@@ -512,12 +518,13 @@ Sign in with Google, then verify your phone to start planning with Zaid Assistan
         const stepAuth = document.getElementById('step-auth');
         const stepPhone = document.getElementById('step-phone');
         const stepOtp = document.getElementById('step-otp');
+        const stepDone = document.getElementById('step-done');
         const phoneInput = document.getElementById('phone_number');
         const otpInput = document.getElementById('otp_code');
         const logoutButton = document.getElementById('btn-logout');
 
         function showStep(step) {
-            const allSteps = [stepAuth, stepPhone, stepOtp];
+            const allSteps = [stepAuth, stepPhone, stepOtp, stepDone];
             const activeIndex = allSteps.indexOf(step);
 
             allSteps.forEach(el => el.classList.remove('active'));
@@ -611,7 +618,7 @@ Sign in with Google, then verify your phone to start planning with Zaid Assistan
                 return;
             }
 
-            showStep(stepOtp);
+            showStep(stepDone);
             setStatus('Setup selesai. Zaid siap dipakai.', 'success');
         }
 
@@ -638,12 +645,18 @@ Sign in with Google, then verify your phone to start planning with Zaid Assistan
                 }
 
                 if (status.data.next_step === 'verify_otp') {
+                    if (!localStorage.getItem(verificationKey)) {
+                        showStep(stepPhone);
+                        setStatus('OTP session expired. Send a new code.', 'error');
+                        return;
+                    }
+
                     showStep(stepOtp);
                     setStatus('Enter your verification code to continue.', '');
                     return;
                 }
 
-                showStep(stepOtp);
+                showStep(stepDone);
                 setStatus('Setup complete. Zaid is ready to use.', 'success');
             } catch (error) {
                 clearSession();
@@ -719,6 +732,12 @@ Sign in with Google, then verify your phone to start planning with Zaid Assistan
         document.getElementById('btn-verify-otp').addEventListener('click', async () => {
             try {
                 const verificationId = localStorage.getItem(verificationKey);
+                if (!verificationId) {
+                    showStep(stepPhone);
+                    setStatus('OTP session expired. Send a new code.', 'error');
+                    return;
+                }
+
                 const result = await api('/onboarding/phone/verify', {
                     method: 'POST',
                     headers: authHeaders(),
@@ -728,9 +747,9 @@ Sign in with Google, then verify your phone to start planning with Zaid Assistan
                     }),
                 });
 
-                showStep(stepOtp);
+                localStorage.removeItem(verificationKey);
+                showStep(stepDone);
                 setStatus(result.message || 'OTP berhasil diverifikasi. Zaid siap dipakai.', 'success');
-                await refreshState();
             } catch (error) {
                 setStatus(error.message || 'OTP tidak valid.', 'error');
             }
