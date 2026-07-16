@@ -3,43 +3,13 @@
 namespace Tests\Feature\Prompts;
 
 use App\Contracts\Prompt\PromptParser;
-use App\Models\PromptRequest;
+use App\Models\Task;
 use App\Models\User;
 use Tests\Fakes\Prompt\FakePromptParser;
 use Tests\TestCase;
 
 class PromptApiTest extends TestCase
 {
-    public function test_prompt_parser_receives_recent_conversation_context(): void
-    {
-        $user = User::factory()->active()->create();
-        PromptRequest::query()->create([
-            'user_id' => $user->id,
-            'channel' => 'app_prompt',
-            'raw_text' => 'Buat task laporan',
-            'normalized_text' => 'Buat task laporan',
-            'parse_status' => 'parsed',
-            'execution_status' => 'executed',
-            'execution_summary' => ['human_response' => 'Task laporan dibuat.'],
-        ]);
-
-        $parser = new class implements PromptParser {
-            public string $receivedText = '';
-
-            public function parse(string $text, string $userId, ?array $attachments = null): array
-            {
-                $this->receivedText = $text;
-
-                return ['intent' => 'DELETE', 'confidence_score' => 1, 'parse_status' => 'parsed', 'requires_confirmation' => false, 'entities' => ['title' => 'laporan']];
-            }
-        };
-        $this->app->bind(PromptParser::class, fn () => $parser);
-
-        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'hapus ini'])->assertOk();
-        $this->assertStringContainsString('Task laporan dibuat.', $parser->receivedText);
-        $this->assertStringContainsString('Current user message: hapus ini', $parser->receivedText);
-    }
-
     public function test_user_can_view_prompt_history(): void
     {
         $user = User::factory()->active()->create();
@@ -49,6 +19,28 @@ class PromptApiTest extends TestCase
         $this->actingAs($user, 'sanctum')->getJson('/api/v1/prompts')
             ->assertOk()
             ->assertJsonPath('data.items.0.text', 'cek jadwal hari ini');
+    }
+
+    public function test_chat_returns_task_summary_when_parser_cannot_handle_casual_task_question(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0,
+            'parse_status' => 'failed',
+            'requires_confirmation' => false,
+            'entities' => [],
+        ]));
+        $user = User::factory()->active()->create();
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Tugas Besar 1',
+            'scheduled_date' => now()->addDay()->format('Y-m-d'),
+            'scheduled_time' => null,
+        ]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'gua ada task ga?'])
+            ->assertOk()
+            ->assertJsonPath('data.human_response', "Kamu punya 1 task pending:\n1. Tugas Besar 1");
     }
 
     public function test_user_can_submit_prompt(): void

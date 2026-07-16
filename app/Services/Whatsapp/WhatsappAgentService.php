@@ -189,7 +189,7 @@ PROMPT;
             ];
         }
 
-        $reply = $aiResponse['reply'] ?? 'Hmm, aku kurang nangkep. Coba ulangin dong?';
+        $reply = $aiResponse['reply'] ?? '';
         $actions = $aiResponse['actions'] ?? [];
         $results = [];
 
@@ -208,13 +208,25 @@ PROMPT;
             }
         }
 
+        if ($reply === '') {
+            $reply = $results === []
+                ? 'Pesanmu masuk, tapi aku belum bisa baca perintahnya. Coba pisahkan perintah per baris ya bro.'
+                : 'Siap, '.count($results).' item sudah aku proses.';
+        }
+
         $intent = $actions[0]['type'] ?? null;
         $promptRequest->update([
             'intent' => $intent ? strtoupper($intent) : null,
-            'parse_status' => 'parsed',
+            'parse_status' => $results === [] && $actions === [] ? 'failed' : 'parsed',
             'extracted_entities' => $actions[0]['data'] ?? null,
-            'execution_status' => 'executed',
+            'execution_status' => $results === [] && $actions === [] ? 'failed' : 'executed',
             'execution_summary' => $results,
+        ]);
+
+        Log::info('WhatsApp agent processed.', [
+            'prompt_request_id' => $promptRequest->id,
+            'action_count' => count($actions),
+            'successful_action_count' => count($results),
         ]);
 
         return [
@@ -411,7 +423,7 @@ PROMPT;
 
             // If AI responded with plain text, use it directly
             return [
-                'reply' => is_string($content) && strlen($content) > 0 ? $content : 'Hmm, coba ulangin dong?',
+                'reply' => is_string($content) ? $content : '',
                 'actions' => [],
             ];
         }

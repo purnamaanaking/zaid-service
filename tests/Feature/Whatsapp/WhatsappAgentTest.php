@@ -132,6 +132,24 @@ class WhatsappAgentTest extends TestCase
         ]);
     }
 
+    public function test_malformed_ai_response_gets_a_clear_fallback_reply(): void
+    {
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [['message' => ['content' => '']]],
+            ]),
+            '*' => Http::response([], 200),
+        ]);
+
+        $this->sendWhatsApp('buat task tugas besar besok', 'wamid-malformed-ai');
+
+        $this->assertSame(
+            'Pesanmu masuk, tapi aku belum bisa baca perintahnya. Coba pisahkan perintah per baris ya bro.',
+            $this->getReplyText('wamid-malformed-ai'),
+        );
+        $this->assertDatabaseMissing('tasks', ['user_id' => $this->user->id]);
+    }
+
     public function test_agent_creates_task_via_action(): void
     {
         $this->fakeAiResponse('Siap, meeting besok jam 9 udah aku catat ya! 👍', [
