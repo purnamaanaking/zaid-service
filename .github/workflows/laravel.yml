@@ -123,6 +123,10 @@ jobs:
             echo "== Install PHP dependencies =="
             composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
+            echo "== Build frontend assets =="
+            npm ci
+            npm run build
+
             echo "== Run database migrations =="
             php artisan migrate --force
 
@@ -135,13 +139,7 @@ jobs:
             php artisan route:cache
             php artisan view:cache
 
-            echo "== Build frontend assets if package.json exists =="
-            if [ -f package.json ]; then
-              npm install --no-audit --no-fund
-              npm run build
-            fi
-
-            echo "== Restart queues if available =="
-            php artisan queue:restart || true
+            echo "== Restart PHP and queue worker =="
+            sudo systemctl restart php8.3-fpm zaid-service-queue
 
             echo "== Deployment finished =="
