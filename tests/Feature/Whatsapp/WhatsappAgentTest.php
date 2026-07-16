@@ -279,6 +279,29 @@ class WhatsappAgentTest extends TestCase
         $this->assertStringContainsString('Yo bro', $reply);
     }
 
+    public function test_schedule_creation_phrase_does_not_take_quick_read_path(): void
+    {
+        $this->fakeAiResponse('Siap, meeting penelitian jam 07:00 sudah aku buat.', [
+            'type' => 'create',
+            'task_id' => null,
+            'data' => [
+                'title' => 'Meeting penelitian',
+                'scheduled_date' => now()->format('Y-m-d'),
+                'scheduled_time' => '07:00:00',
+                'all_day' => false,
+            ],
+        ]);
+
+        $this->sendWhatsApp('Buat jadwal hari ini ada meeting penelitian jam 7 pagi', 'wamid-create-schedule');
+
+        $this->assertDatabaseHas('tasks', [
+            'user_id' => $this->user->id,
+            'title' => 'Meeting penelitian',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => '07:00:00',
+        ]);
+    }
+
     public function test_quick_read_task_hari_ini_prioritizes_today_items_not_all_pending_tasks(): void
     {
         Task::factory()->create([

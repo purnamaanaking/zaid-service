@@ -541,8 +541,9 @@ PROMPT;
         $asksTomorrow = preg_match('/\b(besok|bsk|tomorrow)\b/u', $text) === 1;
         $asksMine = preg_match('/\b(gua|gue|gw|aku|saya|ku)\b/u', $text) === 1;
         $asksList = preg_match('/\b(cek|lihat|list|apa|apa aja|apa saja|mana|yang)\b/u', $text) === 1;
+        $isMutation = preg_match('/\b(buat|bikin|tambah|tambahkan|jadwalkan|hapus|ubah|pindah)\b/u', $text) === 1;
 
-        if (! ($asksTasks || $asksSchedule || $asksOverdue) || ! ($asksList || $asksMine || $asksPending || $asksToday || $asksOverdue)) {
+        if ($isMutation || ! ($asksTasks || $asksSchedule || $asksOverdue) || ! ($asksList || $asksMine || $asksPending || $asksToday || $asksOverdue)) {
             return null;
         }
 
