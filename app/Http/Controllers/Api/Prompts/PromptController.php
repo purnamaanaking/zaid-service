@@ -12,6 +12,27 @@ class PromptController extends Controller
 {
     public function __construct(private readonly PromptCommandService $promptCommandService) {}
 
+    public function index(Request $request): JsonResponse
+    {
+        $items = PromptRequest::query()
+            ->where('user_id', $request->user()->id)
+            ->where('channel', 'app_prompt')
+            ->latest()
+            ->limit(50)
+            ->get()
+            ->reverse()
+            ->values()
+            ->map(fn (PromptRequest $prompt) => [
+                'id' => $prompt->id,
+                'text' => $prompt->raw_text,
+                'response' => data_get($prompt->execution_summary, 'human_response'),
+                'status' => $prompt->execution_status,
+                'created_at' => $prompt->created_at?->toIso8601String(),
+            ]);
+
+        return response()->json(['success' => true, 'data' => ['items' => $items]]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $request->validate([

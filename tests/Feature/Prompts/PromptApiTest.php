@@ -9,6 +9,17 @@ use Tests\TestCase;
 
 class PromptApiTest extends TestCase
 {
+    public function test_user_can_view_prompt_history(): void
+    {
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'cek jadwal hari ini']);
+
+        $this->actingAs($user, 'sanctum')->getJson('/api/v1/prompts')
+            ->assertOk()
+            ->assertJsonPath('data.items.0.text', 'cek jadwal hari ini');
+    }
+
     public function test_user_can_submit_prompt(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
