@@ -78,8 +78,12 @@ class LandingPageTest extends TestCase
             ->assertOk()
             ->assertSee('Zaid Workspace')
             ->assertSee('Calendar')
+            ->assertSee('Tasks')
             ->assertSee('Ask Zaid')
+            ->assertSee('calendar-view')
+            ->assertSee('tasks-view')
             ->assertSee('/calendar/month')
-            ->assertSee('/agenda/day');
+            ->assertSee('/agenda/day')
+            ->assertSee('/tasks?include_completed=false');
     }
 }
