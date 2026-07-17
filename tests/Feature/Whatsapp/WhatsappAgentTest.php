@@ -83,6 +83,23 @@ class WhatsappAgentTest extends TestCase
         });
     }
 
+    public function test_numbered_delete_removes_today_event_without_calling_ai(): void
+    {
+        $event = CalendarEvent::query()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Meeting tim',
+            'starts_at' => now()->setTime(9, 0),
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => false,
+        ]);
+        Http::fake(['*' => Http::response([], 400)]);
+
+        $this->sendWhatsApp('hapus no 1', 'wamid-numbered-delete');
+
+        $this->assertSoftDeleted('calendar_events', ['id' => $event->id]);
+        $this->assertStringContainsString('Meeting tim', $this->getReplyText('wamid-numbered-delete'));
+    }
+
     public function test_agent_executes_every_action_in_a_multi_command_message(): void
     {
         Http::fake([

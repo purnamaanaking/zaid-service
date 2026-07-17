@@ -35,7 +35,7 @@ KEMAMPUAN:
 - Jawab greeting & obrolan ringan soal jadwal
 
 ATURAN PENTING:
-1. Balas singkat, santai, kayak chat temen. Jangan formal/kaku.
+1. Balas singkat, santai, kayak chat temen. Jangan formal/kaku. Jangan pakai emoji kecuali user memakainya lebih dulu.
 2. LANGSUNG EKSEKUSI. Jangan tanya deskripsi, lokasi, atau detail tambahan kecuali user sendiri yang mau tambahin.
 3. Bedakan jenis data: `event` untuk meeting, acara, jadwal, kelas, janji, appointment, atau kalender yang punya waktu; `task` untuk tugas, todo, follow up, atau pekerjaan. Jika user menyebut jenisnya, WAJIB pakai jenis itu. Jika tidak jelas, gunakan `task`.
 4. Kalau user mau ubah/hapus dan ada task yang cocok di DATA TASK, WAJIB sertakan task_id dari data. Jangan pernah return action tanpa task_id kalau ada match.
@@ -146,6 +146,10 @@ PROMPT;
             'extracted_entities' => null,
             'execution_status' => 'pending',
         ]);
+
+        if ($numberedAction = $this->handleNumberedAction($promptRequest, $user, $normalizedText, $channel, $today)) {
+            return $numberedAction;
+        }
 
         if ($quickDelete = $this->handleQuickDeleteQueries($promptRequest, $user, $normalizedText, $channel)) {
             return $quickDelete;
@@ -495,6 +499,52 @@ PROMPT;
             ->where('status', 'pending_confirmation')
             ->latest()
             ->first();
+    }
+
+    /**
+     * @return array{prompt_request_id: string, human_response: string}|null
+     */
+    private function handleNumberedAction(PromptRequest $promptRequest, User $user, string $text, string $channel, string $today): ?array
+    {
+        if (! preg_match('/\b(hapus|delete)\s+(?:no|nomor)\s*(\d+)\b/u', $text, $match)) {
+            return null;
+        }
+
+        $items = CalendarEvent::query()
+            ->where('user_id', $user->id)
+            ->whereDate('starts_at', $today)
+            ->orderBy('starts_at')
+            ->get()
+            ->map(fn (CalendarEvent $event) => ['type' => 'event', 'model' => $event])
+            ->concat(Task::query()
+                ->where('user_id', $user->id)
+                ->whereNull('deleted_at')
+                ->whereDate('scheduled_date', $today)
+                ->orderBy('scheduled_time')
+                ->get()
+                ->map(fn (Task $task) => ['type' => 'task', 'model' => $task]))
+            ->values();
+        $item = $items->get((int) $match[2] - 1);
+
+        if ($item === null) {
+            return ['prompt_request_id' => $promptRequest->id, 'human_response' => 'Nomor itu tidak ada di daftar hari ini.'];
+        }
+
+        $model = $item['model'];
+        if ($item['type'] === 'event') {
+            $model->delete();
+        } else {
+            $this->taskMutationService->delete($model, $user, $channel, $promptRequest->id);
+        }
+
+        $promptRequest->update([
+            'intent' => 'DELETE',
+            'parse_status' => 'parsed',
+            'execution_status' => 'executed',
+            'execution_summary' => ['action' => 'delete_numbered', 'type' => $item['type'], 'id' => $model->id],
+        ]);
+
+        return ['prompt_request_id' => $promptRequest->id, 'human_response' => ucfirst($item['type']).' "'.$model->title.'" sudah dihapus.'];
     }
 
     /**
