@@ -280,6 +280,8 @@ class WhatsappAgentTest extends TestCase
 
     public function test_quick_schedule_read_includes_calendar_events(): void
     {
+        Http::fake(['*' => Http::response([], 200)]);
+
         CalendarEvent::query()->create([
             'user_id' => $this->user->id,
             'title' => 'Benerin kartu ATM',
