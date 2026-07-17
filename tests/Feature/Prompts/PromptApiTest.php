@@ -56,6 +56,35 @@ class PromptApiTest extends TestCase
         $this->assertDatabaseHas('prompt_requests', ['user_id' => $otherUser->id, 'channel' => 'app_prompt']);
     }
 
+    public function test_announcement_requires_confirmation_then_creates_calendar_event(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => 0.98,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => true,
+            'entities' => [
+                'entity_type' => 'event',
+                'title' => 'Team Sync',
+                'scheduled_date' => '2026-07-21',
+                'scheduled_time' => '09:00:00',
+                'all_day' => false,
+                'description' => "Lokasi: Google Meet\nAgenda: Progress sprint; Review bug",
+            ],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $pending = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'Team Sync Tanggal 21 Juli 2026 Waktu 09.00 - 10.00 WIB Lokasi Google Meet Agenda Progress sprint Review bug',
+        ])->assertOk()->assertJsonPath('data.requires_confirmation', true);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts/'.$pending->json('data.prompt_request_id').'/confirm', ['confirmed' => true])
+            ->assertOk()
+            ->assertJsonPath('data.result.action', 'create_event');
+
+        $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'title' => 'Team Sync']);
+    }
+
     public function test_user_can_submit_prompt(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([

@@ -47,6 +47,8 @@ Rules:
 - If intent is READ, set search_query to capture the user's filter criteria in natural language.
 - If command is unclear or ambiguous but still task/calendar related, prefer `parse_status: "ambiguous"` instead of `unsupported`.
 - Use `unsupported` only when the request is clearly outside task/calendar assistant scope.
+- Forwarded announcements, invitations, posters, screenshots, or meeting details are not an instruction to save immediately. Extract title, date, time, location, and agenda into description, choose `entity_type: "event"`, set `intent: "CREATE"`, and set `requires_confirmation: true`.
+- Use `entity_type: "event"` for meetings, announcements, classes, appointments, and scheduled activities. Use `entity_type: "task"` only for a concrete to-do/action item.
 - If an image is attached, analyze the image for any schedule, task, or calendar information and extract it.
 - If a voice transcription is provided, parse the transcription as the user's command.
 PROMPT;

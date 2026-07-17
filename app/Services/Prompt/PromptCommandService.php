@@ -3,6 +3,7 @@
 namespace App\Services\Prompt;
 
 use App\Contracts\Prompt\PromptParser;
+use App\Models\CalendarEvent;
 use App\Models\PromptAction;
 use App\Models\PromptRequest;
 use App\Models\Task;
@@ -172,7 +173,9 @@ class PromptCommandService
 
         return DB::transaction(function () use ($promptRequest, $user, $intent, $entities, $channel): array {
             $result = match ($intent) {
-                'CREATE' => $this->executeCreate($promptRequest, $user, $entities, $channel),
+                'CREATE' => ($entities['entity_type'] ?? 'task') === 'event'
+                ? $this->executeCreateEvent($promptRequest, $user, $entities)
+                : $this->executeCreate($promptRequest, $user, $entities, $channel),
                 'READ' => $this->executeRead($user, $entities),
                 'UPDATE' => $this->executeUpdate($promptRequest, $user, $entities, $channel),
                 'DELETE' => $this->executeDelete($promptRequest, $user, $entities, $channel),
@@ -194,6 +197,40 @@ class PromptCommandService
                 'human_response' => $result['human_response'] ?? null,
             ];
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $entities
+     * @return array<string, mixed>
+     */
+    private function executeCreateEvent(PromptRequest $promptRequest, User $user, array $entities): array
+    {
+        $date = $entities['scheduled_date'] ?? now()->format('Y-m-d');
+        $time = $entities['scheduled_time'] ?? '00:00:00';
+        $event = CalendarEvent::query()->create([
+            'user_id' => $user->id,
+            'title' => $entities['title'] ?? 'Event baru',
+            'description' => $entities['description'] ?? null,
+            'starts_at' => $date.' '.$time,
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => $entities['all_day'] ?? false,
+        ]);
+
+        PromptAction::query()->create([
+            'prompt_request_id' => $promptRequest->id,
+            'action_type' => 'create',
+            'target_entity_type' => 'event',
+            'target_entity_id' => $event->id,
+            'status' => 'executed',
+            'payload' => $entities,
+            'result_payload' => ['event_id' => $event->id],
+        ]);
+
+        return [
+            'action' => 'create_event',
+            'event' => $event->toArray(),
+            'human_response' => 'Event "'.$event->title.'" sudah masuk kalender.',
+        ];
     }
 
     /**
