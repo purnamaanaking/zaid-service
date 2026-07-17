@@ -6,12 +6,15 @@ use App\Contracts\Auth\GoogleTokenVerifier;
 use App\Contracts\Prompt\PromptParser;
 use Tests\Fakes\Auth\FakeGoogleTokenVerifier;
 use Tests\Fakes\Prompt\FakePromptParser;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class OnboardingToTaskFlowTest extends TestCase
 {
     public function test_full_onboarding_to_task_creation_flow(): void
     {
+        Http::fake(['*' => Http::response([], 200)]);
+
         // Step 1: Google auth
         $this->app->bind(GoogleTokenVerifier::class, fn () => new FakeGoogleTokenVerifier([
             'sub' => 'mvp-test-subject',
