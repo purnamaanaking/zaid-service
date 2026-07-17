@@ -614,34 +614,26 @@ PROMPT;
         }
 
         if ($asksToday && ($asksTasks || $asksSchedule)) {
+            if ($asksSchedule && ! $asksTasks) {
+                return $this->todayScheduleReply($user, $today);
+            }
+
             $items = Task::query()
                 ->where('user_id', $user->id)
                 ->whereNull('deleted_at')
                 ->whereDate('scheduled_date', $today)
-                ->when($asksTasks && ! $asksSchedule, fn ($query) => $query->whereNull('scheduled_time'))
-                ->when($asksSchedule && ! $asksTasks, fn ($query) => $query->whereNotNull('scheduled_time'))
-                ->orderByRaw('CASE WHEN scheduled_time IS NULL THEN 1 ELSE 0 END')
-                ->orderBy('scheduled_time')
+                ->whereNull('scheduled_time')
+                ->orderBy('scheduled_date')
                 ->limit(10)
                 ->get();
 
             if ($items->isEmpty()) {
-                return $asksTasks
-                    ? 'Task kamu buat hari ini kosong bro 👌'
-                    : 'Hari ini jadwal kamu kosong bro 👌';
+                return 'Task hari ini kosong.';
             }
 
-            $lines = $items->values()->map(function (Task $task, int $index) {
-                $suffix = $task->scheduled_time
-                    ? ' - '.substr((string) $task->scheduled_time, 0, 5)
-                    : ' - tanpa jam';
+            $lines = $items->values()->map(fn (Task $task, int $index) => ($index + 1).'. '.$task->title)->implode("\n");
 
-                return ($index + 1).'. '.$task->title.$suffix;
-            })->implode("\n");
-
-            return $asksTasks
-                ? "Task kamu buat hari ini:\n{$lines}"
-                : "Jadwal kamu hari ini:\n{$lines}";
+            return "Task hari ini:\n{$lines}";
         }
 
         if ($asksTomorrow && ($asksTasks || $asksSchedule)) {
@@ -712,21 +704,38 @@ PROMPT;
         }
 
         if ($asksSchedule || $asksToday) {
-            $items = $this->agendaQueryService->dayAgenda($user, $today);
-
-            if ($items->isEmpty()) {
-                return 'Hari ini jadwal kamu kosong bro 👌';
-            }
-
-            $lines = $items->values()->map(function (Task $task, int $index) {
-                $time = $task->scheduled_time ? substr((string) $task->scheduled_time, 0, 5) : 'tanpa jam';
-                return ($index + 1).'. '.$task->title.' - '.$time;
-            })->implode("\n");
-
-            return "Jadwal kamu hari ini:\n{$lines}";
+            return $this->todayScheduleReply($user, $today);
         }
 
         return null;
+    }
+
+    private function todayScheduleReply(User $user, string $date): string
+    {
+        $events = CalendarEvent::query()
+            ->where('user_id', $user->id)
+            ->whereDate('starts_at', $date)
+            ->orderBy('starts_at')
+            ->get();
+        $scheduledTasks = $this->agendaQueryService->dayAgenda($user, $date)->whereNotNull('scheduled_time');
+
+        $items = $events->map(fn (CalendarEvent $event) => [
+            'title' => $event->title,
+            'time' => $event->all_day ? 'seharian' : $event->starts_at->format('H:i'),
+            'type' => 'event',
+        ])->concat($scheduledTasks->map(fn (Task $task) => [
+            'title' => $task->title,
+            'time' => substr((string) $task->scheduled_time, 0, 5),
+            'type' => 'jadwal',
+        ]))->sortBy('time')->values();
+
+        if ($items->isEmpty()) {
+            return 'Hari ini belum ada jadwal.';
+        }
+
+        $lines = $items->map(fn (array $item, int $index) => ($index + 1).'. '.$item['title'].' - '.$item['time'].' ('.$item['type'].')')->implode("\n");
+
+        return "Jadwal hari ini:\n{$lines}";
     }
 
     /**

@@ -278,6 +278,21 @@ class WhatsappAgentTest extends TestCase
         $this->assertSoftDeleted('tasks', ['id' => $task->id]);
     }
 
+    public function test_quick_schedule_read_includes_calendar_events(): void
+    {
+        CalendarEvent::query()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Benerin kartu ATM',
+            'starts_at' => now()->setTime(14, 0),
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => false,
+        ]);
+
+        $this->sendWhatsApp('jadwal hari ini?', 'wamid-calendar-event-read');
+
+        $this->assertStringContainsString('Benerin kartu ATM', $this->getReplyText('wamid-calendar-event-read'));
+    }
+
     public function test_agent_reads_agenda_via_action(): void
     {
         Task::factory()->create([
