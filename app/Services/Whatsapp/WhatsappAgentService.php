@@ -618,6 +618,10 @@ PROMPT;
                 return $this->todayScheduleReply($user, $today);
             }
 
+            if ($asksSchedule && $asksTasks) {
+                return $this->todayTasksAndScheduleReply($user, $today);
+            }
+
             $items = Task::query()
                 ->where('user_id', $user->id)
                 ->whereNull('deleted_at')
@@ -708,6 +712,33 @@ PROMPT;
         }
 
         return null;
+    }
+
+    private function todayTasksAndScheduleReply(User $user, string $date): string
+    {
+        $tasks = Task::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->whereDate('scheduled_date', $date)
+            ->orderByRaw('CASE WHEN scheduled_time IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('scheduled_time')
+            ->get();
+        $events = CalendarEvent::query()
+            ->where('user_id', $user->id)
+            ->whereDate('starts_at', $date)
+            ->orderBy('starts_at')
+            ->get();
+
+        if ($tasks->isEmpty() && $events->isEmpty()) {
+            return 'Hari ini belum ada task atau jadwal.';
+        }
+
+        $lines = collect()
+            ->concat($tasks->map(fn (Task $task) => '- task: '.$task->title.($task->scheduled_time ? ' - '.substr((string) $task->scheduled_time, 0, 5) : '')))
+            ->concat($events->map(fn (CalendarEvent $event) => '- event: '.$event->title.' - '.($event->all_day ? 'seharian' : $event->starts_at->format('H:i'))))
+            ->implode("\n");
+
+        return "Hari ini:\n{$lines}";
     }
 
     private function todayScheduleReply(User $user, string $date): string
