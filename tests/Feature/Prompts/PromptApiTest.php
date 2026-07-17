@@ -43,6 +43,19 @@ class PromptApiTest extends TestCase
             ->assertJsonPath('data.human_response', "Kamu punya 1 task pending:\n1. Tugas Besar 1");
     }
 
+    public function test_user_can_permanently_clear_own_prompt_history(): void
+    {
+        $user = User::factory()->active()->create();
+        $otherUser = User::factory()->active()->create();
+        \App\Models\PromptRequest::query()->create(['user_id' => $user->id, 'channel' => 'app_prompt', 'raw_text' => 'test', 'normalized_text' => 'test', 'parse_status' => 'parsed']);
+        \App\Models\PromptRequest::query()->create(['user_id' => $otherUser->id, 'channel' => 'app_prompt', 'raw_text' => 'test', 'normalized_text' => 'test', 'parse_status' => 'parsed']);
+
+        $this->actingAs($user, 'sanctum')->deleteJson('/api/v1/prompts')->assertOk();
+
+        $this->assertDatabaseMissing('prompt_requests', ['user_id' => $user->id, 'channel' => 'app_prompt']);
+        $this->assertDatabaseHas('prompt_requests', ['user_id' => $otherUser->id, 'channel' => 'app_prompt']);
+    }
+
     public function test_user_can_submit_prompt(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([

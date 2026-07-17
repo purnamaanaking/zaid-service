@@ -97,6 +97,7 @@ Route::prefix('v1')->group(function (): void {
             // Prompts
             Route::middleware('throttle:prompt')->group(function (): void {
                 Route::get('/prompts', [PromptController::class, 'index']);
+                Route::delete('/prompts', [PromptController::class, 'destroyAll']);
                 Route::post('/prompts', [PromptController::class, 'store']);
                 Route::get('/prompts/{promptRequest}', [PromptController::class, 'show']);
                 Route::post('/prompts/{promptRequest}/confirm', [PromptController::class, 'confirm']);

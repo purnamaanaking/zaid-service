@@ -33,6 +33,16 @@ class PromptController extends Controller
         return response()->json(['success' => true, 'data' => ['items' => $items]]);
     }
 
+    public function destroyAll(Request $request): JsonResponse
+    {
+        PromptRequest::query()
+            ->where('user_id', $request->user()->id)
+            ->where('channel', 'app_prompt')
+            ->delete();
+
+        return response()->json(['success' => true]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $request->validate([
