@@ -418,6 +418,9 @@ PROMPT;
         $content = preg_replace('/\s*```$/', '', $content);
 
         $parsed = json_decode($content, true);
+        if (! is_array($parsed) && preg_match('/(\{[\s\S]*\})\s*$/', $content, $match)) {
+            $parsed = json_decode($match[1], true);
+        }
 
         if (! is_array($parsed) || ! isset($parsed['reply'])) {
             Log::warning('WhatsApp agent returned non-JSON, using raw text.', [

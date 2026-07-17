@@ -149,6 +149,34 @@ class WhatsappAgentTest extends TestCase
         ]);
     }
 
+    public function test_agent_extracts_json_after_model_preamble(): void
+    {
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [['message' => ['content' => "Siap, aku catat.\n".json_encode([
+                    'reply' => 'Task Benerin Zaid sudah dibuat.',
+                    'action' => [
+                        'type' => 'create',
+                        'task_id' => null,
+                        'data' => [
+                            'entity_type' => 'task',
+                            'title' => 'Benerin Zaid',
+                            'scheduled_date' => now()->format('Y-m-d'),
+                            'scheduled_time' => null,
+                            'all_day' => true,
+                        ],
+                    ],
+                ])]]],
+            ]),
+            '*' => Http::response([], 200),
+        ]);
+
+        $this->sendWhatsApp('buat task benerin zaid malam ini', 'wamid-json-preamble');
+
+        $this->assertDatabaseHas('tasks', ['user_id' => $this->user->id, 'title' => 'Benerin Zaid']);
+        $this->assertSame('Task Benerin Zaid sudah dibuat.', $this->getReplyText('wamid-json-preamble'));
+    }
+
     public function test_malformed_ai_response_gets_a_clear_fallback_reply(): void
     {
         Http::fake([
