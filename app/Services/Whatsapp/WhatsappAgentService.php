@@ -390,23 +390,36 @@ PROMPT;
         $apiKey = config('services.openai.api_key', '');
         $apiBase = config('services.openai.api_base', 'https://api.openai.com/v1');
 
-        $response = Http::withHeaders([
+        $request = fn (string $requestedModel) => Http::withHeaders([
             'Authorization' => "Bearer {$apiKey}",
             'Content-Type' => 'application/json',
         ])
             ->timeout(30)
             ->post("{$apiBase}/chat/completions", [
-                'model' => $model,
+                'model' => $requestedModel,
                 'messages' => $messages,
                 'max_tokens' => 1024,
                 'temperature' => 0.3,
             ]);
 
+        $response = $request($model);
+        if (! $response->successful()) {
+            $fallback = config('services.openai.model_fallback', 'deepseek-v4-pro');
+            if ($fallback !== $model) {
+                Log::warning('WhatsApp agent primary model failed; trying fallback.', [
+                    'model' => $model,
+                    'status' => $response->status(),
+                    'fallback' => $fallback,
+                    'user_id' => $userId,
+                ]);
+                $response = $request($fallback);
+            }
+        }
+
         if (! $response->successful()) {
             Log::error('WhatsApp agent API failed.', [
                 'model' => $model,
                 'status' => $response->status(),
-                'body' => $response->body(),
                 'user_id' => $userId,
             ]);
 

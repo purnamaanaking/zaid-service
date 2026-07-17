@@ -195,6 +195,41 @@ class WhatsappAgentTest extends TestCase
         $this->assertDatabaseMissing('tasks', ['user_id' => $this->user->id]);
     }
 
+    public function test_agent_retries_with_fallback_model_when_primary_model_fails(): void
+    {
+        config(['services.openai.model_fallback' => 'deepseek-v4-pro']);
+        $attempt = 0;
+        Http::fake(function () use (&$attempt) {
+            $attempt++;
+
+            if ($attempt === 1) {
+                return Http::response(['error' => ['message' => 'Upstream failed']], 400);
+            }
+
+            $content = json_encode([
+                'reply' => 'Task Tubes 2 sudah dibuat.',
+                'action' => [
+                    'type' => 'create',
+                    'task_id' => null,
+                    'data' => [
+                        'entity_type' => 'task',
+                        'title' => 'Tubes 2',
+                        'scheduled_date' => now()->format('Y-m-d'),
+                        'scheduled_time' => null,
+                        'all_day' => true,
+                    ],
+                ],
+            ]);
+
+            return Http::response(['choices' => [['message' => ['content' => $content]]]], 200);
+        });
+
+        $this->sendWhatsApp('buat task tubes 2 deadline malam ini', 'wamid-fallback-model');
+
+        $this->assertDatabaseHas('tasks', ['user_id' => $this->user->id, 'title' => 'Tubes 2']);
+        Http::assertSentCount(3);
+    }
+
     public function test_agent_creates_task_via_action(): void
     {
         $this->fakeAiResponse('Siap, meeting besok jam 9 udah aku catat ya! 👍', [
