@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Whatsapp;
 
+use App\Models\CalendarEvent;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserPhone;
@@ -80,6 +81,73 @@ class WhatsappAgentTest extends TestCase
 
             return str_contains($system, 'Zaid') && str_contains($system, 'KONTEKS SAAT INI');
         });
+    }
+
+    public function test_agent_executes_every_action_in_a_multi_command_message(): void
+    {
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [['message' => ['content' => json_encode([
+                    'reply' => 'Siap, dua-duanya sudah dicatat.',
+                    'actions' => [
+                        [
+                            'type' => 'create',
+                            'task_id' => null,
+                            'data' => [
+                                'entity_type' => 'task',
+                                'title' => 'Tugas Besar 1',
+                                'scheduled_date' => now()->addDay()->format('Y-m-d'),
+                                'scheduled_time' => null,
+                                'all_day' => true,
+                            ],
+                        ],
+                        [
+                            'type' => 'create',
+                            'task_id' => null,
+                            'data' => [
+                                'entity_type' => 'event',
+                                'title' => 'Meeting',
+                                'description' => 'Lokasi: Aruna',
+                                'scheduled_date' => now()->format('Y-m-d'),
+                                'scheduled_time' => '16:00:00',
+                                'all_day' => false,
+                            ],
+                        ],
+                    ],
+                ])]]],
+            ]),
+            '*' => Http::response([], 200),
+        ]);
+
+        $this->sendWhatsApp("Buat task tugas besar 1 deadline besok\nBuat jadwal meeting jam 4 sore di Aruna", 'wamid-multi-command');
+
+        $this->assertDatabaseHas('tasks', [
+            'user_id' => $this->user->id,
+            'title' => 'Tugas Besar 1',
+            'scheduled_date' => now()->addDay()->format('Y-m-d'),
+        ]);
+        $this->assertDatabaseHas('calendar_events', [
+            'user_id' => $this->user->id,
+            'title' => 'Meeting',
+        ]);
+    }
+
+    public function test_malformed_ai_response_gets_a_clear_fallback_reply(): void
+    {
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [['message' => ['content' => '']]],
+            ]),
+            '*' => Http::response([], 200),
+        ]);
+
+        $this->sendWhatsApp('buat task tugas besar besok', 'wamid-malformed-ai');
+
+        $this->assertSame(
+            'Pesanmu masuk, tapi aku belum bisa baca perintahnya. Coba pisahkan perintah per baris ya bro.',
+            $this->getReplyText('wamid-malformed-ai'),
+        );
+        $this->assertDatabaseMissing('tasks', ['user_id' => $this->user->id]);
     }
 
     public function test_agent_creates_task_via_action(): void

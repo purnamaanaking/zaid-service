@@ -43,6 +43,24 @@ class PromptCommandService
         ]);
 
         if (($parsed['parse_status'] ?? 'failed') === 'failed') {
+            if ($reply = $this->quickReply($user, $text)) {
+                $promptRequest->update([
+                    'intent' => 'READ',
+                    'parse_status' => 'parsed',
+                    'execution_status' => 'executed',
+                    'execution_summary' => ['human_response' => $reply],
+                ]);
+
+                return [
+                    'prompt_request_id' => $promptRequest->id,
+                    'parse_status' => 'parsed',
+                    'intent' => 'READ',
+                    'requires_confirmation' => false,
+                    'result' => null,
+                    'human_response' => $reply,
+                ];
+            }
+
             $promptRequest->update(['execution_status' => 'failed']);
 
             return [
@@ -51,7 +69,7 @@ class PromptCommandService
                 'intent' => null,
                 'requires_confirmation' => false,
                 'result' => null,
-                'human_response' => 'Maaf ya, aku masih belum nangkep maksud perintahmu. Coba tulis lebih spesifik, misalnya "cek jadwal hari ini" atau "buat task meeting besok jam 9".',
+                'human_response' => 'Aku belum nangkep. Coba tulis perintahnya, misalnya "cek jadwal hari ini" atau "buat task meeting besok jam 9".',
             ];
         }
 
@@ -87,6 +105,34 @@ class PromptCommandService
         }
 
         return $this->execute($promptRequest, $user, $parsed, $channel);
+    }
+
+    private function quickReply(User $user, string $text): ?string
+    {
+        $text = strtolower(trim($text));
+
+        if (preg_match('/\b(halo|hai|hi|bro)\b/u', $text)) {
+            return 'Halo bro. Mau cek jadwal atau bikin task?';
+        }
+
+        if (! preg_match('/\b(task|tugas|todo|to-do)\b/u', $text)) {
+            return null;
+        }
+
+        $tasks = Task::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->orderBy('scheduled_date')
+            ->limit(10)
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            return 'Task pending kamu kosong bro.';
+        }
+
+        $lines = $tasks->values()->map(fn (Task $task, int $index) => ($index + 1).'. '.$task->title)->implode("\n");
+
+        return 'Kamu punya '.$tasks->count().' task pending:' . "\n" . $lines;
     }
 
     /**
