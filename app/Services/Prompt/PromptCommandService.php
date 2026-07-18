@@ -44,6 +44,10 @@ class PromptCommandService
         ]);
 
         if (($parsed['parse_status'] ?? 'failed') === 'failed') {
+            if ($deleteResult = $this->quickDelete($promptRequest, $user, $text, $channel)) {
+                return $deleteResult;
+            }
+
             if ($reply = $this->quickReply($user, $text)) {
                 $promptRequest->update([
                     'intent' => 'READ',
@@ -111,11 +115,81 @@ class PromptCommandService
         return $this->execute($promptRequest, $user, $parsed, $channel);
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function quickDelete(PromptRequest $promptRequest, User $user, string $text, string $channel): ?array
+    {
+        $normalized = strtolower(trim($text));
+        if (preg_match('/\b(hapus|delete|buang|remove|batal|batalkan)\b/u', $normalized) !== 1) {
+            return null;
+        }
+
+        $target = preg_replace('/\b(tolong|minta|hapus|delete|buang|remove|batal|batalkan|task|tugas|jadwal|agenda|yang|ini|itu|tadi|bro|bang|kak|dong|ya)\b/u', ' ', $normalized);
+        $target = trim(preg_replace('/\s+/', ' ', (string) $target));
+
+        if ($target === '') {
+            $previous = PromptRequest::query()
+                ->where('user_id', $user->id)
+                ->where('channel', 'app_prompt')
+                ->where('id', '!=', $promptRequest->id)
+                ->latest()
+                ->value('raw_text');
+            $target = preg_replace('/\b(tolong|minta|hapus|delete|buang|remove|batal|batalkan|task|tugas|jadwal|agenda|yang|ini|itu|tadi|bro|bang|kak|dong|ya)\b/u', ' ', strtolower((string) $previous));
+            $target = trim(preg_replace('/\s+/', ' ', (string) $target));
+        }
+
+        if ($target === '') {
+            return null;
+        }
+
+        $matches = Task::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->where('title', 'ilike', '%'.$target.'%')
+            ->orderBy('scheduled_date')
+            ->limit(5)
+            ->get();
+
+        if ($matches->count() !== 1) {
+            return null;
+        }
+
+        $task = $matches->first();
+        $title = $task->title;
+        $this->taskMutationService->delete($task, $user, $channel, $promptRequest->id);
+        PromptAction::query()->create([
+            'prompt_request_id' => $promptRequest->id,
+            'action_type' => 'delete',
+            'target_entity_type' => 'task',
+            'target_entity_id' => $task->id,
+            'status' => 'executed',
+            'payload' => ['title' => $title, 'mode' => 'quick_context_delete'],
+            'result_payload' => ['task_id' => $task->id],
+        ]);
+        $result = ['action' => 'delete_task', 'human_response' => "Oke, task \"{$title}\" udah aku hapus."];
+        $promptRequest->update([
+            'intent' => 'DELETE',
+            'parse_status' => 'parsed',
+            'execution_status' => 'executed',
+            'execution_summary' => $result,
+        ]);
+
+        return [
+            'prompt_request_id' => $promptRequest->id,
+            'parse_status' => 'parsed',
+            'intent' => 'DELETE',
+            'requires_confirmation' => false,
+            'result' => $result,
+            'human_response' => $result['human_response'],
+        ];
+    }
+
     private function quickReply(User $user, string $text): ?string
     {
         $text = strtolower(trim($text));
 
-        if (preg_match('/\b(halo|hai|hi|bro)\b/u', $text)) {
+        if (preg_match('/^\s*(halo|hai|hi|bro)\s*[!.?]*\s*$/u', $text)) {
             return 'Halo bro. Mau cek jadwal atau bikin task?';
         }
 

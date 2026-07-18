@@ -78,6 +78,57 @@ class PromptApiTest extends TestCase
         $this->assertStringContainsString(now()->subDay()->format('Y-m-d'), $reply);
     }
 
+    public function test_failed_parser_still_deletes_task_named_in_current_message(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0,
+            'parse_status' => 'failed',
+            'requires_confirmation' => false,
+            'entities' => [],
+        ]));
+        $user = User::factory()->active()->create();
+        $target = Task::factory()->create(['user_id' => $user->id, 'title' => 'Tubes 2']);
+        $other = Task::factory()->create(['user_id' => $user->id, 'title' => 'Dieng Culture Festival']);
+
+        $reply = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'hapus task tubes 2',
+        ])->assertOk()->json('data.human_response');
+
+        $this->assertSoftDeleted('tasks', ['id' => $target->id]);
+        $this->assertDatabaseHas('tasks', ['id' => $other->id, 'deleted_at' => null]);
+        $this->assertStringContainsString('Tubes 2', $reply);
+    }
+
+    public function test_delete_follow_up_uses_target_from_previous_message(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0,
+            'parse_status' => 'failed',
+            'requires_confirmation' => false,
+            'entities' => [],
+        ]));
+        $user = User::factory()->active()->create();
+        $target = Task::factory()->create(['user_id' => $user->id, 'title' => 'Tubes 2']);
+        \App\Models\PromptRequest::query()->create([
+            'user_id' => $user->id,
+            'channel' => 'app_prompt',
+            'raw_text' => 'hapus task tubes 2',
+            'normalized_text' => 'hapus task tubes 2',
+            'parse_status' => 'failed',
+            'execution_status' => 'failed',
+        ]);
+
+        $reply = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'hapus bro',
+        ])->assertOk()->json('data.human_response');
+
+        $this->assertSoftDeleted('tasks', ['id' => $target->id]);
+        $this->assertStringContainsString('Tubes 2', $reply);
+        $this->assertStringNotContainsString('Halo bro', $reply);
+    }
+
     public function test_chat_returns_task_summary_when_parser_cannot_handle_casual_task_question(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
