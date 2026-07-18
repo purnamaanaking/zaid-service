@@ -119,6 +119,18 @@ class PromptCommandService
             return 'Halo bro. Mau cek jadwal atau bikin task?';
         }
 
+        $asksRead = preg_match('/\b(cek|lihat|list|apa|mana|ada|jadwal|agenda)\b/u', $text) === 1;
+        $date = match (true) {
+            preg_match('/\b(kemarin|yesterday)\b/u', $text) === 1 => now()->subDay()->format('Y-m-d'),
+            preg_match('/\b(besok|bsk|tomorrow)\b/u', $text) === 1 => now()->addDay()->format('Y-m-d'),
+            preg_match('/\b(hari ini|today|sekarang)\b/u', $text) === 1 => now()->format('Y-m-d'),
+            default => null,
+        };
+
+        if ($asksRead && $date !== null && preg_match('/\b(jadwal|agenda|calendar|kalender)\b/u', $text) === 1) {
+            return $this->readDayTasksAndEvents($user, $date)['human_response'];
+        }
+
         if (! preg_match('/\b(task|tugas|todo|to-do)\b/u', $text)) {
             return null;
         }
@@ -282,7 +294,7 @@ class PromptCommandService
         $search = strtolower((string) ($entities['search_query'] ?? ''));
 
         if (preg_match('/\b(task|tugas)\b/u', $search) === 1 && preg_match('/\b(jadwal|agenda|kalender|calendar)\b/u', $search) === 1 && preg_match('/\b(hari ini|today|sekarang)\b/u', $search) === 1) {
-            return $this->readTodayTasksAndEvents($user);
+            return $this->readDayTasksAndEvents($user, now()->format('Y-m-d'));
         }
 
         if (preg_match('/\b(?:1|satu)\s+minggu\s+(?:terakhir|kebelakang)\b|\b7\s+hari\s+terakhir\b/u', $search) === 1) {
@@ -333,9 +345,8 @@ class PromptCommandService
         ];
     }
 
-    private function readTodayTasksAndEvents(User $user): array
+    private function readDayTasksAndEvents(User $user, string $date): array
     {
-        $date = now()->format('Y-m-d');
         $tasks = Task::query()
             ->where('user_id', $user->id)
             ->whereNull('deleted_at')
@@ -350,14 +361,14 @@ class PromptCommandService
             ->get();
 
         if ($tasks->isEmpty() && $events->isEmpty()) {
-            return ['action' => 'read_agenda', 'items' => [], 'human_response' => 'Hari ini belum ada task atau jadwal.'];
+            return ['action' => 'read_agenda', 'items' => [], 'human_response' => "Belum ada task atau jadwal untuk tanggal {$date}."];
         }
 
         $lines = $tasks->map(fn (Task $task) => '- task: '.$task->title.($task->scheduled_time ? ' - '.substr((string) $task->scheduled_time, 0, 5) : ''))
             ->concat($events->map(fn (CalendarEvent $event) => '- event: '.$event->title.' - '.($event->all_day ? 'seharian' : $event->starts_at->format('H:i'))))
             ->implode("\n");
 
-        return ['action' => 'read_agenda', 'date' => $date, 'items' => $tasks->concat($events)->toArray(), 'human_response' => "Hari ini:\n{$lines}"];
+        return ['action' => 'read_agenda', 'date' => $date, 'items' => $tasks->concat($events)->toArray(), 'human_response' => "Jadwal tanggal {$date}:\n{$lines}"];
     }
 
     /**

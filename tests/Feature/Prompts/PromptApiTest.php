@@ -21,6 +21,63 @@ class PromptApiTest extends TestCase
             ->assertJsonPath('data.items.0.text', 'cek jadwal hari ini');
     }
 
+    public function test_chat_answers_today_schedule_without_waiting_for_parser_retry(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0,
+            'parse_status' => 'failed',
+            'requires_confirmation' => false,
+            'entities' => [],
+        ]));
+        $user = User::factory()->active()->create();
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Tubes 2',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => null,
+        ]);
+        \App\Models\CalendarEvent::query()->create([
+            'user_id' => $user->id,
+            'title' => 'Meeting hari ini',
+            'starts_at' => now()->setTime(7, 0),
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => false,
+        ]);
+
+        $reply = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'cek jadwal hari ini',
+        ])->assertOk()->json('data.human_response');
+
+        $this->assertStringContainsString('Meeting hari ini', $reply);
+        $this->assertStringNotContainsString('Aku belum nangkep', $reply);
+    }
+
+    public function test_chat_answers_yesterday_schedule_from_natural_follow_up(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0,
+            'parse_status' => 'failed',
+            'requires_confirmation' => false,
+            'entities' => [],
+        ]));
+        $user = User::factory()->active()->create();
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Task kemarin',
+            'scheduled_date' => now()->subDay()->format('Y-m-d'),
+            'scheduled_time' => null,
+        ]);
+
+        $reply = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'jadwal kemarin apa?',
+        ])->assertOk()->json('data.human_response');
+
+        $this->assertStringContainsString('Task kemarin', $reply);
+        $this->assertStringContainsString(now()->subDay()->format('Y-m-d'), $reply);
+    }
+
     public function test_chat_returns_task_summary_when_parser_cannot_handle_casual_task_question(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([

@@ -431,23 +431,24 @@ PROMPT;
         }
 
         $content = $response->json('choices.0.message.content', '{}');
-        $content = preg_replace('/^```(?:json)?\s*/', '', trim($content));
-        $content = preg_replace('/\s*```$/', '', $content);
+        $parsed = $this->parseAiContent($content);
 
-        $parsed = json_decode($content, true);
-        if (! is_array($parsed) && preg_match('/(\{[\s\S]*\})\s*$/', $content, $match)) {
-            $parsed = json_decode($match[1], true);
-        }
-
-        if (! is_array($parsed) || ! isset($parsed['reply'])) {
-            Log::warning('WhatsApp agent returned non-JSON, using raw text.', [
+        if ($parsed === null) {
+            Log::warning('WhatsApp agent returned invalid JSON; retrying once.', [
                 'raw' => $content,
                 'user_id' => $userId,
             ]);
 
-            // If AI responded with plain text, use it directly
+            $retryResponse = $request($model);
+            if ($retryResponse->successful()) {
+                $content = $retryResponse->json('choices.0.message.content', '{}');
+                $parsed = $this->parseAiContent($content);
+            }
+        }
+
+        if ($parsed === null) {
             return [
-                'reply' => is_string($content) ? $content : '',
+                'reply' => is_string($content) ? trim($content) : '',
                 'actions' => [],
             ];
         }
@@ -459,6 +460,23 @@ PROMPT;
         }
 
         return $parsed;
+    }
+
+    private function parseAiContent(mixed $content): ?array
+    {
+        if (! is_string($content)) {
+            return null;
+        }
+
+        $content = preg_replace('/^```(?:json)?\s*/', '', trim($content));
+        $content = preg_replace('/\s*```$/', '', (string) $content);
+        $parsed = json_decode($content, true);
+
+        if (! is_array($parsed) && preg_match('/(\{[\s\S]*\})\s*$/', $content, $match)) {
+            $parsed = json_decode($match[1], true);
+        }
+
+        return is_array($parsed) && isset($parsed['reply']) ? $parsed : null;
     }
 
     private function creationEntityType(string $text, mixed $aiChoice): string

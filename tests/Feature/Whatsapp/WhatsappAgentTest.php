@@ -228,6 +228,34 @@ class WhatsappAgentTest extends TestCase
         ]);
     }
 
+    public function test_agent_retries_malformed_ai_response_once_in_same_message(): void
+    {
+        Http::fake([
+            '*/chat/completions' => Http::sequence()
+                ->push(['choices' => [['message' => ['content' => '']]]], 200)
+                ->push(['choices' => [['message' => ['content' => json_encode([
+                    'reply' => 'Siap, task Laporan sudah dibuat.',
+                    'action' => [
+                        'type' => 'create',
+                        'task_id' => null,
+                        'data' => [
+                            'entity_type' => 'task',
+                            'title' => 'Laporan',
+                            'scheduled_date' => now()->addDay()->format('Y-m-d'),
+                            'scheduled_time' => null,
+                            'all_day' => true,
+                        ],
+                    ],
+                ])]]]], 200),
+            '*' => Http::response([], 200),
+        ]);
+
+        $this->sendWhatsApp('buat task laporan besok', 'wamid-malformed-retry');
+
+        $this->assertDatabaseHas('tasks', ['user_id' => $this->user->id, 'title' => 'Laporan']);
+        $this->assertSame('Siap, task Laporan sudah dibuat.', $this->getReplyText('wamid-malformed-retry'));
+    }
+
     public function test_agent_retries_with_fallback_model_when_primary_model_fails(): void
     {
         config(['services.openai.model_fallback' => 'deepseek-v4-pro']);

@@ -126,13 +126,13 @@ PROMPT;
             $parsed = json_decode($content, true);
 
             if (! is_array($parsed) || ! isset($parsed['intent'])) {
-                Log::warning('Prompt parser returned invalid JSON.', [
+                Log::warning('Prompt parser returned invalid JSON; retrying once.', [
                     'model' => $model,
                     'raw' => $content,
                     'user_id' => $userId,
                 ]);
 
-                return $this->failedResult();
+                return $this->retryWithRescuePrompt($text, $userId, $today, $model, $userContent);
             }
 
             if ($this->shouldRetryWithRescuePrompt($text, $parsed)) {
