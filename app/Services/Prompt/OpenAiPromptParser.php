@@ -33,7 +33,9 @@ JSON format:
       "interval": 1
     } | null,
     "description": "string or null",
-    "search_query": "string or null"
+    "search_query": "string or null",
+    "reminder_minutes_before": "integer or null",
+    "reminder_channel": "whatsapp" | "app" | "both" | null
   }
 }
 
@@ -51,6 +53,7 @@ Rules:
 - Use `entity_type: "event"` for meetings, announcements, classes, appointments, and scheduled activities. Use `entity_type: "task"` only for a concrete to-do/action item.
 - If an image is attached, analyze the image for any schedule, task, or calendar information and extract it.
 - If a voice transcription is provided, parse the transcription as the user's command.
+- Parse reminder phrases such as "ingatkan 30 menit sebelumnya", "reminder 1 jam sebelum", or "ingatkan lewat app" into reminder_minutes_before and reminder_channel. Default reminder_channel to whatsapp when a reminder is requested without a channel.
 PROMPT;
 
     private const RESCUE_SYSTEM_PROMPT = <<<'PROMPT'

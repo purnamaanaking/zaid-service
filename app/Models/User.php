@@ -85,6 +85,11 @@ class User extends Authenticatable
         return $this->hasMany(UserCalendarConnection::class);
     }
 
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(Reminder::class);
+    }
+
     public function calendarSyncLogs(): HasMany
     {
         return $this->hasMany(CalendarSyncLog::class);

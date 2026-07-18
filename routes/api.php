@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Onboarding\PhoneOnboardingController;
 use App\Http\Controllers\Api\Onboarding\ResendOtpController;
 use App\Http\Controllers\Api\Onboarding\VerifyPhoneOtpController;
 use App\Http\Controllers\Api\Prompts\PromptController;
+use App\Http\Controllers\Api\Reminders\ReminderController;
 use App\Http\Controllers\Api\Settings\SettingsController;
 use App\Http\Controllers\Api\TaskLists\TaskListController;
 use App\Http\Controllers\Api\Tasks\TaskController;
@@ -93,6 +94,9 @@ Route::prefix('v1')->group(function (): void {
 
             // Task lists
             Route::apiResource('task-lists', TaskListController::class)->only(['index', 'store', 'update', 'destroy']);
+
+            // Reminders
+            Route::apiResource('reminders', ReminderController::class)->only(['index', 'store', 'update', 'destroy']);
 
             // Prompts
             Route::middleware('throttle:prompt')->group(function (): void {

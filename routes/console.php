@@ -23,4 +23,9 @@ Schedule::call(fn () => app(GoogleCalendarWatchService::class)->renewExpiringWat
     ->name('google-calendar-watch-renew')
     ->withoutOverlapping();
 
+Schedule::command('reminders:send-due')
+    ->everyMinute()
+    ->name('reminders-send-due')
+    ->withoutOverlapping();
+
 // Google Tasks inbound sync disabled: it was re-importing old remote tasks after local cleanup.

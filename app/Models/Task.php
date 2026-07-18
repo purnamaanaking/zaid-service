@@ -69,4 +69,9 @@ class Task extends Model
     {
         return $this->hasOne(CalendarEventLink::class);
     }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(Reminder::class);
+    }
 }
