@@ -86,7 +86,7 @@ class WahaWebhookTest extends TestCase
         Http::assertSent(fn ($request) =>
             $request->url() === 'http://waha.test/api/sendText'
             && $request['chatId'] === '628999999999@c.us'
-            && str_contains($request['text'], 'https://zaid-assist.my.id/')
+            && str_contains($request['text'], 'https://zaidassistant.id/')
         );
     }
 

@@ -62,8 +62,8 @@ class WhatsappWebhookTest extends TestCase
 
         $response->assertStatus(202);
         Http::assertSent(fn ($request) =>
-            str_contains($request['text']['body'], 'https://zaid-assist.my.id/')
-            && str_contains($request['text']['body'], 'Nomor kamu belum terdaftar')
+            str_contains($request['text']['body'], 'https://zaidassistant.id/')
+            && str_contains($request['text']['body'], 'Nomor ini belum terdaftar')
         );
     }
 
