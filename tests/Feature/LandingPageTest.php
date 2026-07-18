@@ -83,6 +83,10 @@ class LandingPageTest extends TestCase
             ->assertSee('date-action-modal')
             ->assertSee('event-modal')
             ->assertSee('Ask Zaid')
+            ->assertSee('What can Zaid do?')
+            ->assertSee('mini-day')
+            ->assertSee('calendar-panel')
+            ->assertSee("addEventListener('wheel'", false)
             ->assertSee('/events?from=');
     }
 

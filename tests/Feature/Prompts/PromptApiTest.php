@@ -43,6 +43,80 @@ class PromptApiTest extends TestCase
             ->assertJsonPath('data.human_response', "Kamu punya 1 task pending:\n1. Tugas Besar 1");
     }
 
+    public function test_chat_reads_last_week_range_instead_of_reusing_previous_day(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0.95,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => [
+                'entity_type' => 'task',
+                'title' => null,
+                'scheduled_date' => now()->format('Y-m-d'),
+                'scheduled_time' => null,
+                'all_day' => false,
+                'recurrence' => null,
+                'description' => null,
+                'search_query' => 'satu minggu terakhir jadwalnya apa aja',
+            ],
+        ]));
+        $user = User::factory()->active()->create();
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Meeting minggu ini',
+            'scheduled_date' => now()->subDays(3)->format('Y-m-d'),
+            'scheduled_time' => '09:00:00',
+        ]);
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Meeting lama',
+            'scheduled_date' => now()->subDays(8)->format('Y-m-d'),
+            'scheduled_time' => '09:00:00',
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'satu minggu terakhir jadwalnya apaaja',
+        ])->assertOk();
+
+        $reply = $response->json('data.human_response');
+        $this->assertStringContainsString('Meeting minggu ini', $reply);
+        $this->assertStringNotContainsString('Meeting lama', $reply);
+    }
+
+    public function test_delete_with_clear_match_does_not_require_generic_confirmation(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'DELETE',
+            'confidence_score' => 0.95,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => true,
+            'entities' => [
+                'entity_type' => 'event',
+                'title' => 'meeting',
+                'scheduled_date' => now()->format('Y-m-d'),
+                'scheduled_time' => '07:00:00',
+                'all_day' => false,
+                'recurrence' => null,
+                'description' => null,
+                'search_query' => 'meeting hari ini jam 7',
+            ],
+        ]));
+        $user = User::factory()->active()->create();
+        $task = Task::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Meeting',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => '07:00:00',
+        ]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'bat jadwal meeting hari ini jam 7',
+        ])->assertOk()->assertJsonPath('data.requires_confirmation', false);
+
+        $this->assertSoftDeleted('tasks', ['id' => $task->id]);
+    }
+
     public function test_user_can_permanently_clear_own_prompt_history(): void
     {
         $user = User::factory()->active()->create();

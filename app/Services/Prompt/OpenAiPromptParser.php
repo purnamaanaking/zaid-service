@@ -41,9 +41,9 @@ Rules:
 - TODAY is provided. Use it for relative dates like "hari ini", "besok", "minggu depan", "lusa", and conversational variants like "malam ini", "nanti", or "tanggal 22 mei".
 - Conversation context may precede current message. Use it to resolve casual follow-ups like "halo", "yang ini", "hapus itu", or "yang tadi". Parse only CURRENT USER MESSAGE as action; context is reference only.
 - Infer the most likely task/calendar intent even if the user does not speak in command format.
-- READ includes asking what schedule exists on a date, whether a day is free, when a task happens, or what agenda exists.
+- READ includes asking what schedule exists on a date or range, whether a day is free, when a task happens, or what agenda exists. Preserve range phrases such as "satu minggu terakhir" in search_query; do not collapse them into one date.
 - UPDATE includes moving/rescheduling/renaming an existing task even when the user says things like "geser", "pindahin", "ganti", or "yang gym itu ubah ke pagi".
-- DELETE includes canceling/removing a task even when the user says things like "hapus", "batalkan", or "yang meeting itu ga jadi".
+- DELETE includes canceling/removing a task even when the user says things like "hapus", "bat", "batal", "batalkan", or "yang meeting itu ga jadi".
 - If intent is READ, set search_query to capture the user's filter criteria in natural language.
 - If command is unclear or ambiguous but still task/calendar related, prefer `parse_status: "ambiguous"` instead of `unsupported`.
 - Use `unsupported` only when the request is clearly outside task/calendar assistant scope.

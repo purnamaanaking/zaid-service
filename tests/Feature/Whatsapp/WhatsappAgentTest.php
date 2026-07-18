@@ -708,6 +708,77 @@ class WhatsappAgentTest extends TestCase
         });
     }
 
+    public function test_quick_read_last_week_lists_only_pending_tasks_from_the_last_seven_days(): void
+    {
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Tubes 2',
+            'scheduled_date' => now()->subDays(3)->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+        ]);
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Task lama',
+            'scheduled_date' => now()->subDays(8)->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+        ]);
+        Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Dieng Culture Festival',
+            'scheduled_date' => now()->addMonth()->format('Y-m-d'),
+            'scheduled_time' => null,
+            'status' => 'pending',
+        ]);
+        Http::fake();
+
+        $this->sendWhatsApp('list task 1 minggu terakhir', 'wamid-last-week');
+
+        $reply = $this->getReplyText('wamid-last-week');
+        $this->assertStringContainsString('Tubes 2', $reply);
+        $this->assertStringNotContainsString('Task lama', $reply);
+        $this->assertStringNotContainsString('Dieng Culture Festival', $reply);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'chat/completions'));
+    }
+
+    public function test_complete_all_marks_only_tasks_from_the_previous_list(): void
+    {
+        $listedFirst = Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Tubes 2',
+            'status' => 'pending',
+        ]);
+        $listedSecond = Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Dieng Culture Festival',
+            'status' => 'pending',
+        ]);
+        $unlisted = Task::factory()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Meeting jam 07:00',
+            'status' => 'pending',
+        ]);
+        WhatsappMessage::query()->create([
+            'user_id' => $this->user->id,
+            'direction' => 'outbound',
+            'wa_message_id' => 'previous-list',
+            'sender_phone_e164' => 'bot',
+            'recipient_phone_e164' => $this->phone,
+            'message_text' => "Task kamu yang belum kelar:\n1. Tubes 2\n2. Dieng Culture Festival",
+            'processing_status' => 'replied',
+        ]);
+        Http::fake();
+
+        $this->sendWhatsApp('tandai sudah dikerjakan semua bro', 'wamid-complete-listed');
+
+        $this->assertSame('completed', $listedFirst->fresh()->status);
+        $this->assertSame('completed', $listedSecond->fresh()->status);
+        $this->assertSame('pending', $unlisted->fresh()->status);
+        $this->assertStringContainsString('2 task', $this->getReplyText('wamid-complete-listed'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'chat/completions'));
+    }
+
     public function test_quick_read_pending_tasks_lists_items_from_multiple_google_task_lists(): void
     {
         Task::factory()->create([

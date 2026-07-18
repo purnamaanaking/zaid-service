@@ -87,7 +87,10 @@ class PromptCommandService
             ];
         }
 
-        if ($parsed['requires_confirmation'] ?? false) {
+        $clearDestructiveMatch = in_array(strtoupper((string) ($parsed['intent'] ?? '')), ['UPDATE', 'DELETE'], true)
+            && $this->resolveTaskCandidates($user, $parsed['entities'] ?? [])->count() === 1;
+
+        if (($parsed['requires_confirmation'] ?? false) && ! $clearDestructiveMatch) {
             $promptRequest->update(['execution_status' => 'awaiting_confirmation']);
 
             return [
@@ -276,6 +279,35 @@ class PromptCommandService
      */
     private function executeRead(User $user, array $entities): array
     {
+        $search = strtolower((string) ($entities['search_query'] ?? ''));
+
+        if (preg_match('/\b(?:1|satu)\s+minggu\s+(?:terakhir|kebelakang)\b|\b7\s+hari\s+terakhir\b/u', $search) === 1) {
+            $end = now()->startOfDay();
+            $start = $end->copy()->subDays(6);
+            $items = Task::query()
+                ->where('user_id', $user->id)
+                ->whereNull('deleted_at')
+                ->whereBetween('scheduled_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+                ->where('status', '!=', 'cancelled')
+                ->orderBy('scheduled_date')
+                ->orderBy('scheduled_time')
+                ->get();
+
+            if ($items->isEmpty()) {
+                return ['action' => 'read_agenda', 'items' => [], 'human_response' => 'Belum ada jadwal dalam 7 hari terakhir.'];
+            }
+
+            $lines = $items->values()->map(fn (Task $task, int $index) => ($index + 1).'. '.$task->title.' - '.$task->scheduled_date->format('Y-m-d').($task->scheduled_time ? ' '.substr((string) $task->scheduled_time, 0, 5) : ''))->implode("\n");
+
+            return [
+                'action' => 'read_agenda',
+                'date_from' => $start->format('Y-m-d'),
+                'date_to' => $end->format('Y-m-d'),
+                'items' => $items->toArray(),
+                'human_response' => "Jadwal 7 hari terakhir:\n{$lines}",
+            ];
+        }
+
         $date = $entities['scheduled_date'] ?? now()->format('Y-m-d');
         $items = $this->agendaQueryService->dayAgenda($user, $date);
 

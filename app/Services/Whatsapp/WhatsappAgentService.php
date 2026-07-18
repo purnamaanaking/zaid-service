@@ -155,6 +155,10 @@ PROMPT;
             return $quickDelete;
         }
 
+        if ($quickComplete = $this->handleQuickCompleteQueries($promptRequest, $user, $normalizedText, $channel)) {
+            return $quickComplete;
+        }
+
         if ($confirmation = $this->handlePendingConfirmation($promptRequest, $user, $normalizedText, $channel)) {
             return $confirmation;
         }
@@ -630,6 +634,66 @@ PROMPT;
         ];
     }
 
+    /**
+     * @return array{prompt_request_id: string, human_response: string}|null
+     */
+    private function handleQuickCompleteQueries(PromptRequest $promptRequest, User $user, string $text, string $channel): ?array
+    {
+        $asksComplete = preg_match('/\b(tandai|mark|selesai|beres|dikerjakan|kerjakan|complete)\b/u', $text) === 1;
+        $asksAll = preg_match('/\b(semua|semuanya)\b/u', $text) === 1;
+
+        if (! $asksComplete || ! $asksAll) {
+            return null;
+        }
+
+        $lastReply = WhatsappMessage::query()
+            ->where('user_id', $user->id)
+            ->where('direction', 'outbound')
+            ->whereNotNull('message_text')
+            ->latest()
+            ->value('message_text');
+        preg_match_all('/^\s*\d+\.\s+(.+?)(?:\s+-\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?)?(?:\s+\[[^]]+\])?\s*$/mu', (string) $lastReply, $matches);
+        $titles = array_values(array_filter(array_map('trim', $matches[1] ?? [])));
+
+        if ($titles === []) {
+            return null;
+        }
+
+        $tasks = Task::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->where('status', 'pending')
+            ->whereIn('title', $titles)
+            ->get();
+
+        foreach ($tasks as $task) {
+            $this->taskMutationService->complete($task, $user, $channel);
+            PromptAction::query()->create([
+                'prompt_request_id' => $promptRequest->id,
+                'action_type' => 'complete',
+                'target_entity_type' => 'task',
+                'target_entity_id' => $task->id,
+                'status' => 'executed',
+                'payload' => ['title' => $task->title, 'mode' => 'previous_list'],
+                'result_payload' => ['task_id' => $task->id],
+            ]);
+        }
+
+        $promptRequest->update([
+            'intent' => 'COMPLETE',
+            'parse_status' => 'parsed',
+            'execution_status' => 'executed',
+            'execution_summary' => ['action' => 'complete_previous_list', 'count' => $tasks->count()],
+        ]);
+
+        return [
+            'prompt_request_id' => $promptRequest->id,
+            'human_response' => $tasks->isEmpty()
+                ? 'Task di daftar tadi sudah selesai semua.'
+                : $tasks->count().' task dari daftar tadi udah aku tandai selesai.',
+        ];
+    }
+
     private function handleQuickReadQueries(User $user, string $text, string $today): ?string
     {
         if ($text === '') {
@@ -644,10 +708,40 @@ PROMPT;
         $asksTomorrow = preg_match('/\b(besok|bsk|tomorrow)\b/u', $text) === 1;
         $asksMine = preg_match('/\b(gua|gue|gw|aku|saya|ku)\b/u', $text) === 1;
         $asksList = preg_match('/\b(cek|lihat|list|apa|apa aja|apa saja|mana|yang)\b/u', $text) === 1;
+        $asksLastWeek = preg_match('/\b(?:1|satu)\s+minggu\s+(?:terakhir|kebelakang)\b|\b7\s+hari\s+terakhir\b/u', $text) === 1;
         $isMutation = preg_match('/\b(buat|bikin|tambah|tambahkan|jadwalkan|hapus|ubah|pindah)\b/u', $text) === 1;
 
         if ($isMutation || ! ($asksTasks || $asksSchedule || $asksOverdue) || ! ($asksList || $asksMine || $asksPending || $asksToday || $asksOverdue)) {
             return null;
+        }
+
+        if ($asksLastWeek) {
+            $items = Task::query()
+                ->where('user_id', $user->id)
+                ->whereNull('deleted_at')
+                ->where('status', 'pending')
+                ->whereBetween('scheduled_date', [Carbon::parse($today)->subDays(6)->format('Y-m-d'), $today])
+                ->when($asksTasks && ! $asksSchedule, fn ($query) => $query->whereNull('scheduled_time'))
+                ->when($asksSchedule && ! $asksTasks, fn ($query) => $query->whereNotNull('scheduled_time'))
+                ->orderBy('scheduled_date')
+                ->orderBy('scheduled_time')
+                ->limit(20)
+                ->get();
+
+            if ($items->isEmpty()) {
+                return 'Satu minggu terakhir belum ada task pending.';
+            }
+
+            $lines = $items->values()->map(function (Task $task, int $index) {
+                $when = $task->scheduled_date?->format('Y-m-d');
+                if ($task->scheduled_time) {
+                    $when .= ' '.substr((string) $task->scheduled_time, 0, 5);
+                }
+
+                return ($index + 1).'. '.$task->title.' - '.$when;
+            })->implode("\n");
+
+            return "Task pending 7 hari terakhir:\n{$lines}";
         }
 
         if ($asksOverdue) {
