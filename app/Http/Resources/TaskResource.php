@@ -34,6 +34,7 @@ class TaskResource extends JsonResource
                     'day_of_month' => $this->recurrence->day_of_month,
                 ];
             }),
+            'reminders' => $this->whenLoaded('reminders'),
             'completed_at' => $this->completed_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

@@ -19,7 +19,7 @@ class TaskController extends Controller
     {
         $query = Task::query()
             ->where('user_id', $request->user()->id)
-            ->with('recurrence');
+            ->with(['recurrence', 'reminders']);
 
         if ($request->has('date')) {
             $query->whereDate('scheduled_date', $request->query('date'));
@@ -73,7 +73,7 @@ class TaskController extends Controller
     {
         $task = Task::query()
             ->where('user_id', $request->user()->id)
-            ->with('recurrence')
+            ->with(['recurrence', 'reminders'])
             ->findOrFail($taskId);
 
         return response()->json([

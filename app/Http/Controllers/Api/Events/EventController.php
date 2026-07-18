@@ -14,6 +14,7 @@ class EventController extends Controller
         $request->validate(['from' => ['required', 'date'], 'to' => ['required', 'date', 'after_or_equal:from']]);
 
         $items = $request->user()->calendarEvents()
+            ->with('reminders')
             ->whereDate('starts_at', '<=', $request->date('to'))
             ->where(fn ($query) => $query->whereNull('ends_at')->orWhereDate('ends_at', '>=', $request->date('from')))
             ->orderBy('starts_at')
@@ -27,7 +28,7 @@ class EventController extends Controller
         $data = $this->validateEvent($request);
         $event = $request->user()->calendarEvents()->create($data);
 
-        return response()->json(['success' => true, 'data' => ['event' => $event]], 201);
+        return response()->json(['success' => true, 'data' => ['event' => $event->load('reminders')]], 201);
     }
 
     public function update(Request $request, string $eventId): JsonResponse
@@ -35,7 +36,11 @@ class EventController extends Controller
         $event = $request->user()->calendarEvents()->findOrFail($eventId);
         $event->update($this->validateEvent($request, true));
 
-        return response()->json(['success' => true, 'data' => ['event' => $event->fresh()]]);
+        $event->reminders()->where('status', 'pending')->get()->each(function ($reminder) use ($event): void {
+            if ($event->starts_at) $reminder->update(['remind_at' => $event->starts_at->copy()->subMinutes($reminder->minutes_before)]);
+        });
+
+        return response()->json(['success' => true, 'data' => ['event' => $event->fresh()->load('reminders')]]);
     }
 
     public function destroy(Request $request, string $eventId): JsonResponse
