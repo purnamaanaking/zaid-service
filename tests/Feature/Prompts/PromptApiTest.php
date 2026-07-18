@@ -78,6 +78,30 @@ class PromptApiTest extends TestCase
         $this->assertStringContainsString(now()->subDay()->format('Y-m-d'), $reply);
     }
 
+    public function test_failed_parser_still_creates_task_from_clear_command(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0,
+            'parse_status' => 'failed',
+            'requires_confirmation' => false,
+            'entities' => [],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $reply = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'buat task baru besok meeting jam 7 pagi',
+        ])->assertOk()->json('data.human_response');
+
+        $this->assertDatabaseHas('tasks', [
+            'user_id' => $user->id,
+            'title' => 'Meeting',
+            'scheduled_date' => now()->addDay()->format('Y-m-d'),
+            'scheduled_time' => '07:00:00',
+        ]);
+        $this->assertStringContainsString('meeting', strtolower($reply));
+    }
+
     public function test_failed_parser_still_deletes_task_named_in_current_message(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([

@@ -48,6 +48,10 @@ class PromptCommandService
                 return $deleteResult;
             }
 
+            if ($createResult = $this->quickCreate($promptRequest, $user, $text, $channel)) {
+                return $createResult;
+            }
+
             if ($reply = $this->quickReply($user, $text)) {
                 $promptRequest->update([
                     'intent' => 'READ',
@@ -118,6 +122,61 @@ class PromptCommandService
     /**
      * @return array<string, mixed>|null
      */
+    private function quickCreate(PromptRequest $promptRequest, User $user, string $text, string $channel): ?array
+    {
+        $normalized = strtolower(trim($text));
+        if (preg_match('/\b(buat|bikin|tambah|tambahkan|catat|jadwalkan)\b/u', $normalized) !== 1) {
+            return null;
+        }
+
+        $isEvent = preg_match('/\b(meeting|event|acara|jadwal|kelas|janji|kalender)\b/u', $normalized) === 1
+            && preg_match('/\b(task|tugas|todo)\b/u', $normalized) !== 1;
+        $date = match (true) {
+            preg_match('/\b(besok|bsk|tomorrow)\b/u', $normalized) === 1 => now()->addDay()->format('Y-m-d'),
+            preg_match('/\b(lusa)\b/u', $normalized) === 1 => now()->addDays(2)->format('Y-m-d'),
+            default => now()->format('Y-m-d'),
+        };
+        $time = null;
+        if (preg_match('/\bjam\s+(\d{1,2})(?::(\d{2}))?\s*(pagi|siang|sore|malam)?\b/u', $normalized, $match)) {
+            $hour = (int) $match[1];
+            $minute = isset($match[2]) ? (int) $match[2] : 0;
+            $period = $match[3] ?? null;
+            if ($period === 'malam' && $hour < 12) $hour += 12;
+            if ($period === 'siang' && $hour < 11) $hour += 12;
+            if ($period === 'sore' && $hour < 12) $hour += 12;
+            $time = sprintf('%02d:%02d:00', $hour, $minute);
+        }
+
+        $title = preg_replace('/\b(buat|bikin|tambah|tambahkan|catat|jadwalkan|task|tugas|todo|baru|besok|bsk|tomorrow|lusa|hari ini|today|jam\s+\d{1,2}(?::\d{2})?|pagi|siang|sore|malam)\b/u', ' ', $normalized);
+        $title = trim(preg_replace('/\s+/', ' ', (string) $title));
+        if ($title === '') return null;
+
+        $data = [
+            'title' => ucfirst($title),
+            'description' => null,
+            'scheduled_date' => $date,
+            'scheduled_time' => $time,
+            'all_day' => $time === null,
+        ];
+        $result = $isEvent ? $this->executeCreateEvent($promptRequest, $user, $data) : $this->executeCreate($promptRequest, $user, $data, $channel);
+        $promptRequest->update([
+            'intent' => 'CREATE',
+            'parse_status' => 'parsed',
+            'execution_status' => 'executed',
+            'extracted_entities' => $data,
+            'execution_summary' => $result,
+        ]);
+
+        return [
+            'prompt_request_id' => $promptRequest->id,
+            'parse_status' => 'parsed',
+            'intent' => 'CREATE',
+            'requires_confirmation' => false,
+            'result' => $result,
+            'human_response' => $result['human_response'],
+        ];
+    }
+
     private function quickDelete(PromptRequest $promptRequest, User $user, string $text, string $channel): ?array
     {
         $normalized = strtolower(trim($text));
