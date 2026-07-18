@@ -84,6 +84,47 @@ class PromptApiTest extends TestCase
         $this->assertStringNotContainsString('Meeting lama', $reply);
     }
 
+    public function test_chat_lists_tasks_and_calendar_events_for_same_day(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0.95,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => [
+                'entity_type' => 'task',
+                'title' => null,
+                'scheduled_date' => now()->format('Y-m-d'),
+                'scheduled_time' => null,
+                'all_day' => false,
+                'recurrence' => null,
+                'description' => null,
+                'search_query' => 'list task dan jadwal hari ini',
+            ],
+        ]));
+        $user = User::factory()->active()->create();
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'title' => 'Kirim laporan',
+            'scheduled_date' => now()->format('Y-m-d'),
+            'scheduled_time' => null,
+        ]);
+        \App\Models\CalendarEvent::query()->create([
+            'user_id' => $user->id,
+            'title' => 'Meeting tim',
+            'starts_at' => now()->setTime(14, 0),
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => false,
+        ]);
+
+        $reply = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'minta tolong list task dan jadwal hari ini',
+        ])->assertOk()->json('data.human_response');
+
+        $this->assertStringContainsString('Kirim laporan', $reply);
+        $this->assertStringContainsString('Meeting tim', $reply);
+    }
+
     public function test_delete_with_clear_match_does_not_require_generic_confirmation(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([

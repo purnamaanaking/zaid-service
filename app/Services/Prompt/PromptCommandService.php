@@ -281,6 +281,10 @@ class PromptCommandService
     {
         $search = strtolower((string) ($entities['search_query'] ?? ''));
 
+        if (preg_match('/\b(task|tugas)\b/u', $search) === 1 && preg_match('/\b(jadwal|agenda|kalender|calendar)\b/u', $search) === 1 && preg_match('/\b(hari ini|today|sekarang)\b/u', $search) === 1) {
+            return $this->readTodayTasksAndEvents($user);
+        }
+
         if (preg_match('/\b(?:1|satu)\s+minggu\s+(?:terakhir|kebelakang)\b|\b7\s+hari\s+terakhir\b/u', $search) === 1) {
             $end = now()->startOfDay();
             $start = $end->copy()->subDays(6);
@@ -327,6 +331,33 @@ class PromptCommandService
             'items' => $items->toArray(),
             'human_response' => "Jadwal kamu di tanggal {$date}:\n{$lines}",
         ];
+    }
+
+    private function readTodayTasksAndEvents(User $user): array
+    {
+        $date = now()->format('Y-m-d');
+        $tasks = Task::query()
+            ->where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->whereDate('scheduled_date', $date)
+            ->where('status', '!=', 'cancelled')
+            ->orderBy('scheduled_time')
+            ->get();
+        $events = CalendarEvent::query()
+            ->where('user_id', $user->id)
+            ->whereDate('starts_at', $date)
+            ->orderBy('starts_at')
+            ->get();
+
+        if ($tasks->isEmpty() && $events->isEmpty()) {
+            return ['action' => 'read_agenda', 'items' => [], 'human_response' => 'Hari ini belum ada task atau jadwal.'];
+        }
+
+        $lines = $tasks->map(fn (Task $task) => '- task: '.$task->title.($task->scheduled_time ? ' - '.substr((string) $task->scheduled_time, 0, 5) : ''))
+            ->concat($events->map(fn (CalendarEvent $event) => '- event: '.$event->title.' - '.($event->all_day ? 'seharian' : $event->starts_at->format('H:i'))))
+            ->implode("\n");
+
+        return ['action' => 'read_agenda', 'date' => $date, 'items' => $tasks->concat($events)->toArray(), 'human_response' => "Hari ini:\n{$lines}"];
     }
 
     /**

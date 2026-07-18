@@ -195,6 +195,39 @@ class WhatsappAgentTest extends TestCase
         $this->assertDatabaseMissing('tasks', ['user_id' => $this->user->id]);
     }
 
+    public function test_forwarded_event_confirmation_creates_calendar_event_not_task(): void
+    {
+        $this->fakeAiResponse('Aku nemu event: Seminar Zaid, 2026-08-20 jam 09:00. Mau ditambahkan ke kalender?', [
+            'type' => 'confirm_create',
+            'task_id' => null,
+            'data' => [
+                'entity_type' => 'event',
+                'title' => 'Seminar Zaid',
+                'scheduled_date' => '2026-08-20',
+                'scheduled_time' => '09:00:00',
+                'description' => 'Lokasi: Aula utama',
+                'all_day' => false,
+            ],
+        ]);
+        $this->sendWhatsApp('forwarded announcement', 'wamid-forwarded-event');
+
+        $this->fakeAiResponse('Siap, aku tambahkan ke kalender.', [
+            'type' => 'confirm',
+            'task_id' => null,
+            'data' => [],
+        ]);
+        $this->sendWhatsApp('iya tambahin', 'wamid-forwarded-confirm');
+
+        $this->assertDatabaseHas('calendar_events', [
+            'user_id' => $this->user->id,
+            'title' => 'Seminar Zaid',
+        ]);
+        $this->assertDatabaseMissing('tasks', [
+            'user_id' => $this->user->id,
+            'title' => 'Seminar Zaid',
+        ]);
+    }
+
     public function test_agent_retries_with_fallback_model_when_primary_model_fails(): void
     {
         config(['services.openai.model_fallback' => 'deepseek-v4-pro']);

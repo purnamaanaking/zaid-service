@@ -961,12 +961,13 @@ PROMPT;
      */
     private function storePendingCreate(PromptRequest $promptRequest, array $data): array
     {
+        $payload = $this->normalizeCreatePayload($data);
         PromptAction::query()->create([
             'prompt_request_id' => $promptRequest->id,
             'action_type' => 'create',
-            'target_entity_type' => 'task',
+            'target_entity_type' => $payload['entity_type'],
             'status' => 'pending_confirmation',
-            'payload' => $this->normalizeCreatePayload($data),
+            'payload' => $payload,
         ]);
 
         return ['action' => 'pending_create_confirmation', 'data' => $this->normalizeCreatePayload($data)];
@@ -997,6 +998,25 @@ PROMPT;
     private function executePendingCreateAction(PromptRequest $promptRequest, User $user, PromptAction $pending, string $channel): array
     {
         $data = $this->normalizeCreatePayload($pending->payload ?? []);
+        $when = $data['scheduled_date'] ? ' tanggal '.$data['scheduled_date'] : '';
+        $time = $data['scheduled_time'] ? ' jam '.substr((string) $data['scheduled_time'], 0, 5) : '';
+
+        if ($data['entity_type'] === 'event') {
+            $event = $this->createConfirmedEvent($promptRequest, $user, $data);
+            $pending->update([
+                'status' => 'executed',
+                'target_entity_type' => 'event',
+                'target_entity_id' => $event->id,
+                'result_payload' => ['event_id' => $event->id, 'confirmed_by_prompt_request_id' => $promptRequest->id],
+            ]);
+
+            return [
+                'action' => 'confirm_create_event',
+                'event_id' => $event->id,
+                'reply' => 'Siap, '.$event->title.$when.$time.' udah aku tambahin ke kalender 👍',
+            ];
+        }
+
         $task = $this->taskMutationService->create($user, $data, $channel, $promptRequest->id);
 
         $pending->update([
@@ -1015,14 +1035,37 @@ PROMPT;
             'result_payload' => ['task_id' => $task->id, 'pending_action_id' => $pending->id],
         ]);
 
-        $when = $data['scheduled_date'] ? ' tanggal '.$data['scheduled_date'] : '';
-        $time = $data['scheduled_time'] ? ' jam '.substr((string) $data['scheduled_time'], 0, 5) : '';
-
         return [
             'action' => 'confirm_create_task',
             'task_id' => $task->id,
             'reply' => 'Siap, '.$task->title.$when.$time.' udah aku tambahin ke kalender 👍',
         ];
+    }
+
+    private function createConfirmedEvent(PromptRequest $promptRequest, User $user, array $data): CalendarEvent
+    {
+        $date = $data['scheduled_date'] ?? now()->format('Y-m-d');
+        $time = $data['scheduled_time'] ?? null;
+        $event = CalendarEvent::query()->create([
+            'user_id' => $user->id,
+            'title' => $data['title'],
+            'description' => $data['description'],
+            'starts_at' => Carbon::parse($date.' '.($time ?: '00:00:00'), 'Asia/Jakarta'),
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => (bool) ($data['all_day'] ?? $time === null),
+        ]);
+
+        PromptAction::query()->create([
+            'prompt_request_id' => $promptRequest->id,
+            'action_type' => 'confirm_create',
+            'target_entity_type' => 'event',
+            'target_entity_id' => $event->id,
+            'status' => 'executed',
+            'payload' => $data,
+            'result_payload' => ['event_id' => $event->id],
+        ]);
+
+        return $event;
     }
 
     private function cancelPendingAction(PromptRequest $promptRequest, PromptAction $pending): array
@@ -1042,6 +1085,7 @@ PROMPT;
     private function normalizeCreatePayload(array $data): array
     {
         return [
+            'entity_type' => ($data['entity_type'] ?? 'task') === 'event' ? 'event' : 'task',
             'title' => $data['title'] ?? 'Task baru',
             'description' => $data['description'] ?? null,
             'scheduled_date' => $data['scheduled_date'] ?? null,
