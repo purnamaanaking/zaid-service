@@ -111,10 +111,15 @@ class TaskMutationService
             ]);
 
             $task = $task->fresh()->load('recurrence');
-            if ($task->scheduled_date && $task->scheduled_time) {
+            $task->reminders()->where('status', 'pending')->get()->each(function ($reminder) use ($task): void {
+                if (! $task->scheduled_date || ! $task->scheduled_time) {
+                    $reminder->delete();
+                    return;
+                }
+
                 $startsAt = now()->parse($task->scheduled_date->format('Y-m-d').' '.$task->scheduled_time, $task->timezone);
-                $task->reminders()->where('status', 'pending')->get()->each(fn ($reminder) => $reminder->update(['remind_at' => $startsAt->copy()->subMinutes($reminder->minutes_before)]));
-            }
+                $reminder->update(['remind_at' => $startsAt->copy()->subMinutes($reminder->minutes_before)]);
+            });
 
             $this->dispatchCalendarSyncIfNeeded($user, $task, 'upsert');
 
@@ -136,6 +141,7 @@ class TaskMutationService
                 'created_at' => now(),
             ]);
 
+            $task->reminders()->where('status', 'pending')->delete();
             $task->delete();
 
             $this->dispatchCalendarSyncIfNeeded($user, $task, 'delete');
@@ -163,6 +169,7 @@ class TaskMutationService
             ]);
 
             $task = $task->fresh();
+            $task->reminders()->where('status', 'pending')->delete();
 
             $this->dispatchCalendarSyncIfNeeded($user, $task, 'upsert');
 

@@ -37,7 +37,11 @@ class EventController extends Controller
         $event->update($this->validateEvent($request, true));
 
         $event->reminders()->where('status', 'pending')->get()->each(function ($reminder) use ($event): void {
-            if ($event->starts_at) $reminder->update(['remind_at' => $event->starts_at->copy()->subMinutes($reminder->minutes_before)]);
+            if ($event->starts_at) {
+                $reminder->update(['remind_at' => $event->starts_at->copy()->subMinutes($reminder->minutes_before)]);
+            } else {
+                $reminder->delete();
+            }
         });
 
         return response()->json(['success' => true, 'data' => ['event' => $event->fresh()->load('reminders')]]);
@@ -45,7 +49,9 @@ class EventController extends Controller
 
     public function destroy(Request $request, string $eventId): JsonResponse
     {
-        $request->user()->calendarEvents()->findOrFail($eventId)->delete();
+        $event = $request->user()->calendarEvents()->findOrFail($eventId);
+        $event->reminders()->where('status', 'pending')->delete();
+        $event->delete();
 
         return response()->json(['success' => true]);
     }

@@ -364,6 +364,8 @@ class PromptCommandService
             'all_day' => $entities['all_day'] ?? false,
         ]);
 
+        $this->createReminderFromEntitiesForEvent($user, $event, $entities);
+
         PromptAction::query()->create([
             'prompt_request_id' => $promptRequest->id,
             'action_type' => 'create',
@@ -417,6 +419,23 @@ class PromptCommandService
             'task' => $task->toArray(),
             'human_response' => "Siap, aku udah buatin task \"{$task->title}\"{$recurrenceText}.",
         ];
+    }
+
+    private function createReminderFromEntitiesForEvent(User $user, CalendarEvent $event, array $entities): void
+    {
+        $minutes = $entities['reminder_minutes_before'] ?? null;
+        if (! is_numeric($minutes) || ! $event->starts_at) return;
+        $minutes = (int) $minutes;
+        if ($minutes < 1 || $minutes > 525600) return;
+        $channel = $entities['reminder_channel'] ?? 'whatsapp';
+        if (! in_array($channel, ['whatsapp', 'app', 'both'], true)) $channel = 'whatsapp';
+        \App\Models\Reminder::query()->create([
+            'user_id' => $user->id,
+            'calendar_event_id' => $event->id,
+            'minutes_before' => $minutes,
+            'channel' => $channel,
+            'remind_at' => $event->starts_at->copy()->subMinutes($minutes),
+        ]);
     }
 
     private function createReminderFromEntities(User $user, Task $task, array $entities): void

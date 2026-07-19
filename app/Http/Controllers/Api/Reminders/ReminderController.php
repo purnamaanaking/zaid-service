@@ -16,7 +16,7 @@ class ReminderController extends Controller
     {
         $reminders = Reminder::query()
             ->where('user_id', $request->user()->id)
-            ->whereIn('status', ['pending', 'sent'])
+            ->whereIn('status', ['pending', 'sent', 'failed'])
             ->with(['task', 'calendarEvent'])
             ->orderBy('remind_at')
             ->get();
@@ -53,7 +53,7 @@ class ReminderController extends Controller
     public function update(Request $request, string $reminderId): JsonResponse
     {
         $reminder = Reminder::query()->where('user_id', $request->user()->id)->findOrFail($reminderId);
-        $data = $this->validated($request);
+        $data = $this->validated($request, true);
         $source = $reminder->task ?: $reminder->calendarEvent;
         $startsAt = $source instanceof Task
             ? ($source->scheduled_date && $source->scheduled_time ? $source->scheduled_date->format('Y-m-d').' '.$source->scheduled_time : null)
@@ -78,14 +78,22 @@ class ReminderController extends Controller
         return response()->json(['success' => true]);
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, bool $update = false): array
     {
-        return $request->validate([
-            'task_id' => ['nullable', 'uuid', 'required_without:calendar_event_id'],
-            'calendar_event_id' => ['nullable', 'uuid', 'required_without:task_id'],
+        $rules = [
             'minutes_before' => ['required', 'integer', 'min:1', 'max:525600'],
             'channel' => ['nullable', 'in:whatsapp,app,both'],
-        ]) + ['channel' => $request->input('channel', 'whatsapp')];
+        ];
+
+        if (! $update) {
+            $rules['task_id'] = ['nullable', 'uuid', 'required_without:calendar_event_id'];
+            $rules['calendar_event_id'] = ['nullable', 'uuid', 'required_without:task_id'];
+        }
+
+        $data = $request->validate($rules);
+        $data['channel'] = $data['channel'] ?? 'whatsapp';
+
+        return $data;
     }
 
     private function source(Request $request, array $data): array

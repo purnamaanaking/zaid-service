@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Reminder;
 use App\Services\Whatsapp\WhatsappSenderService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 
 class SendDueRemindersCommand extends Command
 {
@@ -18,12 +17,20 @@ class SendDueRemindersCommand extends Command
         Reminder::query()
             ->where('status', 'pending')
             ->where('remind_at', '<=', now())
+            ->where(function ($query): void {
+                $query->whereHas('task', fn ($task) => $task->where('status', 'pending'))
+                    ->orWhereHas('calendarEvent');
+            })
             ->with(['task', 'calendarEvent', 'user.phones'])
             ->orderBy('remind_at')
             ->limit(100)
             ->get()
             ->each(function (Reminder $reminder) use ($sender): void {
                 $item = $reminder->task ?: $reminder->calendarEvent;
+                if ($item === null) {
+                    $reminder->update(['status' => 'failed', 'error_message' => 'Reminder source no longer exists.']);
+                    return;
+                }
                 $start = $reminder->task
                     ? ($item->scheduled_date?->format('Y-m-d').' '.substr((string) $item->scheduled_time, 0, 5))
                     : $item->starts_at?->format('Y-m-d H:i');
