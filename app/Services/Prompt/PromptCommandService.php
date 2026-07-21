@@ -27,9 +27,24 @@ class PromptCommandService
             return $this->finish($request, 'executed', $reply);
         }
         if ($intent === 'CREATE') {
-            $event = $this->event($user, $entities);
-            $action = PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => 'create', 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]);
-            return $this->finish($request, 'executed', "{$event->title} sudah masuk agenda.", ['event_id' => $event->id]);
+            $days = preg_match('/\b(satu\s+minggu|seminggu|7\s+hari)\b/u', strtolower($text)) ? 7 : 1;
+            $events = collect(range(0, $days - 1))->map(function (int $offset) use ($user, $entities): CalendarEvent {
+                $data = $entities;
+                $data['scheduled_date'] = Carbon::parse($entities['scheduled_date'] ?? now(), 'Asia/Jakarta')->addDays($offset)->format('Y-m-d');
+                return $this->event($user, $data);
+            });
+            $events->each(fn (CalendarEvent $event) => PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => 'create', 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]));
+            $reply = $days === 1 ? "{$events->first()->title} sudah masuk agenda." : "{$days} jadwal \"{$events->first()->title}\" sudah masuk agenda.";
+            return $this->finish($request, 'executed', $reply, ['event_id' => $events->first()->id]);
+        }
+        $dates = $entities['scheduled_dates'] ?? [];
+        if ($intent === 'DELETE' && $dates) {
+            $events = CalendarEvent::query()->where('user_id', $user->id)->where(function ($query) use ($dates) {
+                foreach ($dates as $date) $query->orWhereDate('starts_at', $date);
+            })->get();
+            if ($events->isEmpty()) return $this->finish($request, 'failed', 'Event yang dimaksud belum ketemu.');
+            $events->each(fn (CalendarEvent $event) => $event->delete());
+            return $this->finish($request, 'executed', $events->count().' jadwal sudah dihapus.');
         }
         $events = CalendarEvent::query()
             ->where('user_id', $user->id)
