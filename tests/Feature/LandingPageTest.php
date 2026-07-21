@@ -78,13 +78,12 @@ class LandingPageTest extends TestCase
             ->assertDontSee("localStorage.getItem('zaid_intro_seen')", false);
     }
 
-    public function test_dashboard_renders_calendar_workspace(): void
+    public function test_dashboard_renders_event_only_workspace(): void
     {
         $this->get('/dashboard')
             ->assertOk()
             ->assertSee('Zaid Workspace')
             ->assertSee('href="/dashboard"', false)
-            ->assertSee('href="/dashboard/tasks"', false)
             ->assertSee('calendar-view')
             ->assertSee('date-action-modal')
             ->assertSee('date-prompt-modal')
@@ -92,22 +91,17 @@ class LandingPageTest extends TestCase
             ->assertSee("selected_date:selectedDate", false)
             ->assertSee('event-modal')
             ->assertSee('Ask Zaid')
-            ->assertSee('What can Zaid do?')
-            ->assertSee('send-icon')
             ->assertSee('quick-all-day-switch')
-            ->assertDontSee("content:'→'", false)
             ->assertSee('mini-day')
             ->assertSee('calendar-panel')
-            ->assertSee("addEventListener('wheel'", false)
-            ->assertSee('/events?from=');
+            ->assertSee('/events?from=')
+            ->assertDontSee('href="/dashboard/tasks"', false)
+            ->assertDontSee('/tasks?', false)
+            ->assertDontSee('New task');
     }
 
-    public function test_tasks_dashboard_renders_task_workspace(): void
+    public function test_task_dashboard_route_is_missing(): void
     {
-        $this->get('/dashboard/tasks')
-            ->assertOk()
-            ->assertSee('tasks-view')
-            ->assertSee('initialView = "tasks"', false)
-            ->assertSee('/tasks?include_completed=false');
+        $this->get('/dashboard/tasks')->assertNotFound();
     }
 }
