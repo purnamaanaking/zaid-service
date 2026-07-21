@@ -396,6 +396,54 @@ class WhatsappAgentTest extends TestCase
         $this->assertSame('22:00:00', $task->scheduled_time);
     }
 
+    public function test_agent_updates_calendar_event_via_action(): void
+    {
+        $event = CalendarEvent::query()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Meeting tim',
+            'starts_at' => now()->setTime(15, 0),
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => false,
+        ]);
+
+        $this->fakeAiResponse('Meeting tim dipindah ke jam 22:00.', [
+            'type' => 'update',
+            'task_id' => $event->id,
+            'data' => [
+                'entity_type' => 'event',
+                'scheduled_time' => '22:00:00',
+            ],
+        ]);
+
+        $this->sendWhatsApp('ubah meeting tim jadi jam 10 malam', 'wamid-update-event');
+
+        $this->assertDatabaseHas('calendar_events', [
+            'id' => $event->id,
+            'starts_at' => now()->setTime(22, 0)->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function test_agent_deletes_calendar_event_via_action(): void
+    {
+        $event = CalendarEvent::query()->create([
+            'user_id' => $this->user->id,
+            'title' => 'Meeting batal',
+            'starts_at' => now()->setTime(15, 0),
+            'timezone' => 'Asia/Jakarta',
+            'all_day' => false,
+        ]);
+
+        $this->fakeAiResponse('Meeting batal udah aku hapus.', [
+            'type' => 'delete',
+            'task_id' => $event->id,
+            'data' => ['entity_type' => 'event'],
+        ]);
+
+        $this->sendWhatsApp('hapus meeting batal', 'wamid-delete-event');
+
+        $this->assertSoftDeleted('calendar_events', ['id' => $event->id]);
+    }
+
     public function test_agent_deletes_task_via_action(): void
     {
         $task = Task::factory()->create([

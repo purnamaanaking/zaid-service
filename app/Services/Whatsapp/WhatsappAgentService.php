@@ -38,7 +38,7 @@ ATURAN PENTING:
 1. Balas singkat, santai, kayak chat temen. Jangan formal/kaku. Jangan pakai emoji kecuali user memakainya lebih dulu.
 2. LANGSUNG EKSEKUSI. Jangan tanya deskripsi, lokasi, atau detail tambahan kecuali user sendiri yang mau tambahin.
 3. Bedakan jenis data: `event` untuk meeting, acara, jadwal, kelas, janji, appointment, atau kalender yang punya waktu; `task` untuk tugas, todo, follow up, atau pekerjaan. Jika user menyebut jenisnya, WAJIB pakai jenis itu. Jika tidak jelas, gunakan `task`.
-4. Kalau user mau ubah/hapus dan ada task yang cocok di DATA TASK, WAJIB sertakan task_id dari data. Jangan pernah return action tanpa task_id kalau ada match.
+4. Kalau user mau ubah/hapus dan ada item yang cocok di DATA TASK & EVENT, WAJIB sertakan task_id dari data dan entity_type yang benar. Jangan pernah return action tanpa task_id kalau ada match.
 5. Kalau user bilang "hapus semua" atau "hapus semuanya", hapus satu-satu dengan multiple action. Tapi karena kamu cuma bisa 1 action per response, hapus yang pertama dulu dan bilang "Aku hapus [nama] dulu ya, kirim 'lanjut' buat hapus sisanya."
 6. Kalau user mau ubah/hapus tapi ada beberapa task mirip, kasih list bernomor dan tanya yang mana.
 7. Kalau cuma greeting ("bro", "halo", "hey"), bales santai dan tanya ada yang bisa dibantu.
@@ -333,6 +333,21 @@ PROMPT;
             $lines[] = "\nTASK & JADWAL MINGGU INI (lainnya):";
             foreach ($recentTasks as $task) {
                 $lines[] = $formatTask($task, true);
+            }
+        }
+
+        $events = CalendarEvent::query()
+            ->where('user_id', $user->id)
+            ->whereBetween('starts_at', [Carbon::parse($today)->startOfDay(), Carbon::parse($today)->addDays(7)->endOfDay()])
+            ->orderBy('starts_at')
+            ->limit(15)
+            ->get();
+
+        if ($events->isNotEmpty()) {
+            $lines[] = "\nEVENT KALENDER:";
+            foreach ($events as $event) {
+                $when = $event->all_day ? $event->starts_at->format('Y-m-d').' seharian' : $event->starts_at->format('Y-m-d H:i');
+                $lines[] = "- [{$event->id}] [event] {$event->title} @ {$when}";
             }
         }
 
@@ -963,7 +978,7 @@ PROMPT;
                 : $this->executeCreate($promptRequest, $user, $data, $channel),
             'read' => $this->executeRead($user, $data, $today),
             'update' => $this->executeUpdate($promptRequest, $user, $taskId, $data, $channel),
-            'delete' => $this->executeDelete($promptRequest, $user, $taskId, $channel),
+            'delete' => $this->executeDelete($promptRequest, $user, $taskId, $data, $channel),
             'complete' => $this->executeComplete($promptRequest, $user, $taskId, $channel),
             'confirm_create' => $this->storePendingCreate($promptRequest, $data),
             'confirm' => $this->executePendingConfirmation($promptRequest, $user, $channel),
@@ -1190,6 +1205,34 @@ PROMPT;
             return ['action' => 'update_task', 'error' => 'no_task_id'];
         }
 
+        if (($data['entity_type'] ?? null) === 'event') {
+            $event = CalendarEvent::query()->where('user_id', $user->id)->find($taskId);
+            if ($event === null) {
+                return ['action' => 'update_event', 'error' => 'event_not_found'];
+            }
+
+            $date = $data['scheduled_date'] ?? $event->starts_at->format('Y-m-d');
+            $time = $data['scheduled_time'] ?? $event->starts_at->format('H:i:s');
+            $event->update(array_filter([
+                'title' => $data['title'] ?? null,
+                'description' => $data['description'] ?? null,
+                'all_day' => $data['all_day'] ?? null,
+                'starts_at' => Carbon::parse("{$date} {$time}", $event->timezone),
+            ], fn ($value) => $value !== null));
+
+            PromptAction::query()->create([
+                'prompt_request_id' => $promptRequest->id,
+                'action_type' => 'update',
+                'target_entity_type' => 'event',
+                'target_entity_id' => $event->id,
+                'status' => 'executed',
+                'payload' => $data,
+                'result_payload' => ['event_id' => $event->id],
+            ]);
+
+            return ['action' => 'update_event', 'event_id' => $event->id];
+        }
+
         $task = Task::query()
             ->where('user_id', $user->id)
             ->whereNull('deleted_at')
@@ -1217,10 +1260,31 @@ PROMPT;
     /**
      * @return array<string, mixed>
      */
-    private function executeDelete(PromptRequest $promptRequest, User $user, ?string $taskId, string $channel): array
+    private function executeDelete(PromptRequest $promptRequest, User $user, ?string $taskId, array $data, string $channel): array
     {
         if ($taskId === null) {
             return ['action' => 'delete_task', 'error' => 'no_task_id'];
+        }
+
+        if (($data['entity_type'] ?? null) === 'event') {
+            $event = CalendarEvent::query()->where('user_id', $user->id)->find($taskId);
+            if ($event === null) {
+                return ['action' => 'delete_event', 'error' => 'event_not_found'];
+            }
+
+            $title = $event->title;
+            $event->delete();
+            PromptAction::query()->create([
+                'prompt_request_id' => $promptRequest->id,
+                'action_type' => 'delete',
+                'target_entity_type' => 'event',
+                'target_entity_id' => $event->id,
+                'status' => 'executed',
+                'payload' => ['title' => $title],
+                'result_payload' => ['event_id' => $event->id],
+            ]);
+
+            return ['action' => 'delete_event', 'event_id' => $event->id];
         }
 
         $task = Task::query()

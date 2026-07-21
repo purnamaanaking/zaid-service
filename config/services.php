@@ -5,9 +5,9 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY', ''),
         'api_base' => env('OPENAI_API_BASE', 'https://api.openai.com/v1'),
-        'model_text' => env('OPENAI_MODEL_TEXT', 'gpt-5.4'),
-        'model_multimodal' => env('OPENAI_MODEL_MULTIMODAL', 'gpt-5.4'),
-        'model_fallback' => env('OPENAI_MODEL_FALLBACK', 'deepseek-v4-pro'),
+        'model_text' => env('OPENAI_MODEL_TEXT', 'gpt-4.1-mini'),
+        'model_multimodal' => env('OPENAI_MODEL_MULTIMODAL', 'gpt-4.1-mini'),
+        'model_fallback' => env('OPENAI_MODEL_FALLBACK', 'gpt-4.1-mini'),
     ],
 
     'google' => [
