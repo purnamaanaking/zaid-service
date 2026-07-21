@@ -24,6 +24,23 @@ class PromptCommandService
         if (($parsed['parse_status'] ?? '') !== 'parsed') return $this->finish($request, 'failed', 'Aku belum paham. Coba jelaskan jadwalnya lagi.');
 
         $action = strtoupper($data['action'] ?? $parsed['intent'] ?? 'LIST_EVENTS');
+        $confidence = (float) ($parsed['confidence_score'] ?? 0);
+        if (($parsed['requires_confirmation'] ?? false) || $confidence < .7) {
+            $request->update(['execution_status' => 'awaiting_confirmation', 'execution_summary' => ['command' => $data, 'reason' => $confidence < .7 ? 'low_confidence' : 'ai_requested_confirmation']]);
+            return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => $request->intent, 'confidence_score' => $confidence, 'requires_confirmation' => true, 'confirmation' => ['question' => $data['human_response'] ?? 'Aku kurang yakin. Lanjutkan aksi ini?'], 'result' => null, 'human_response' => $data['human_response'] ?? 'Aku kurang yakin. Lanjutkan aksi ini?'];
+        }
+        return $this->execute($request, $user, $action, $data);
+    }
+
+    public function confirm(PromptRequest $request, User $user, bool $confirmed): array
+    {
+        if (! $confirmed) return $this->finish($request, 'rejected', 'Dibatalkan.');
+        $data = $request->extracted_entities ?? [];
+        return $this->execute($request, $user, strtoupper($data['action'] ?? $request->intent ?? 'LIST_EVENTS'), $data);
+    }
+
+    private function execute(PromptRequest $request, User $user, string $action, array $data): array
+    {
         return DB::transaction(fn () => match ($action) {
             'CREATE', 'CREATE_EVENTS' => $this->create($request, $user, $data),
             'UPDATE', 'UPDATE_EVENTS', 'RESCHEDULE_EVENTS' => $this->update($request, $user, $data),
@@ -117,5 +134,5 @@ class PromptCommandService
         $events = $this->items(CalendarEvent::query()->where('user_id', $user->id)->orderBy('starts_at')->limit(100)->get());
         return "Current time: ".now('Asia/Jakarta')->toIso8601String()."\nTimezone: Asia/Jakarta\nSelected date: ".($selectedDate ?? 'none')."\nVisible calendar: month\nEvents: ".json_encode($events)."\nRecent chat:\n{$history}\nCurrent user message: {$text}";
     }
-    private function finish(PromptRequest $request, string $status, string $reply, array $result = []): array { $request->update(['execution_status' => $status, 'execution_summary' => ['human_response' => $reply] + $result]); return ['prompt_request_id' => $request->id,'parse_status' => $request->parse_status,'intent' => $request->intent,'requires_confirmation' => false,'result' => $result,'human_response' => $reply]; }
+    private function finish(PromptRequest $request, string $status, string $reply, array $result = []): array { $request->update(['execution_status' => $status, 'execution_summary' => ['human_response' => $reply, 'command' => $request->extracted_entities, 'executed_at' => now()->toIso8601String()] + $result]); return ['prompt_request_id' => $request->id,'parse_status' => $request->parse_status,'intent' => $request->intent,'requires_confirmation' => false,'result' => $result,'human_response' => $reply]; }
 }

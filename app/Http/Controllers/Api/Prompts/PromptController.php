@@ -26,6 +26,7 @@ class PromptController extends Controller
                 'id' => $prompt->id,
                 'text' => $prompt->raw_text,
                 'response' => data_get($prompt->execution_summary, 'human_response'),
+                'items' => data_get($prompt->execution_summary, 'items', []),
                 'status' => $prompt->execution_status,
                 'created_at' => $prompt->created_at?->toIso8601String(),
             ]);

@@ -22,6 +22,18 @@ class AgendaCommandCoverageTest extends TestCase
         ]));
     }
 
+    public function test_low_confidence_command_requires_confirmation_before_delete(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'DELETE', 'confidence_score' => .42, 'parse_status' => 'parsed', 'requires_confirmation' => false,
+            'entities' => ['action' => 'DELETE_EVENTS', 'target_event_ids' => []],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'hapus meeting itu'])
+            ->assertOk()->assertJsonPath('data.requires_confirmation', true)->assertJsonPath('data.parse_status', 'ambiguous');
+    }
+
     public function test_busy_week_answer_includes_verified_event_count(): void
     {
         $this->parser(['action' => 'CHECK_AVAILABILITY', 'from' => '2026-07-22', 'to' => '2026-07-28', 'human_response' => 'Minggu ini cukup padat.']);
