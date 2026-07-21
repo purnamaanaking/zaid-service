@@ -17,7 +17,11 @@ class PromptCommandService
     {
         $parsed = $this->parser->parse($text, $user->id, $attachments);
         $entities = $parsed['entities'] ?? [];
-        if ($selectedDate !== null) $entities['scheduled_date'] = $selectedDate;
+        if (($parsed['intent'] ?? null) === 'DELETE' && empty($entities['scheduled_dates'])) {
+            preg_match_all('/\b(\d{1,2})\s*(?:dan|,|&)?\s*(\d{1,2})?\s*juli\b/ui', $text, $matches, PREG_SET_ORDER);
+            $entities['scheduled_dates'] = collect($matches)->flatMap(fn ($match) => array_filter([$match[1] ?? null, $match[2] ?? null]))->map(fn ($day) => sprintf('%s-07-%02d', now('Asia/Jakarta')->year, $day))->all();
+        }
+        if ($selectedDate !== null && empty($entities['scheduled_date']) && empty($entities['scheduled_dates'])) $entities['scheduled_date'] = $selectedDate;
         $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $entities, 'execution_status' => 'pending']);
         $intent = $parsed['intent'] ?? 'READ';
         if (($parsed['parse_status'] ?? 'failed') !== 'parsed') return $this->finish($request, 'failed', 'Aku fokus bantu agenda dan event. Coba tulis: "buat meeting besok jam 9".');
@@ -27,18 +31,19 @@ class PromptCommandService
             return $this->finish($request, 'executed', $reply);
         }
         if ($intent === 'CREATE') {
-            $days = preg_match('/\b(satu\s+minggu|seminggu|7\s+hari)\b/u', strtolower($text)) ? 7 : 1;
-            $events = collect(range(0, $days - 1))->map(function (int $offset) use ($user, $entities): CalendarEvent {
+            $dates = $entities['scheduled_dates'] ?? [];
+            if (! $dates) $dates = [$entities['scheduled_date'] ?? now('Asia/Jakarta')->format('Y-m-d')];
+            $events = collect($dates)->map(function (string $date) use ($user, $entities): CalendarEvent {
                 $data = $entities;
-                $data['scheduled_date'] = Carbon::parse($entities['scheduled_date'] ?? now(), 'Asia/Jakarta')->addDays($offset)->format('Y-m-d');
+                $data['scheduled_date'] = $date;
                 return $this->event($user, $data);
             });
             $events->each(fn (CalendarEvent $event) => PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => 'create', 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]));
-            $reply = $days === 1 ? "{$events->first()->title} sudah masuk agenda." : "{$days} jadwal \"{$events->first()->title}\" sudah masuk agenda.";
+            $reply = $events->count() === 1 ? "{$events->first()->title} sudah masuk agenda." : $events->count().' jadwal "'.$events->first()->title.'" sudah masuk agenda.';
             return $this->finish($request, 'executed', $reply, ['event_id' => $events->first()->id]);
         }
         $dates = $entities['scheduled_dates'] ?? [];
-        if ($intent === 'DELETE' && $dates) {
+        if ($intent === 'DELETE' && count($dates) > 1) {
             $events = CalendarEvent::query()->where('user_id', $user->id)->where(function ($query) use ($dates) {
                 foreach ($dates as $date) $query->orWhereDate('starts_at', $date);
             })->get();
