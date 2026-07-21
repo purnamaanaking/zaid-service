@@ -27,9 +27,12 @@ class PromptCommandService
     /**
      * @param  array<int, array{type: string, url?: string, mime_type?: string, text?: string}>|null  $attachments
      */
-    public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null): array
+    public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null, ?string $selectedDate = null): array
     {
         $parsed = $this->parser->parse($this->conversationContext($user, $text), $user->id, $attachments);
+        if ($selectedDate !== null) {
+            $parsed['entities']['scheduled_date'] = $selectedDate;
+        }
 
         $promptRequest = PromptRequest::query()->create([
             'user_id' => $user->id,
@@ -354,7 +357,7 @@ class PromptCommandService
     private function executeCreateEvent(PromptRequest $promptRequest, User $user, array $entities): array
     {
         $date = $entities['scheduled_date'] ?? now()->format('Y-m-d');
-        $time = $entities['scheduled_time'] ?? '00:00:00';
+        $time = $entities['scheduled_time'] ?? '09:00:00';
         $event = CalendarEvent::query()->create([
             'user_id' => $user->id,
             'title' => $entities['title'] ?? 'Event baru',

@@ -54,16 +54,12 @@ class PromptController extends Controller
             'attachments.*.text' => ['nullable', 'string'],
         ]);
 
-        $text = $request->string('text')->toString();
-        if ($request->filled('selected_date')) {
-            $text .= ' (tanggal yang dipilih: '.$request->string('selected_date')->toString().')';
-        }
-
         $result = $this->promptCommandService->process(
             $request->user(),
-            $text,
+            $request->string('text')->toString(),
             'app_prompt',
             $request->input('attachments'),
+            $request->string('selected_date')->toString() ?: null,
         );
 
         return response()->json([

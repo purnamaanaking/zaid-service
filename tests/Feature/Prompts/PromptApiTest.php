@@ -332,6 +332,36 @@ class PromptApiTest extends TestCase
         $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'title' => 'Team Sync']);
     }
 
+    public function test_selected_date_overrides_parser_date_for_created_event(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => 0.97,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => [
+                'entity_type' => 'event',
+                'title' => 'Meeting',
+                'scheduled_date' => '2026-07-07',
+                'scheduled_time' => '15:00:00',
+                'all_day' => false,
+                'description' => 'Agenda harian',
+            ],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'meeting jam 3 sore, agenda meeting harian',
+            'selected_date' => '2026-07-21',
+        ])->assertOk()->assertJsonPath('data.result.event.starts_at', '2026-07-21T08:00:00.000000Z');
+
+        $this->assertDatabaseHas('calendar_events', [
+            'user_id' => $user->id,
+            'title' => 'Meeting',
+            'starts_at' => '2026-07-21 15:00:00',
+        ]);
+    }
+
     public function test_user_can_submit_prompt(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
