@@ -41,7 +41,17 @@ class AgendaCommandCoverageTest extends TestCase
         CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-24 08:00:00', 'timezone' => 'Asia/Jakarta']);
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'minggu ini terlalu sibuk gak?'])
-            ->assertOk()->assertJsonPath('data.human_response', "Minggu ini cukup padat.\n\n1 jadwal ditemukan.");
+            ->assertOk()->assertJsonPath('data.human_response', "Minggu ini cukup padat.\n\n1. Meeting · 24 Jul, 08:00\n\n1 jadwal ditemukan.");
+    }
+
+    public function test_list_reply_contains_items_even_when_ai_writes_only_range_summary(): void
+    {
+        $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-07-22', 'to' => '2026-07-28', 'human_response' => 'Berikut jadwal minggu ini.']);
+        $user = User::factory()->active()->create();
+        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-24 08:00:00', 'timezone' => 'Asia/Jakarta']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => '1 minggu kedepan ada jadwal apa aja coba list'])
+            ->assertOk()->assertJsonPath('data.result.items.0.title', 'Meeting')->assertJsonCount(1, 'data.result.items');
     }
 
     public function test_lists_only_requested_week(): void

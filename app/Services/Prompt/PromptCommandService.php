@@ -58,6 +58,12 @@ class PromptCommandService
         $items = $this->items($events);
         $fallback = $events->isEmpty() ? 'Belum ada agenda.' : "Agenda kamu:\n".$events->values()->map(fn ($e, $i) => ($i + 1).'. '.$e->title.' - '.$e->starts_at->format('Y-m-d H:i'))->implode("\n");
         $reply = $this->reply($data, $fallback);
+        if (! $events->isEmpty()) {
+            $list = $events->values()->map(fn ($event, $index) => ($index + 1).'. '.$event->title.' · '.$event->starts_at->format('d M, H:i'))->implode("\n");
+            $reply .= "\n\n".$list;
+        } elseif (empty($data['human_response'])) {
+            $reply = 'Belum ada agenda untuk rentang tersebut.';
+        }
         if (in_array(strtoupper($data['action'] ?? ''), ['CHECK_AVAILABILITY', 'CHECK_CONFLICTS', 'COUNT_EVENTS'], true)) $reply .= "\n\n".$events->count().' jadwal ditemukan.';
         return $this->finish($request, 'executed', $reply, ['items' => $items]);
     }
