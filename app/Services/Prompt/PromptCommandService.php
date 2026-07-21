@@ -31,13 +31,16 @@ class PromptCommandService
             $action = PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => 'create', 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]);
             return $this->finish($request, 'executed', "{$event->title} sudah masuk agenda.", ['event_id' => $event->id]);
         }
-        $event = CalendarEvent::query()
+        $events = CalendarEvent::query()
             ->where('user_id', $user->id)
-            ->where('title', 'ilike', '%'.($entities['search_query'] ?? $entities['title'] ?? '').'%')
+            ->when($entities['title'] ?? null, fn ($query, $title) => $query->where('title', 'ilike', '%'.$title.'%'))
             ->when($entities['scheduled_date'] ?? null, fn ($query, $date) => $query->whereDate('starts_at', $date))
             ->latest('starts_at')
-            ->first();
-        if (! $event) return $this->finish($request, 'failed', 'Event yang dimaksud belum ketemu.');
+            ->limit(2)
+            ->get();
+        if ($events->isEmpty()) return $this->finish($request, 'failed', 'Event yang dimaksud belum ketemu.');
+        if ($events->count() > 1) return $this->finish($request, 'failed', 'Ada '.$events->count().' jadwal pada tanggal ini. Sebut judul atau jamnya dulu.');
+        $event = $events->first();
         if ($intent === 'DELETE') $event->delete(); else $event->update($this->payload($entities));
         PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => strtolower($intent), 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]);
         return $this->finish($request, 'executed', $intent === 'DELETE' ? 'Event sudah dihapus.' : 'Event sudah diubah.', ['event_id' => $event->id]);
