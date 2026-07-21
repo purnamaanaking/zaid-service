@@ -145,8 +145,6 @@ class GoogleCalendarOAuthService
         // Register push notification watch for real-time calendar sync
         app(GoogleCalendarWatchService::class)->registerWatch($connection);
 
-        // Sync Google Task lists and remember the default list
-        app(GoogleTasksApiService::class)->syncTaskLists($connection);
 
         return redirect('/integrations/google-calendar/connected');
     }

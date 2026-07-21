@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Events;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\Calendar\SyncCalendarEventToGoogleCalendarJob;
 use App\Models\CalendarEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ class EventController extends Controller
     {
         $data = $this->validateEvent($request);
         $event = $request->user()->calendarEvents()->create($data);
+        SyncCalendarEventToGoogleCalendarJob::dispatch($event->id, 'create');
 
         return response()->json(['success' => true, 'data' => ['event' => $event->load('reminders')]], 201);
     }
@@ -35,6 +37,7 @@ class EventController extends Controller
     {
         $event = $request->user()->calendarEvents()->findOrFail($eventId);
         $event->update($this->validateEvent($request, true));
+        SyncCalendarEventToGoogleCalendarJob::dispatch($event->id, 'update');
 
         $event->reminders()->where('status', 'pending')->get()->each(function ($reminder) use ($event): void {
             if ($event->starts_at) {
@@ -52,6 +55,7 @@ class EventController extends Controller
         $event = $request->user()->calendarEvents()->findOrFail($eventId);
         $event->reminders()->where('status', 'pending')->delete();
         $event->delete();
+        SyncCalendarEventToGoogleCalendarJob::dispatch($event->id, 'delete');
 
         return response()->json(['success' => true]);
     }

@@ -11,7 +11,7 @@ class CalendarEventLink extends Model
     use HasUuids;
 
     protected $fillable = [
-        'task_id',
+        'calendar_event_id',
         'user_calendar_connection_id',
         'link_type',
         'google_event_id',
@@ -33,9 +33,9 @@ class CalendarEventLink extends Model
         ];
     }
 
-    public function task(): BelongsTo
+    public function calendarEvent(): BelongsTo
     {
-        return $this->belongsTo(Task::class);
+        return $this->belongsTo(CalendarEvent::class);
     }
 
     public function userCalendarConnection(): BelongsTo
