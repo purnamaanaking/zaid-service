@@ -386,6 +386,46 @@
         .status-box.error::before { background: #fca5a5; }
         .legal-links { width: min(1180px, 100%); padding-top: 18px; }
 
+        .intro-modal[hidden] { display: none; }
+        .intro-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(7, 3, 12, .72);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .intro-card {
+            width: min(720px, 100%);
+            min-height: 430px;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            padding: clamp(28px, 5vw, 54px);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 30px;
+            background: radial-gradient(circle at 100% 0, rgba(216,180,254,.15), transparent 20rem), #150b20;
+            box-shadow: 0 32px 110px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        .intro-slide { display: none; align-content: center; max-width: 53ch; }
+        .intro-slide.active { display: grid; animation: step-enter .35s cubic-bezier(.23,1,.32,1) both; }
+        .intro-kicker { color: #d8b4fe; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+        .intro-slide h2 { margin: 14px 0; font-size: clamp(36px, 5vw, 58px); font-weight: 650; line-height: .95; letter-spacing: -.065em; }
+        .intro-slide p { color: #b9adbf; font-size: 16px; line-height: 1.7; }
+        .intro-points { display: grid; gap: 10px; margin-top: 24px; }
+        .intro-points span { padding-left: 18px; color: #e2d7e9; font-size: 14px; line-height: 1.5; position: relative; }
+        .intro-points span::before { content: ''; position: absolute; left: 0; top: .55em; width: 7px; height: 7px; border-radius: 50%; background: #d8b4fe; }
+        .intro-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 28px; }
+        .intro-dots { display: flex; gap: 7px; }
+        .intro-dots button { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 99px; background: rgba(255,255,255,.22); cursor: pointer; transition: width .2s ease, background .2s ease; }
+        .intro-dots button.active { width: 26px; background: #d8b4fe; }
+        .intro-actions { display: flex; align-items: center; gap: 10px; }
+        .intro-actions .btn { width: auto; min-width: 106px; padding-inline: 20px; }
+        .intro-skip { border: 0; background: transparent; color: #a99db7; font: inherit; font-size: 13px; cursor: pointer; }
+        .intro-skip:hover { color: #fff; }
+
         @media (max-width: 980px) {
             .page { place-items: start center; padding-top: 28px; }
             .shell { grid-template-columns: 1fr; gap: 1px; }
@@ -411,6 +451,10 @@
             .step { padding: 22px 18px; }
             .inline-actions { grid-template-columns: 1fr; }
             .legal-links { padding-inline: 4px; }
+            .intro-card { min-height: 460px; padding: 28px 24px; border-radius: 24px; }
+            .intro-slide h2 { font-size: 40px; }
+            .intro-footer { align-items: flex-end; }
+            .intro-actions { flex-wrap: wrap; justify-content: flex-end; }
         }
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
@@ -421,6 +465,42 @@
 </head>
 <body>
     <div class="bg-orb" aria-hidden="true"></div>
+
+    <section class="intro-modal" id="intro-modal" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+        <div class="intro-card">
+            <div>
+                <article class="intro-slide active">
+                    <div class="intro-kicker">01 · Kenalan dengan Zaid</div>
+                    <h2 id="intro-title">Atur jadwal dan tugas jadi lebih mudah.</h2>
+                    <p>Ketik seperti chat. Zaid bantu catat tugas, jadwal, dan pengingat kamu dalam satu tempat.</p>
+                    <div class="intro-points"><span>Buat, cek, ubah, atau hapus agenda.</span><span>Kelola dari web dan WhatsApp.</span></div>
+                </article>
+                <article class="intro-slide">
+                    <div class="intro-kicker">02 · Kenapa pakai email?</div>
+                    <h2>Masuk pakai email agar akunmu aman.</h2>
+                    <p>Google Sign-In membantu Zaid mengenali akun kamu di setiap perangkat. Nomor HP dipakai untuk mengirim pengingat lewat WhatsApp.</p>
+                    <div class="intro-points"><span>Tak perlu bikin password baru.</span><span>Data dan pengingat terhubung ke akun yang benar.</span></div>
+                </article>
+                <article class="intro-slide">
+                    <div class="intro-kicker">03 · Zaid di mobile</div>
+                    <h2>Zaid juga tersedia di mobile app.</h2>
+                    <p>Cek agenda, kelola tugas, dan terima pengingat dari mana saja. Download aplikasi Zaid sekarang untuk akses yang lebih cepat dari HP.</p>
+                    <div class="intro-points"><span>Web untuk melihat gambaran besar.</span><span>Download app sekarang, akses Zaid dari HP.</span></div>
+                </article>
+            </div>
+            <div class="intro-footer">
+                <div class="intro-dots" aria-label="Slide onboarding">
+                    <button class="active" type="button" aria-label="Slide 1" aria-current="true"></button>
+                    <button type="button" aria-label="Slide 2"></button>
+                    <button type="button" aria-label="Slide 3"></button>
+                </div>
+                <div class="intro-actions">
+                    <button class="intro-skip" id="intro-skip" type="button">Lewati</button>
+                    <button class="btn btn-primary" id="intro-next" type="button">Lanjut</button>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <main class="page">
         <section class="shell">
@@ -509,6 +589,30 @@ Sign in with Google, then verify your phone to start planning with Zaid Assistan
         const phoneKey = 'zaid_phone_number';
 
         const statusBox = document.getElementById('status-box');
+        const introModal = document.getElementById('intro-modal');
+        const introSlides = [...document.querySelectorAll('.intro-slide')];
+        const introDots = [...document.querySelectorAll('.intro-dots button')];
+        const introNext = document.getElementById('intro-next');
+        let introIndex = 0;
+
+        function showIntro(index) {
+            introIndex = index;
+            introSlides.forEach((slide, slideIndex) => slide.classList.toggle('active', slideIndex === index));
+            introDots.forEach((dot, dotIndex) => {
+                const active = dotIndex === index;
+                dot.classList.toggle('active', active);
+                dot.toggleAttribute('aria-current', active);
+            });
+            introNext.textContent = index === introSlides.length - 1 ? 'Mulai masuk' : 'Lanjut';
+        }
+
+        function closeIntro() {
+            introModal.hidden = true;
+        }
+
+        introNext.addEventListener('click', () => introIndex === introSlides.length - 1 ? closeIntro() : showIntro(introIndex + 1));
+        document.getElementById('intro-skip').addEventListener('click', closeIntro);
+        introDots.forEach((dot, index) => dot.addEventListener('click', () => showIntro(index)));
         const stepAuth = document.getElementById('step-auth');
         const stepPhone = document.getElementById('step-phone');
         const stepOtp = document.getElementById('step-otp');

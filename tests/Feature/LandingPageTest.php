@@ -69,7 +69,13 @@ class LandingPageTest extends TestCase
             ->assertSee('Onboarding progress')
             ->assertSee('Waiting for your first step.')
             ->assertSee('Privacy Policy')
-            ->assertSee('Terms of Service');
+            ->assertSee('Terms of Service')
+            ->assertSee('Kenalan dengan Zaid')
+            ->assertSee('Zaid di mobile')
+            ->assertSee('Kenapa pakai email?')
+            ->assertSee('Atur jadwal dan tugas jadi lebih mudah.')
+            ->assertSee('Download aplikasi Zaid sekarang')
+            ->assertDontSee("localStorage.getItem('zaid_intro_seen')", false);
     }
 
     public function test_dashboard_renders_calendar_workspace(): void
