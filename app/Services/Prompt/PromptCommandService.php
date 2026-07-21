@@ -15,7 +15,7 @@ class PromptCommandService
 
     public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null, ?string $selectedDate = null): array
     {
-        $parsed = $this->parser->parse($text, $user->id, $attachments);
+        $parsed = $this->parser->parse($this->context($user, $text, $channel), $user->id, $attachments);
         $entities = $parsed['entities'] ?? [];
         if (($parsed['intent'] ?? null) === 'DELETE' && empty($entities['scheduled_dates'])) {
             preg_match_all('/\b(\d{1,2})\s*(?:dan|,|&)?\s*(\d{1,2})?\s*juli\b/ui', $text, $matches, PREG_SET_ORDER);
@@ -67,6 +67,11 @@ class PromptCommandService
     }
 
     public function confirm(PromptRequest $request, User $user, bool $confirmed): array { return $this->finish($request, 'executed', $confirmed ? 'Tidak ada aksi yang menunggu konfirmasi.' : 'Dibatalkan.'); }
+    private function context(User $user, string $text, string $channel): string
+    {
+        $history = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->latest()->limit(6)->get()->reverse()->map(fn (PromptRequest $prompt) => 'User: '.$prompt->raw_text."\nZaid: ".data_get($prompt->execution_summary, 'human_response', ''))->implode("\n");
+        return $history === '' ? $text : "Conversation context:\n{$history}\n\nCurrent user message: {$text}";
+    }
     private function event(User $user, array $entities): CalendarEvent { return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($entities)); }
     private function payload(array $e): array { $date = $e['scheduled_date'] ?? now()->format('Y-m-d'); $time = $e['scheduled_time'] ?? '09:00:00'; return ['title' => $e['title'] ?? 'Event baru', 'description' => $e['description'] ?? null, 'starts_at' => Carbon::parse("$date $time", 'Asia/Jakarta'), 'timezone' => 'Asia/Jakarta', 'all_day' => (bool) ($e['all_day'] ?? false)]; }
     private function finish(PromptRequest $request, string $status, string $reply, array $result = []): array { $request->update(['execution_status' => $status, 'execution_summary' => ['human_response' => $reply] + $result]); return ['prompt_request_id' => $request->id, 'parse_status' => $request->parse_status, 'intent' => $request->intent, 'requires_confirmation' => false, 'result' => $result, 'human_response' => $reply]; }

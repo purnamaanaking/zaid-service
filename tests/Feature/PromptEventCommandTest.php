@@ -10,6 +10,27 @@ use Tests\TestCase;
 
 class PromptEventCommandTest extends TestCase
 {
+    public function test_parser_receives_recent_agenda_context_for_follow_up(): void
+    {
+        $parser = new class implements PromptParser {
+            public string $received = '';
+            public function parse(string $text, string $userId, ?array $attachments = null): array
+            {
+                $this->received = $text;
+                return ['intent' => 'READ', 'confidence_score' => 0.98, 'parse_status' => 'parsed', 'requires_confirmation' => false, 'entities' => ['scheduled_date' => '2026-07-01']];
+            }
+        };
+        $this->app->bind(PromptParser::class, fn () => $parser);
+        $user = User::factory()->active()->create();
+        \App\Models\PromptRequest::query()->create(['user_id' => $user->id, 'channel' => 'app_prompt', 'raw_text' => 'kalo tanggal 1 juli', 'normalized_text' => 'kalo tanggal 1 juli', 'parse_status' => 'parsed', 'execution_status' => 'executed', 'execution_summary' => ['human_response' => 'Agenda kamu: jogging pagi']]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'hapus 1 aja'])->assertOk();
+
+        $this->assertStringContainsString('User: kalo tanggal 1 juli', $parser->received);
+        $this->assertStringContainsString('Zaid: Agenda kamu: jogging pagi', $parser->received);
+        $this->assertStringContainsString('Current user message: hapus 1 aja', $parser->received);
+    }
+
     public function test_create_prompt_makes_events_for_each_explicit_date(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
