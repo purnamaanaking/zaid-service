@@ -18,9 +18,8 @@ class PromptCommandService
 
     public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null, ?string $selectedDate = null): array
     {
-        $parsed = $this->parser->parse($this->context($user, $text, $channel), $user->id, $attachments);
+        $parsed = $this->parser->parse($this->context($user, $text, $channel, $selectedDate), $user->id, $attachments);
         $data = $parsed['entities'] ?? [];
-        if ($selectedDate && empty($data['scheduled_date']) && empty($data['scheduled_dates'])) $data['scheduled_date'] = $selectedDate;
         $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $data, 'execution_status' => 'pending']);
         if (($parsed['parse_status'] ?? '') !== 'parsed') return $this->finish($request, 'failed', 'Aku belum paham. Coba jelaskan jadwalnya lagi.');
 
@@ -41,7 +40,9 @@ class PromptCommandService
         $events = $this->events($user, $data);
         $items = $this->items($events);
         $fallback = $events->isEmpty() ? 'Belum ada agenda.' : "Agenda kamu:\n".$events->values()->map(fn ($e, $i) => ($i + 1).'. '.$e->title.' - '.$e->starts_at->format('Y-m-d H:i'))->implode("\n");
-        return $this->finish($request, 'executed', $this->reply($data, $fallback), ['items' => $items]);
+        $reply = $this->reply($data, $fallback);
+        if (in_array(strtoupper($data['action'] ?? ''), ['CHECK_AVAILABILITY', 'CHECK_CONFLICTS', 'COUNT_EVENTS'], true)) $reply .= "\n\n".$events->count().' jadwal ditemukan.';
+        return $this->finish($request, 'executed', $reply, ['items' => $items]);
     }
 
     private function create(PromptRequest $request, User $user, array $data): array
@@ -110,6 +111,11 @@ class PromptCommandService
     private function reply(array $data, string $fallback): string { return trim((string) ($data['human_response'] ?? '')) ?: $fallback; }
     private function action(PromptRequest $request, string $action, CalendarEvent $event, array $payload): void { PromptAction::query()->create(['prompt_request_id' => $request->id,'action_type' => $action,'target_entity_type' => 'event','target_entity_id' => $event->id,'status' => 'executed','payload' => $payload,'result_payload' => ['event_id' => $event->id]]); }
     private function items(Collection $events): array { return $events->map(fn ($e) => ['id' => $e->id,'title' => $e->title,'starts_at' => $e->starts_at?->toIso8601String()])->all(); }
-    private function context(User $user, string $text, string $channel): string { $history = PromptRequest::query()->where('user_id',$user->id)->where('channel',$channel)->latest()->limit(6)->get()->reverse()->map(fn ($p) => 'User: '.$p->raw_text."\nZaid: ".data_get($p->execution_summary,'human_response','')."\nAgenda result: ".json_encode(data_get($p->execution_summary,'items',[])))->implode("\n"); return $history === '' ? $text : "Conversation context:\n$history\nCurrent user message: $text"; }
+    private function context(User $user, string $text, string $channel, ?string $selectedDate): string
+    {
+        $history = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->latest()->limit(6)->get()->reverse()->map(fn ($p) => 'User: '.$p->raw_text."\nZaid: ".data_get($p->execution_summary, 'human_response', '')."\nAgenda result: ".json_encode(data_get($p->execution_summary, 'items', [])))->implode("\n");
+        $events = $this->items(CalendarEvent::query()->where('user_id', $user->id)->orderBy('starts_at')->limit(100)->get());
+        return "Current time: ".now('Asia/Jakarta')->toIso8601String()."\nTimezone: Asia/Jakarta\nSelected date: ".($selectedDate ?? 'none')."\nVisible calendar: month\nEvents: ".json_encode($events)."\nRecent chat:\n{$history}\nCurrent user message: {$text}";
+    }
     private function finish(PromptRequest $request, string $status, string $reply, array $result = []): array { $request->update(['execution_status' => $status, 'execution_summary' => ['human_response' => $reply] + $result]); return ['prompt_request_id' => $request->id,'parse_status' => $request->parse_status,'intent' => $request->intent,'requires_confirmation' => false,'result' => $result,'human_response' => $reply]; }
 }

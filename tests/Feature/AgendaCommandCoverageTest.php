@@ -22,6 +22,16 @@ class AgendaCommandCoverageTest extends TestCase
         ]));
     }
 
+    public function test_busy_week_answer_includes_verified_event_count(): void
+    {
+        $this->parser(['action' => 'CHECK_AVAILABILITY', 'from' => '2026-07-22', 'to' => '2026-07-28', 'human_response' => 'Minggu ini cukup padat.']);
+        $user = User::factory()->active()->create();
+        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-24 08:00:00', 'timezone' => 'Asia/Jakarta']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'minggu ini terlalu sibuk gak?'])
+            ->assertOk()->assertJsonPath('data.human_response', "Minggu ini cukup padat.\n\n1 jadwal ditemukan.");
+    }
+
     public function test_lists_only_requested_week(): void
     {
         $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-07-22', 'to' => '2026-07-28']);
