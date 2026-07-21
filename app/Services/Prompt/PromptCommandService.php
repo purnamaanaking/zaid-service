@@ -17,7 +17,7 @@ class PromptCommandService
     {
         $parsed = $this->parser->parse($text, $user->id, $attachments);
         $entities = $parsed['entities'] ?? [];
-        if ($selectedDate !== null && empty($entities['scheduled_date'])) $entities['scheduled_date'] = $selectedDate;
+        if ($selectedDate !== null) $entities['scheduled_date'] = $selectedDate;
         $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $entities, 'execution_status' => 'pending']);
         $intent = $parsed['intent'] ?? 'READ';
         if (($parsed['parse_status'] ?? 'failed') !== 'parsed') return $this->finish($request, 'failed', 'Aku fokus bantu agenda dan event. Coba tulis: "buat meeting besok jam 9".');

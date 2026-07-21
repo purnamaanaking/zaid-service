@@ -10,6 +10,25 @@ use Tests\TestCase;
 
 class PromptEventCommandTest extends TestCase
 {
+    public function test_selected_calendar_date_overrides_parser_date_on_create(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => 0.98,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => ['title' => 'Meeting', 'scheduled_date' => '2026-07-22', 'scheduled_time' => '08:00:00'],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'meeting jam 8 pagi',
+            'selected_date' => '2026-07-17',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-17 08:00:00']);
+    }
+
     public function test_delete_prompt_does_not_remove_multiple_events_on_same_date(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
