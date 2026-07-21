@@ -13,10 +13,11 @@ class PromptCommandService
 {
     public function __construct(private readonly PromptParser $parser) {}
 
-    public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null): array
+    public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null, ?string $selectedDate = null): array
     {
         $parsed = $this->parser->parse($text, $user->id, $attachments);
         $entities = $parsed['entities'] ?? [];
+        if ($selectedDate !== null && empty($entities['scheduled_date'])) $entities['scheduled_date'] = $selectedDate;
         $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $entities, 'execution_status' => 'pending']);
         $intent = $parsed['intent'] ?? 'READ';
         if (($parsed['parse_status'] ?? 'failed') !== 'parsed') return $this->finish($request, 'failed', 'Aku fokus bantu agenda dan event. Coba tulis: "buat meeting besok jam 9".');
@@ -30,7 +31,12 @@ class PromptCommandService
             $action = PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => 'create', 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]);
             return $this->finish($request, 'executed', "{$event->title} sudah masuk agenda.", ['event_id' => $event->id]);
         }
-        $event = CalendarEvent::query()->where('user_id', $user->id)->where('title', 'ilike', '%'.($entities['search_query'] ?? $entities['title'] ?? '').'%')->latest('starts_at')->first();
+        $event = CalendarEvent::query()
+            ->where('user_id', $user->id)
+            ->where('title', 'ilike', '%'.($entities['search_query'] ?? $entities['title'] ?? '').'%')
+            ->when($entities['scheduled_date'] ?? null, fn ($query, $date) => $query->whereDate('starts_at', $date))
+            ->latest('starts_at')
+            ->first();
         if (! $event) return $this->finish($request, 'failed', 'Event yang dimaksud belum ketemu.');
         if ($intent === 'DELETE') $event->delete(); else $event->update($this->payload($entities));
         PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => strtolower($intent), 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]);

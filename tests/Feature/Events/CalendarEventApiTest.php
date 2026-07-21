@@ -8,6 +8,19 @@ use Tests\TestCase;
 
 class CalendarEventApiTest extends TestCase
 {
+    public function test_event_lookup_excludes_soft_deleted_event(): void
+    {
+        $user = User::factory()->active()->create();
+        $deleted = CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Deleted', 'starts_at' => '2026-07-07 09:00:00', 'timezone' => 'Asia/Jakarta']);
+        $visible = CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Visible', 'starts_at' => '2026-07-08 09:00:00', 'timezone' => 'Asia/Jakarta']);
+        $deleted->delete();
+
+        $this->actingAs($user, 'sanctum')->getJson('/api/v1/events?from=2026-07-01&to=2026-07-31')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.id', $visible->id);
+    }
+
     public function test_user_can_manage_own_events(): void
     {
         $user = User::factory()->active()->create();
