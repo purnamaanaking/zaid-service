@@ -24,6 +24,7 @@ JSON format:
   "entities": {
     "entity_type": "event",
     "title": "string or null",
+    "target_event_id": "UUID or null",
     "scheduled_date": "YYYY-MM-DD or null",
     "scheduled_dates": ["YYYY-MM-DD"] or null,
     "scheduled_time": "HH:MM:SS or null",
@@ -42,7 +43,7 @@ JSON format:
 
 Rules:
 - TODAY is provided. Use it for relative dates like "hari ini", "besok", "minggu depan", "lusa", and conversational variants like "malam ini", "nanti", or "tanggal 22 mei".
-- Conversation context may precede current message. Use it to resolve casual follow-ups like "halo", "yang ini", "hapus itu", or "yang tadi". Parse only CURRENT USER MESSAGE as action; context is reference only.
+- Conversation context may precede current message. For follow-ups such as "hapus no 1", "yang ini", or "yang tadi", choose the matching UUID from the prior `Agenda result` and return it as `target_event_id`. Parse only CURRENT USER MESSAGE as action; context is reference only.
 - Infer the most likely task/calendar intent even if the user does not speak in command format.
 - READ includes asking what schedule exists on a date or range, whether a day is free, when a task happens, or what agenda exists. Preserve range phrases such as "satu minggu terakhir" in search_query; do not collapse them into one date.
 - UPDATE includes moving/rescheduling/renaming an existing task even when the user says things like "geser", "pindahin", "ganti", or "yang gym itu ubah ke pagi".

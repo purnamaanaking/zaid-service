@@ -22,12 +22,13 @@ class PromptEventCommandTest extends TestCase
         };
         $this->app->bind(PromptParser::class, fn () => $parser);
         $user = User::factory()->active()->create();
-        \App\Models\PromptRequest::query()->create(['user_id' => $user->id, 'channel' => 'app_prompt', 'raw_text' => 'kalo tanggal 1 juli', 'normalized_text' => 'kalo tanggal 1 juli', 'parse_status' => 'parsed', 'execution_status' => 'executed', 'execution_summary' => ['human_response' => 'Agenda kamu: jogging pagi']]);
+        \App\Models\PromptRequest::query()->create(['user_id' => $user->id, 'channel' => 'app_prompt', 'raw_text' => 'kalo tanggal 1 juli', 'normalized_text' => 'kalo tanggal 1 juli', 'parse_status' => 'parsed', 'execution_status' => 'executed', 'execution_summary' => ['human_response' => 'Agenda kamu: jogging pagi', 'items' => [['id' => 'agenda-event-id', 'title' => 'Jogging pagi', 'starts_at' => '2026-07-01T06:00:00+07:00']]]]);
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'hapus 1 aja'])->assertOk();
 
         $this->assertStringContainsString('User: kalo tanggal 1 juli', $parser->received);
         $this->assertStringContainsString('Zaid: Agenda kamu: jogging pagi', $parser->received);
+        $this->assertStringContainsString('Agenda result:', $parser->received);
         $this->assertStringContainsString('Current user message: hapus 1 aja', $parser->received);
     }
 

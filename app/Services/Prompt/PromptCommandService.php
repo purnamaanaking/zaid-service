@@ -28,7 +28,7 @@ class PromptCommandService
         if ($intent === 'READ') {
             $events = CalendarEvent::query()->where('user_id', $user->id)->when($entities['scheduled_date'] ?? null, fn ($q, $date) => $q->whereDate('starts_at', $date))->orderBy('starts_at')->get();
             $reply = $events->isEmpty() ? 'Belum ada agenda.' : "Agenda kamu:\n".$events->map(fn ($event, $i) => ($i + 1).'. '.$event->title.' - '.$event->starts_at->format('Y-m-d H:i'))->implode("\n");
-            return $this->finish($request, 'executed', $reply);
+            return $this->finish($request, 'executed', $reply, ['items' => $events->map(fn (CalendarEvent $event) => ['id' => $event->id, 'title' => $event->title, 'starts_at' => $event->starts_at?->toIso8601String()])->all()]);
         }
         if ($intent === 'CREATE') {
             $dates = $entities['scheduled_dates'] ?? [];
@@ -53,6 +53,7 @@ class PromptCommandService
         }
         $events = CalendarEvent::query()
             ->where('user_id', $user->id)
+            ->when($entities['target_event_id'] ?? null, fn ($query, $id) => $query->whereKey($id))
             ->when($entities['title'] ?? null, fn ($query, $title) => $query->where('title', 'ilike', '%'.$title.'%'))
             ->when($entities['scheduled_date'] ?? null, fn ($query, $date) => $query->whereDate('starts_at', $date))
             ->latest('starts_at')
@@ -69,7 +70,11 @@ class PromptCommandService
     public function confirm(PromptRequest $request, User $user, bool $confirmed): array { return $this->finish($request, 'executed', $confirmed ? 'Tidak ada aksi yang menunggu konfirmasi.' : 'Dibatalkan.'); }
     private function context(User $user, string $text, string $channel): string
     {
-        $history = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->latest()->limit(6)->get()->reverse()->map(fn (PromptRequest $prompt) => 'User: '.$prompt->raw_text."\nZaid: ".data_get($prompt->execution_summary, 'human_response', ''))->implode("\n");
+        $history = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->latest()->limit(6)->get()->reverse()->map(function (PromptRequest $prompt): string {
+            $items = data_get($prompt->execution_summary, 'items', []);
+            $agenda = $items ? "\nAgenda result: ".collect($items)->values()->map(fn ($item, $index) => ($index + 1).'. '.($item['title'] ?? 'Event').' | id='.($item['id'] ?? '').' '.($item['starts_at'] ?? ''))->implode("\n") : '';
+            return 'User: '.$prompt->raw_text."\nZaid: ".data_get($prompt->execution_summary, 'human_response', '').$agenda;
+        })->implode("\n");
         return $history === '' ? $text : "Conversation context:\n{$history}\n\nCurrent user message: {$text}";
     }
     private function event(User $user, array $entities): CalendarEvent { return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($entities)); }
