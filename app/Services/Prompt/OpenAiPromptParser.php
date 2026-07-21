@@ -24,6 +24,7 @@ JSON format:
   "entities": {
     "entity_type": "event",
     "title": "string or null",
+    "human_response": "string or null",
     "target_event_id": "UUID or null",
     "scheduled_date": "YYYY-MM-DD or null",
     "scheduled_dates": ["YYYY-MM-DD"] or null,
@@ -48,7 +49,7 @@ Rules:
 - READ includes asking what schedule exists on a date or range, whether a day is free, when a task happens, or what agenda exists. Preserve range phrases such as "satu minggu terakhir" in search_query; do not collapse them into one date.
 - UPDATE includes moving/rescheduling/renaming an existing task even when the user says things like "geser", "pindahin", "ganti", or "yang gym itu ubah ke pagi".
 - DELETE includes canceling/removing a task even when the user says things like "hapus", "bat", "batal", "batalkan", or "yang meeting itu ga jadi".
-- If intent is READ, set search_query to capture the user's filter criteria in natural language.
+- If intent is READ, set search_query to capture the user's filter criteria in natural language. For factual follow-up questions answered by conversation context, such as "itu bulan apa?", put the direct answer in `human_response` and do not query events.
 - If command is unclear or ambiguous but still task/calendar related, prefer `parse_status: "ambiguous"` instead of `unsupported`.
 - Use `unsupported` only when the request is clearly outside task/calendar assistant scope.
 - Forwarded announcements, invitations, posters, screenshots, or meeting details are not an instruction to save immediately. Extract title, date, time, location, and agenda into description, choose `entity_type: "event"`, set `intent: "CREATE"`, and set `requires_confirmation: true`.

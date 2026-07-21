@@ -10,6 +10,22 @@ use Tests\TestCase;
 
 class PromptEventCommandTest extends TestCase
 {
+    public function test_contextual_month_question_returns_ai_answer(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => 0.98,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => ['human_response' => 'Itu bulan Juli 2026.'],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'itu bulan apa?'])
+            ->assertOk()
+            ->assertJsonPath('data.human_response', 'Itu bulan Juli 2026.');
+    }
+
     public function test_parser_receives_recent_agenda_context_for_follow_up(): void
     {
         $parser = new class implements PromptParser {

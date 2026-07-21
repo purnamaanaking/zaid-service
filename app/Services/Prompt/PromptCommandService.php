@@ -26,6 +26,7 @@ class PromptCommandService
         $intent = $parsed['intent'] ?? 'READ';
         if (($parsed['parse_status'] ?? 'failed') !== 'parsed') return $this->finish($request, 'failed', 'Aku fokus bantu agenda dan event. Coba tulis: "buat meeting besok jam 9".');
         if ($intent === 'READ') {
+            if (! empty($entities['human_response'])) return $this->finish($request, 'executed', $entities['human_response']);
             $events = CalendarEvent::query()->where('user_id', $user->id)->when($entities['scheduled_date'] ?? null, fn ($q, $date) => $q->whereDate('starts_at', $date))->orderBy('starts_at')->get();
             $reply = $events->isEmpty() ? 'Belum ada agenda.' : "Agenda kamu:\n".$events->map(fn ($event, $i) => ($i + 1).'. '.$event->title.' - '.$event->starts_at->format('Y-m-d H:i'))->implode("\n");
             return $this->finish($request, 'executed', $reply, ['items' => $events->map(fn (CalendarEvent $event) => ['id' => $event->id, 'title' => $event->title, 'starts_at' => $event->starts_at?->toIso8601String()])->all()]);
