@@ -92,7 +92,7 @@ class LandingPageTest extends TestCase
             ->assertSee("selected_date:selectedDate", false)
             ->assertSee('event-modal')
             ->assertSee('Ask Zaid')
-            ->assertSee('What can Zaid do?')
+            ->assertSee('Apa yang bisa Zaid bantu?')
             ->assertSee('send-icon')
             ->assertSee('quick-all-day-switch')
             ->assertDontSee("content:'→'", false)
