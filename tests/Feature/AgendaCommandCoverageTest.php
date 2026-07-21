@@ -1,0 +1,61 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Contracts\Prompt\PromptParser;
+use App\Models\CalendarEvent;
+use App\Models\Reminder;
+use App\Models\User;
+use Tests\Fakes\Prompt\FakePromptParser;
+use Tests\TestCase;
+
+class AgendaCommandCoverageTest extends TestCase
+{
+    private function parser(array $entities): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => $entities['action'] === 'DELETE_EVENTS' ? 'DELETE' : ($entities['action'] === 'UPDATE_EVENTS' ? 'UPDATE' : 'READ'),
+            'confidence_score' => .98,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => $entities,
+        ]));
+    }
+
+    public function test_lists_only_requested_week(): void
+    {
+        $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-07-22', 'to' => '2026-07-28']);
+        $user = User::factory()->active()->create();
+        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'This week', 'starts_at' => '2026-07-24 08:00:00', 'timezone' => 'Asia/Jakarta']);
+        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Next month', 'starts_at' => '2026-08-01 08:00:00', 'timezone' => 'Asia/Jakarta']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'cek jadwal 1 minggu ke depan'])
+            ->assertOk()->assertJsonPath('data.result.items.0.title', 'This week')->assertJsonCount(1, 'data.result.items');
+    }
+
+    public function test_updates_all_ai_selected_events(): void
+    {
+        $user = User::factory()->active()->create();
+        $first = CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Gym', 'starts_at' => '2026-07-27 08:00:00', 'timezone' => 'Asia/Jakarta']);
+        $second = CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Gym', 'starts_at' => '2026-07-28 08:00:00', 'timezone' => 'Asia/Jakarta']);
+        $this->parser(['action' => 'UPDATE_EVENTS', 'target_event_ids' => [$first->id, $second->id], 'changes' => ['title' => 'Jogging pagi', 'scheduled_time' => '06:00:00'], 'human_response' => 'Sip, gym tanggal 27–28 sudah jadi jogging pagi jam 6.']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'ganti event tanggal 27-28 jadi jogging pagi jam 6'])
+            ->assertOk()->assertJsonPath('data.human_response', 'Sip, gym tanggal 27–28 sudah jadi jogging pagi jam 6.');
+
+        $this->assertDatabaseHas('calendar_events', ['id' => $first->id, 'title' => 'Jogging pagi', 'starts_at' => '2026-07-27 06:00:00']);
+        $this->assertDatabaseHas('calendar_events', ['id' => $second->id, 'title' => 'Jogging pagi', 'starts_at' => '2026-07-28 06:00:00']);
+    }
+
+    public function test_sets_reminder_on_ai_selected_event(): void
+    {
+        $user = User::factory()->active()->create();
+        $event = CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-27 08:00:00', 'timezone' => 'Asia/Jakarta']);
+        $this->parser(['action' => 'SET_REMINDER', 'target_event_ids' => [$event->id], 'reminder_minutes_before' => 30, 'reminder_channel' => 'app']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'ingatkan meeting 30 menit sebelum lewat app'])
+            ->assertOk()->assertJsonPath('data.human_response', 'Reminder diatur untuk 1 jadwal.');
+
+        $this->assertDatabaseHas('reminders', ['calendar_event_id' => $event->id, 'minutes_before' => 30, 'channel' => 'app']);
+    }
+}

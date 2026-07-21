@@ -6,8 +6,11 @@ use App\Contracts\Prompt\PromptParser;
 use App\Models\CalendarEvent;
 use App\Models\PromptAction;
 use App\Models\PromptRequest;
+use App\Models\Reminder;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class PromptCommandService
 {
@@ -16,69 +19,97 @@ class PromptCommandService
     public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null, ?string $selectedDate = null): array
     {
         $parsed = $this->parser->parse($this->context($user, $text, $channel), $user->id, $attachments);
-        $entities = $parsed['entities'] ?? [];
-        if (($parsed['intent'] ?? null) === 'DELETE' && empty($entities['scheduled_dates'])) {
-            preg_match_all('/\b(\d{1,2})\s*(?:dan|,|&)?\s*(\d{1,2})?\s*juli\b/ui', $text, $matches, PREG_SET_ORDER);
-            $entities['scheduled_dates'] = collect($matches)->flatMap(fn ($match) => array_filter([$match[1] ?? null, $match[2] ?? null]))->map(fn ($day) => sprintf('%s-07-%02d', now('Asia/Jakarta')->year, $day))->all();
-        }
-        if ($selectedDate !== null && empty($entities['scheduled_date']) && empty($entities['scheduled_dates'])) $entities['scheduled_date'] = $selectedDate;
-        $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $entities, 'execution_status' => 'pending']);
-        $intent = $parsed['intent'] ?? 'READ';
-        if (($parsed['parse_status'] ?? 'failed') !== 'parsed') return $this->finish($request, 'failed', 'Aku fokus bantu agenda dan event. Coba tulis: "buat meeting besok jam 9".');
-        if ($intent === 'READ') {
-            if (! empty($entities['human_response'])) return $this->finish($request, 'executed', $entities['human_response']);
-            $events = CalendarEvent::query()->where('user_id', $user->id)->when($entities['scheduled_date'] ?? null, fn ($q, $date) => $q->whereDate('starts_at', $date))->orderBy('starts_at')->get();
-            $reply = $events->isEmpty() ? 'Belum ada agenda.' : "Agenda kamu:\n".$events->map(fn ($event, $i) => ($i + 1).'. '.$event->title.' - '.$event->starts_at->format('Y-m-d H:i'))->implode("\n");
-            return $this->finish($request, 'executed', $reply, ['items' => $events->map(fn (CalendarEvent $event) => ['id' => $event->id, 'title' => $event->title, 'starts_at' => $event->starts_at?->toIso8601String()])->all()]);
-        }
-        if ($intent === 'CREATE') {
-            $dates = $entities['scheduled_dates'] ?? [];
-            if (! $dates) $dates = [$entities['scheduled_date'] ?? now('Asia/Jakarta')->format('Y-m-d')];
-            $events = collect($dates)->map(function (string $date) use ($user, $entities): CalendarEvent {
-                $data = $entities;
-                $data['scheduled_date'] = $date;
-                return $this->event($user, $data);
-            });
-            $events->each(fn (CalendarEvent $event) => PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => 'create', 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]));
-            $reply = $events->count() === 1 ? "{$events->first()->title} sudah masuk agenda." : $events->count().' jadwal "'.$events->first()->title.'" sudah masuk agenda.';
-            return $this->finish($request, 'executed', $reply, ['event_id' => $events->first()->id]);
-        }
-        $dates = $entities['scheduled_dates'] ?? [];
-        if ($intent === 'DELETE' && count($dates) > 1) {
-            $events = CalendarEvent::query()->where('user_id', $user->id)->where(function ($query) use ($dates) {
-                foreach ($dates as $date) $query->orWhereDate('starts_at', $date);
-            })->get();
-            if ($events->isEmpty()) return $this->finish($request, 'failed', 'Event yang dimaksud belum ketemu.');
-            $events->each(fn (CalendarEvent $event) => $event->delete());
-            return $this->finish($request, 'executed', $events->count().' jadwal sudah dihapus.');
-        }
-        $events = CalendarEvent::query()
-            ->where('user_id', $user->id)
-            ->when($entities['target_event_id'] ?? null, fn ($query, $id) => $query->whereKey($id))
-            ->when($entities['title'] ?? null, fn ($query, $title) => $query->where('title', 'ilike', '%'.$title.'%'))
-            ->when($entities['scheduled_date'] ?? null, fn ($query, $date) => $query->whereDate('starts_at', $date))
-            ->latest('starts_at')
-            ->limit(2)
-            ->get();
-        if ($events->isEmpty()) return $this->finish($request, 'failed', 'Event yang dimaksud belum ketemu.');
-        if ($events->count() > 1) return $this->finish($request, 'failed', 'Ada '.$events->count().' jadwal pada tanggal ini. Sebut judul atau jamnya dulu.');
-        $event = $events->first();
-        if ($intent === 'DELETE') $event->delete(); else $event->update($this->payload($entities));
-        PromptAction::query()->create(['prompt_request_id' => $request->id, 'action_type' => strtolower($intent), 'target_entity_type' => 'event', 'target_entity_id' => $event->id, 'status' => 'executed', 'payload' => $entities, 'result_payload' => ['event_id' => $event->id]]);
-        return $this->finish($request, 'executed', $intent === 'DELETE' ? 'Event sudah dihapus.' : 'Event sudah diubah.', ['event_id' => $event->id]);
+        $data = $parsed['entities'] ?? [];
+        if ($selectedDate && empty($data['scheduled_date']) && empty($data['scheduled_dates'])) $data['scheduled_date'] = $selectedDate;
+        $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $data, 'execution_status' => 'pending']);
+        if (($parsed['parse_status'] ?? '') !== 'parsed') return $this->finish($request, 'failed', 'Aku belum paham. Coba jelaskan jadwalnya lagi.');
+
+        $action = strtoupper($data['action'] ?? $parsed['intent'] ?? 'LIST_EVENTS');
+        return DB::transaction(fn () => match ($action) {
+            'CREATE', 'CREATE_EVENTS' => $this->create($request, $user, $data),
+            'UPDATE', 'UPDATE_EVENTS', 'RESCHEDULE_EVENTS' => $this->update($request, $user, $data),
+            'DELETE', 'DELETE_EVENTS' => $this->delete($request, $user, $data),
+            'SET_REMINDER', 'UPDATE_REMINDER' => $this->reminder($request, $user, $data),
+            'DELETE_REMINDER' => $this->removeReminder($request, $user, $data),
+            'RECAP', 'COUNT_EVENTS', 'SEARCH_EVENTS', 'CHECK_CONFLICTS', 'CHECK_AVAILABILITY', 'FIND_FREE_SLOT', 'LIST_EVENTS', 'READ' => $this->read($request, $user, $data),
+            default => $this->finish($request, 'failed', $data['human_response'] ?? 'Perintah agenda belum dikenali.'),
+        });
     }
 
-    public function confirm(PromptRequest $request, User $user, bool $confirmed): array { return $this->finish($request, 'executed', $confirmed ? 'Tidak ada aksi yang menunggu konfirmasi.' : 'Dibatalkan.'); }
-    private function context(User $user, string $text, string $channel): string
+    private function read(PromptRequest $request, User $user, array $data): array
     {
-        $history = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->latest()->limit(6)->get()->reverse()->map(function (PromptRequest $prompt): string {
-            $items = data_get($prompt->execution_summary, 'items', []);
-            $agenda = $items ? "\nAgenda result: ".collect($items)->values()->map(fn ($item, $index) => ($index + 1).'. '.($item['title'] ?? 'Event').' | id='.($item['id'] ?? '').' '.($item['starts_at'] ?? ''))->implode("\n") : '';
-            return 'User: '.$prompt->raw_text."\nZaid: ".data_get($prompt->execution_summary, 'human_response', '').$agenda;
-        })->implode("\n");
-        return $history === '' ? $text : "Conversation context:\n{$history}\n\nCurrent user message: {$text}";
+        $events = $this->events($user, $data);
+        $items = $this->items($events);
+        $fallback = $events->isEmpty() ? 'Belum ada agenda.' : "Agenda kamu:\n".$events->values()->map(fn ($e, $i) => ($i + 1).'. '.$e->title.' - '.$e->starts_at->format('Y-m-d H:i'))->implode("\n");
+        return $this->finish($request, 'executed', $this->reply($data, $fallback), ['items' => $items]);
     }
-    private function event(User $user, array $entities): CalendarEvent { return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($entities)); }
-    private function payload(array $e): array { $date = $e['scheduled_date'] ?? now()->format('Y-m-d'); $time = $e['scheduled_time'] ?? '09:00:00'; return ['title' => $e['title'] ?? 'Event baru', 'description' => $e['description'] ?? null, 'starts_at' => Carbon::parse("$date $time", 'Asia/Jakarta'), 'timezone' => 'Asia/Jakarta', 'all_day' => (bool) ($e['all_day'] ?? false)]; }
-    private function finish(PromptRequest $request, string $status, string $reply, array $result = []): array { $request->update(['execution_status' => $status, 'execution_summary' => ['human_response' => $reply] + $result]); return ['prompt_request_id' => $request->id, 'parse_status' => $request->parse_status, 'intent' => $request->intent, 'requires_confirmation' => false, 'result' => $result, 'human_response' => $reply]; }
+
+    private function create(PromptRequest $request, User $user, array $data): array
+    {
+        $dates = $data['scheduled_dates'] ?? [$data['scheduled_date'] ?? now('Asia/Jakarta')->format('Y-m-d')];
+        $events = collect($dates)->map(function ($date) use ($user, $data) { $data['scheduled_date'] = $date; return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($data)); });
+        $events->each(fn ($event) => $this->action($request, 'create', $event, $data));
+        $fallback = $events->count() === 1 ? $events->first()->title.' sudah masuk agenda.' : $events->count().' jadwal "'.$events->first()->title.'" sudah masuk agenda.';
+        return $this->finish($request, 'executed', $this->reply($data, $fallback), ['items' => $this->items($events)]);
+    }
+
+    private function update(PromptRequest $request, User $user, array $data): array
+    {
+        $events = $this->events($user, $data);
+        if ($events->isEmpty()) return $this->finish($request, 'failed', 'Event yang dimaksud belum ketemu.');
+        $changes = $data['changes'] ?? $data;
+        $events->each(function ($event) use ($request, $changes) { $event->update($this->payload($changes, $event)); $event->reminders()->where('status','pending')->each(fn ($r) => $r->update(['remind_at' => $event->starts_at->copy()->subMinutes($r->minutes_before)])); $this->action($request, 'update', $event, $changes); });
+        return $this->finish($request, 'executed', $this->reply($data, $events->count().' jadwal sudah diubah.'), ['items' => $this->items($events)]);
+    }
+
+    private function delete(PromptRequest $request, User $user, array $data): array
+    {
+        $events = $this->events($user, $data);
+        if ($events->isEmpty()) return $this->finish($request, 'failed', 'Event yang dimaksud belum ketemu.');
+        $events->each(function ($event) use ($request, $data) { $event->reminders()->where('status','pending')->delete(); $event->delete(); $this->action($request, 'delete', $event, $data); });
+        return $this->finish($request, 'executed', $this->reply($data, $events->count().' jadwal sudah dihapus.'));
+    }
+
+    private function reminder(PromptRequest $request, User $user, array $data): array
+    {
+        $events = $this->events($user, $data);
+        if ($events->isEmpty()) return $this->finish($request, 'failed', 'Event untuk reminder belum ketemu.');
+        $minutes = (int) ($data['reminder_minutes_before'] ?? data_get($data, 'reminder.minutes_before', 30));
+        $channel = $data['reminder_channel'] ?? data_get($data, 'reminder.channel', 'whatsapp');
+        $events->each(fn ($event) => Reminder::query()->updateOrCreate(['user_id' => $user->id, 'calendar_event_id' => $event->id], ['minutes_before' => $minutes, 'channel' => $channel, 'remind_at' => $event->starts_at->copy()->subMinutes($minutes), 'status' => 'pending']));
+        return $this->finish($request, 'executed', $this->reply($data, 'Reminder diatur untuk '.$events->count().' jadwal.'));
+    }
+
+    private function removeReminder(PromptRequest $request, User $user, array $data): array { $events = $this->events($user, $data); $events->each(fn ($e) => $e->reminders()->delete()); return $this->finish($request, 'executed', 'Reminder dihapus.'); }
+
+    private function events(User $user, array $data): Collection
+    {
+        return CalendarEvent::query()->where('user_id', $user->id)
+            ->when($data['target_event_id'] ?? null, fn ($q, $id) => $q->whereKey($id))
+            ->when($data['target_event_ids'] ?? $data['event_ids'] ?? null, fn ($q, $ids) => $q->whereKey($ids))
+            ->when($data['title'] ?? null, fn ($q, $title) => $q->where('title','ilike','%'.$title.'%'))
+            ->when($data['search_query'] ?? null, fn ($q, $term) => $q->where(fn ($x) => $x->where('title','ilike','%'.$term.'%')->orWhere('description','ilike','%'.$term.'%')->orWhere('location','ilike','%'.$term.'%')->orWhere('category','ilike','%'.$term.'%')))
+            ->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('starts_at','>=',$date))
+            ->when($data['to'] ?? null, fn ($q, $date) => $q->whereDate('starts_at','<=',$date))
+            ->when($data['scheduled_date'] ?? null, fn ($q, $date) => $q->whereDate('starts_at',$date))
+            ->when($data['scheduled_dates'] ?? null, fn ($q, $dates) => $q->where(fn ($x) => collect($dates)->each(fn ($date) => $x->orWhereDate('starts_at',$date))))
+            ->orderBy('starts_at')->get();
+    }
+
+    private function payload(array $data, ?CalendarEvent $existing = null): array
+    {
+        $date = $data['scheduled_date'] ?? $existing?->starts_at?->format('Y-m-d') ?? now('Asia/Jakarta')->format('Y-m-d');
+        $time = $data['scheduled_time'] ?? $existing?->starts_at?->format('H:i:s') ?? '09:00:00';
+        $fields = ['title','description','location','participants','category','priority','color','recurrence','status','all_day'];
+        $out = collect($fields)->filter(fn ($field) => array_key_exists($field, $data))->mapWithKeys(fn ($field) => [$field => $data[$field]])->all();
+        $out['starts_at'] = Carbon::parse("$date $time", 'Asia/Jakarta');
+        if (array_key_exists('ends_at', $data)) $out['ends_at'] = $data['ends_at'];
+        return $out;
+    }
+
+    private function reply(array $data, string $fallback): string { return trim((string) ($data['human_response'] ?? '')) ?: $fallback; }
+    private function action(PromptRequest $request, string $action, CalendarEvent $event, array $payload): void { PromptAction::query()->create(['prompt_request_id' => $request->id,'action_type' => $action,'target_entity_type' => 'event','target_entity_id' => $event->id,'status' => 'executed','payload' => $payload,'result_payload' => ['event_id' => $event->id]]); }
+    private function items(Collection $events): array { return $events->map(fn ($e) => ['id' => $e->id,'title' => $e->title,'starts_at' => $e->starts_at?->toIso8601String()])->all(); }
+    private function context(User $user, string $text, string $channel): string { $history = PromptRequest::query()->where('user_id',$user->id)->where('channel',$channel)->latest()->limit(6)->get()->reverse()->map(fn ($p) => 'User: '.$p->raw_text."\nZaid: ".data_get($p->execution_summary,'human_response','')."\nAgenda result: ".json_encode(data_get($p->execution_summary,'items',[])))->implode("\n"); return $history === '' ? $text : "Conversation context:\n$history\nCurrent user message: $text"; }
+    private function finish(PromptRequest $request, string $status, string $reply, array $result = []): array { $request->update(['execution_status' => $status, 'execution_summary' => ['human_response' => $reply] + $result]); return ['prompt_request_id' => $request->id,'parse_status' => $request->parse_status,'intent' => $request->intent,'requires_confirmation' => false,'result' => $result,'human_response' => $reply]; }
 }

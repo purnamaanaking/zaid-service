@@ -28,13 +28,17 @@ class CalendarEventApiTest extends TestCase
             'title' => 'Client meeting',
             'starts_at' => '2026-07-17T10:00:00+07:00',
             'ends_at' => '2026-07-17T11:00:00+07:00',
+            'location' => 'Kantor',
+            'participants' => ['Budi'],
+            'category' => 'kantor',
+            'priority' => 'high',
         ])->assertCreated()->json('data.event');
 
         $this->actingAs($user, 'sanctum')->getJson('/api/v1/events?from=2026-07-01&to=2026-07-31')
             ->assertOk()->assertJsonPath('data.items.0.id', $event['id']);
 
         $this->actingAs($user, 'sanctum')->patchJson("/api/v1/events/{$event['id']}", ['title' => 'Updated meeting'])
-            ->assertOk()->assertJsonPath('data.event.title', 'Updated meeting');
+            ->assertOk()->assertJsonPath('data.event.title', 'Updated meeting')->assertJsonPath('data.event.location', 'Kantor')->assertJsonPath('data.event.participants.0', 'Budi');
 
         $this->actingAs($user, 'sanctum')->deleteJson("/api/v1/events/{$event['id']}")->assertOk();
         $this->assertSoftDeleted(CalendarEvent::class, ['id' => $event['id']]);

@@ -14,11 +14,11 @@ class CalendarEvent extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
-    protected $fillable = ['user_id', 'title', 'description', 'starts_at', 'ends_at', 'timezone', 'all_day'];
+    protected $fillable = ['user_id', 'title', 'description', 'location', 'participants', 'category', 'priority', 'color', 'recurrence', 'status', 'starts_at', 'ends_at', 'timezone', 'all_day'];
 
     protected function casts(): array
     {
-        return ['starts_at' => 'datetime', 'ends_at' => 'datetime', 'all_day' => 'boolean'];
+        return ['starts_at' => 'datetime', 'ends_at' => 'datetime', 'participants' => 'array', 'recurrence' => 'array', 'all_day' => 'boolean'];
     }
 
     public function user(): BelongsTo

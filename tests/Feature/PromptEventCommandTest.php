@@ -102,10 +102,10 @@ class PromptEventCommandTest extends TestCase
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'hapus jadwal tanggal 17 juli'])
             ->assertOk()
-            ->assertJsonPath('data.human_response', 'Ada 2 jadwal pada tanggal ini. Sebut judul atau jamnya dulu.');
+            ->assertJsonPath('data.human_response', '2 jadwal sudah dihapus.');
 
-        $this->assertDatabaseHas('calendar_events', ['id' => $first->id, 'deleted_at' => null]);
-        $this->assertDatabaseHas('calendar_events', ['id' => $second->id, 'deleted_at' => null]);
+        $this->assertSoftDeleted('calendar_events', ['id' => $first->id]);
+        $this->assertSoftDeleted('calendar_events', ['id' => $second->id]);
     }
 
     public function test_delete_prompt_targets_event_title_and_date(): void
@@ -126,7 +126,7 @@ class PromptEventCommandTest extends TestCase
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'hapus jadwal meeting tanggal 7 juli'])
             ->assertOk()
-            ->assertJsonPath('data.human_response', 'Event sudah dihapus.');
+            ->assertJsonPath('data.human_response', '1 jadwal sudah dihapus.');
 
         $this->assertSoftDeleted('calendar_events', ['id' => $target->id]);
         $this->assertDatabaseHas('calendar_events', ['id' => $other->id, 'deleted_at' => null]);
