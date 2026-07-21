@@ -17,8 +17,6 @@ use App\Http\Controllers\Api\Onboarding\VerifyPhoneOtpController;
 use App\Http\Controllers\Api\Prompts\PromptController;
 use App\Http\Controllers\Api\Reminders\ReminderController;
 use App\Http\Controllers\Api\Settings\SettingsController;
-use App\Http\Controllers\Api\TaskLists\TaskListController;
-use App\Http\Controllers\Api\Tasks\TaskController;
 use App\Http\Controllers\Api\Upload\FileUploadController;
 use App\Http\Controllers\Api\User\ChangePhoneController;
 use App\Http\Controllers\Api\User\MeController;
@@ -79,11 +77,6 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/me/phone/change', ChangePhoneController::class);
             });
 
-            // Tasks
-            Route::apiResource('tasks', TaskController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
-            Route::post('/tasks/{task}/complete', [TaskController::class, 'complete']);
-            Route::post('/tasks/{task}/restore', [TaskController::class, 'restore']);
-
             // Agenda & Calendar
             Route::get('/agenda/day', DayAgendaController::class);
             Route::get('/calendar/month', MonthCalendarController::class);
@@ -91,9 +84,6 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/events', [EventController::class, 'store']);
             Route::patch('/events/{event}', [EventController::class, 'update']);
             Route::delete('/events/{event}', [EventController::class, 'destroy']);
-
-            // Task lists
-            Route::apiResource('task-lists', TaskListController::class)->only(['index', 'store', 'update', 'destroy']);
 
             // Reminders
             Route::apiResource('reminders', ReminderController::class)->only(['index', 'store', 'update', 'destroy']);

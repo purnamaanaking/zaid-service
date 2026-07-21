@@ -10,7 +10,7 @@ class SyncGoogleCalendarChangesCommand extends Command
 {
     protected $signature = 'google-calendar:sync';
 
-    protected $description = 'Sync Google Calendar changes into local tasks';
+    protected $description = 'Sync Google Calendar changes into local events';
 
     public function handle(): int
     {

@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\TaskList;
-use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,15 +14,7 @@ return new class extends Migration
             $table->index('task_list_id');
         });
 
-        User::query()->whereHas('tasks')->each(function (User $user): void {
-            $list = TaskList::query()->create([
-                'user_id' => $user->id,
-                'name' => 'My Tasks',
-                'position' => 0,
-            ]);
-
-            $user->tasks()->update(['task_list_id' => $list->id]);
-        });
+        // Task backfill removed; a later migration drops this domain.
     }
 
     public function down(): void

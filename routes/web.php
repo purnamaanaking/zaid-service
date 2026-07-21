@@ -14,9 +14,7 @@ Route::get('/dashboard', function () {
     return view('dashboard', ['initialView' => 'calendar']);
 });
 
-Route::get('/dashboard/tasks', function () {
-    return view('dashboard', ['initialView' => 'tasks']);
-});
+
 
 Route::get('/integrations/google-calendar/connected', function () {
     return view('google-calendar-connected');

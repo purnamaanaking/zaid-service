@@ -12,7 +12,7 @@ class CalendarSyncLog extends Model
 
     protected $fillable = [
         'user_id',
-        'task_id',
+        'calendar_event_id',
         'user_calendar_connection_id',
         'calendar_event_link_id',
         'direction',
@@ -34,11 +34,6 @@ class CalendarSyncLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function task(): BelongsTo
-    {
-        return $this->belongsTo(Task::class);
     }
 
     public function userCalendarConnection(): BelongsTo
