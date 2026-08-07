@@ -25,9 +25,9 @@ class PromptCommandService
 
         $action = strtoupper($data['action'] ?? $parsed['intent'] ?? 'LIST_EVENTS');
         $confidence = (float) ($parsed['confidence_score'] ?? 0);
-        if (($parsed['requires_confirmation'] ?? false) || $confidence < .7) {
+        if (($parsed['requires_confirmation'] ?? false) || ($confidence < .7 && ! in_array($action, ['RECAP', 'COUNT_EVENTS', 'SEARCH_EVENTS', 'CHECK_CONFLICTS', 'CHECK_AVAILABILITY', 'FIND_FREE_SLOT', 'LIST_EVENTS', 'READ'], true))) {
             $request->update(['execution_status' => 'awaiting_confirmation', 'execution_summary' => ['command' => $data, 'reason' => $confidence < .7 ? 'low_confidence' : 'ai_requested_confirmation']]);
-            return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => $request->intent, 'confidence_score' => $confidence, 'requires_confirmation' => true, 'confirmation' => ['question' => $data['human_response'] ?? 'Aku kurang yakin. Lanjutkan aksi ini?'], 'result' => null, 'human_response' => $data['human_response'] ?? 'Aku kurang yakin. Lanjutkan aksi ini?'];
+            return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => $request->intent, 'confidence_score' => $confidence, 'requires_confirmation' => true, 'confirmation' => ['question' => $data['human_response'] ?? 'Aku kurang yakin. Lanjutkan aksi ini?', 'entities' => $data], 'result' => null, 'human_response' => $data['human_response'] ?? 'Aku kurang yakin. Lanjutkan aksi ini?'];
         }
         return $this->execute($request, $user, $action, $data);
     }

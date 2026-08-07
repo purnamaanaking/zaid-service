@@ -34,6 +34,21 @@ class AgendaCommandCoverageTest extends TestCase
             ->assertOk()->assertJsonPath('data.requires_confirmation', true)->assertJsonPath('data.parse_status', 'ambiguous');
     }
 
+    public function test_low_confidence_list_executes_without_confirmation(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ', 'confidence_score' => .42, 'parse_status' => 'parsed', 'requires_confirmation' => false,
+            'entities' => ['action' => 'LIST_EVENTS', 'from' => '2026-07-22', 'to' => '2026-07-28'],
+        ]));
+        $user = User::factory()->active()->create();
+        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-24 08:00:00', 'timezone' => 'Asia/Jakarta']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'list jadwal minggu ini'])
+            ->assertOk()
+            ->assertJsonPath('data.requires_confirmation', false)
+            ->assertJsonPath('data.result.items.0.title', 'Meeting');
+    }
+
     public function test_busy_week_answer_includes_verified_event_count(): void
     {
         $this->parser(['action' => 'CHECK_AVAILABILITY', 'from' => '2026-07-22', 'to' => '2026-07-28', 'human_response' => 'Minggu ini cukup padat.']);
