@@ -127,6 +127,7 @@ class PromptCommandService
         $fields = ['title','description','location','participants','category','priority','color','recurrence','status','all_day'];
         $out = collect($fields)->filter(fn ($field) => array_key_exists($field, $data))->mapWithKeys(fn ($field) => [$field => $data[$field]])->all();
         $out['starts_at'] = Carbon::parse("$date $time", 'Asia/Jakarta');
+        if (array_key_exists('scheduled_end_time', $data)) $out['ends_at'] = Carbon::parse("$date {$data['scheduled_end_time']}", 'Asia/Jakarta');
         if (array_key_exists('ends_at', $data)) $out['ends_at'] = $data['ends_at'];
         return $out;
     }

@@ -35,6 +35,7 @@ JSON format:
     "scheduled_date": "YYYY-MM-DD or null",
     "scheduled_dates": ["YYYY-MM-DD"] or null,
     "scheduled_time": "HH:MM:SS or null",
+    "scheduled_end_time": "HH:MM:SS or null",
     "all_day": true | false,
     "recurrence": {
       "type": "daily" | "weekly" | "monthly" | null,
@@ -64,6 +65,7 @@ Rules:
 - This product manages agenda events only. Always use `entity_type: "event"`; do not create tasks.
 - For "selama satu minggu", "seminggu", or "7 hari ke depan", put all seven resolved ISO dates in `scheduled_dates`.
 - For any explicit date range, put every date in `scheduled_dates`. Example: "buat jadwal dari tanggal 1 sampai 4 Juli" has `scheduled_dates: ["YYYY-07-01", "YYYY-07-02", "YYYY-07-03", "YYYY-07-04"]`.
+- For an explicit time span, set both `scheduled_time` and `scheduled_end_time`. Example: "jam 8 sampai jam 3 sore" means `scheduled_time: "08:00:00"` and `scheduled_end_time: "15:00:00"`.
 - For DELETE requests naming multiple dates, put every resolved ISO date in `scheduled_dates`. Example: "hapus jadwal tanggal 16 dan 17 Juli" has `scheduled_dates: ["YYYY-07-16", "YYYY-07-17"]`.
 - If an image is attached, analyze the image for any schedule, task, or calendar information and extract it.
 - If a voice transcription is provided, parse the transcription as the user's command.

@@ -66,6 +66,22 @@ class PromptEventCommandTest extends TestCase
         $this->assertDatabaseCount('calendar_events', 4);
     }
 
+    public function test_create_prompt_preserves_explicit_start_and_end_times(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => 0.98,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => ['title' => 'Latihan CTF', 'scheduled_date' => '2026-08-15', 'scheduled_time' => '08:00:00', 'scheduled_end_time' => '15:00:00'],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'buatkan latihan CTF besok jam 8 sampai jam 3 sore'])->assertOk();
+
+        $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'title' => 'Latihan CTF', 'starts_at' => '2026-08-15 08:00:00', 'ends_at' => '2026-08-15 15:00:00']);
+    }
+
     public function test_delete_prompt_extracts_each_date_when_parser_omits_dates(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
