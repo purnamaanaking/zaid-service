@@ -93,6 +93,7 @@ class LandingPageTest extends TestCase
             ->assertSee('calendar-panel')
             ->assertSee("target.closest('.event-pill')", false)
             ->assertSee("pill.addEventListener('click'", false)
+            ->assertSee('function applyReminder', false)
             ->assertSee('/events?from=')
             ->assertDontSee('href="/dashboard/tasks"', false)
             ->assertDontSee('/tasks?', false)
