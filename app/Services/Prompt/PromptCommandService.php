@@ -54,6 +54,7 @@ class PromptCommandService
 
     private function read(PromptRequest $request, User $user, array $data): array
     {
+        if (strtoupper($data['action'] ?? '') !== 'SEARCH_EVENTS') unset($data['search_query']);
         $events = $this->events($user, $data);
         $items = $this->items($events);
         $fallback = $events->isEmpty() ? 'Belum ada agenda.' : "Agenda kamu:\n".$events->values()->map(fn ($e, $i) => ($i + 1).'. '.$e->title.' - '.$e->starts_at->format('Y-m-d H:i'))->implode("\n");

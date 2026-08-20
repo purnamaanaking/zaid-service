@@ -69,6 +69,16 @@ class AgendaCommandCoverageTest extends TestCase
             ->assertOk()->assertJsonPath('data.result.items.0.title', 'Meeting')->assertJsonCount(1, 'data.result.items');
     }
 
+    public function test_list_ignores_natural_language_range_as_a_text_search(): void
+    {
+        $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-08-21', 'to' => '2026-08-27', 'search_query' => 'seminggu ke depan']);
+        $user = User::factory()->active()->create();
+        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Lomba gemastik', 'starts_at' => '2026-08-23 09:00:00', 'timezone' => 'Asia/Jakarta']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'list jadwal seminggu ke depan'])
+            ->assertOk()->assertJsonPath('data.result.items.0.title', 'Lomba gemastik');
+    }
+
     public function test_lists_only_requested_week(): void
     {
         $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-07-22', 'to' => '2026-07-28']);
