@@ -59,14 +59,17 @@ class AgendaCommandCoverageTest extends TestCase
             ->assertOk()->assertJsonPath('data.human_response', "Minggu ini cukup padat.\n\n1. Meeting · 24 Jul, 08:00\n\n1 jadwal ditemukan.");
     }
 
-    public function test_list_reply_contains_items_even_when_ai_writes_only_range_summary(): void
+    public function test_list_replaces_ai_event_list_with_one_canonical_time_range(): void
     {
-        $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-07-22', 'to' => '2026-07-28', 'human_response' => 'Berikut jadwal minggu ini.']);
+        $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-07-22', 'to' => '2026-07-28', 'human_response' => "Agenda minggu ini:\n1. Meeting - 24 Juli 2026 pukul 08:00"]);
         $user = User::factory()->active()->create();
-        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-24 08:00:00', 'timezone' => 'Asia/Jakarta']);
+        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-24 08:00:00', 'ends_at' => '2026-07-24 18:00:00', 'timezone' => 'Asia/Jakarta']);
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => '1 minggu kedepan ada jadwal apa aja coba list'])
-            ->assertOk()->assertJsonPath('data.result.items.0.title', 'Meeting')->assertJsonCount(1, 'data.result.items');
+            ->assertOk()
+            ->assertJsonPath('data.human_response', "Agenda kamu:\n\n1. Meeting · 24 Jul, 08:00-18:00")
+            ->assertJsonPath('data.result.items.0.title', 'Meeting')
+            ->assertJsonCount(1, 'data.result.items');
     }
 
     public function test_list_ignores_natural_language_range_as_a_text_search(): void
