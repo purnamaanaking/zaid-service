@@ -79,6 +79,17 @@ class AgendaCommandCoverageTest extends TestCase
             ->assertOk()->assertJsonPath('data.result.items.0.title', 'Lomba gemastik');
     }
 
+    public function test_list_without_ai_response_includes_each_event_once(): void
+    {
+        $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-08-21', 'to' => '2026-08-27']);
+        $user = User::factory()->active()->create();
+        CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Lomba gemastik', 'starts_at' => '2026-08-23 09:00:00', 'timezone' => 'Asia/Jakarta']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'list jadwal seminggu ke depan'])
+            ->assertOk()
+            ->assertJsonPath('data.human_response', "Agenda kamu:\n\n1. Lomba gemastik · 23 Aug, 09:00");
+    }
+
     public function test_list_replaces_ai_empty_message_when_events_exist(): void
     {
         $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-08-21', 'to' => '2026-08-27', 'human_response' => 'Tidak ada jadwal yang tercatat pada periode ini.']);
