@@ -95,6 +95,8 @@ class LandingPageTest extends TestCase
             ->assertSee("pill.addEventListener('click'", false)
             ->assertSee("button.onclick=()=>ask(button.dataset.prompt)", false)
             ->assertSee("$('ask').onclick=()=>ask()", false)
+            ->assertSee("selected_from:state.rangeStart,selected_to:state.rangeEnd", false)
+            ->assertSee("$('calendar-grid').addEventListener('pointermove'", false)
             ->assertDontSee('(data.data.result?.items||[]).forEach(event=>', false)
             ->assertDontSee("chatMessage(item.response,'assistant',item.items||[])", false)
             ->assertSee('function applyReminder', false)

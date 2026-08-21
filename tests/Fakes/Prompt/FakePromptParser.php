@@ -6,6 +6,8 @@ use App\Contracts\Prompt\PromptParser;
 
 class FakePromptParser implements PromptParser
 {
+    public ?string $lastContext = null;
+
     /**
      * @param  array<string, mixed>|null  $fixedResult
      */
@@ -13,6 +15,8 @@ class FakePromptParser implements PromptParser
 
     public function parse(string $text, string $userId, ?array $attachments = null): array
     {
+        $this->lastContext = $text;
+
         if ($this->fixedResult !== null) {
             return $this->fixedResult;
         }

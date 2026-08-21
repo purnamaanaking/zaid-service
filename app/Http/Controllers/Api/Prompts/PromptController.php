@@ -49,6 +49,8 @@ class PromptController extends Controller
         $request->validate([
             'text' => ['required', 'string'],
             'selected_date' => ['nullable', 'date_format:Y-m-d'],
+            'selected_from' => ['nullable', 'date_format:Y-m-d', 'required_with:selected_to', 'before_or_equal:selected_to'],
+            'selected_to' => ['nullable', 'date_format:Y-m-d', 'required_with:selected_from', 'after_or_equal:selected_from'],
             'attachments' => ['nullable', 'array'],
             'attachments.*.type' => ['required_with:attachments', 'string', 'in:image,audio_transcription'],
             'attachments.*.url' => ['nullable', 'string'],
@@ -61,6 +63,8 @@ class PromptController extends Controller
             'app_prompt',
             $request->input('attachments'),
             $request->string('selected_date')->toString() ?: null,
+            $request->string('selected_from')->toString() ?: null,
+            $request->string('selected_to')->toString() ?: null,
         );
 
         return response()->json([

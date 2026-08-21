@@ -22,6 +22,22 @@ class AgendaCommandCoverageTest extends TestCase
         ]));
     }
 
+    public function test_prompt_includes_selected_date_range_in_parser_context(): void
+    {
+        $parser = new FakePromptParser([
+            'intent' => 'READ', 'confidence_score' => .98, 'parse_status' => 'parsed', 'requires_confirmation' => false,
+            'entities' => ['action' => 'LIST_EVENTS'],
+        ]);
+        $this->app->bind(PromptParser::class, fn () => $parser);
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'cek agenda', 'selected_from' => '2026-08-21', 'selected_to' => '2026-08-27',
+        ])->assertOk();
+
+        $this->assertStringContainsString('Selected date range: 2026-08-21 to 2026-08-27', $parser->lastContext);
+    }
+
     public function test_low_confidence_command_requires_confirmation_before_delete(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
