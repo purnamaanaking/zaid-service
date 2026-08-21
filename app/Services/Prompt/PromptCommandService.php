@@ -20,6 +20,13 @@ class PromptCommandService
     {
         $parsed = $this->parser->parse($this->context($user, $text, $channel, $selectedDate, $selectedFrom, $selectedTo), $user->id, $attachments);
         $data = $parsed['entities'] ?? [];
+        if ($selectedFrom && $selectedTo) {
+            $dates = collect(Carbon::parse($selectedFrom, 'Asia/Jakarta')->toPeriod($selectedTo))->map->format('Y-m-d')->all();
+            $data['from'] = $selectedFrom;
+            $data['to'] = $selectedTo;
+            $data['scheduled_dates'] = $dates;
+            $data['scheduled_date'] = $selectedFrom;
+        }
         $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $data, 'execution_status' => 'pending']);
         if (($parsed['parse_status'] ?? '') !== 'parsed') return $this->finish($request, 'failed', 'Aku belum paham. Coba jelaskan jadwalnya lagi.');
 

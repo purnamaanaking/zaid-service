@@ -38,6 +38,20 @@ class AgendaCommandCoverageTest extends TestCase
         $this->assertStringContainsString('Selected date range: 2026-08-21 to 2026-08-27', $parser->lastContext);
     }
 
+    public function test_selected_range_overrides_parser_date_for_created_event(): void
+    {
+        $this->parser(['action' => 'CREATE_EVENTS', 'title' => 'Gym', 'scheduled_date' => '2026-08-21', 'scheduled_dates' => ['2026-08-21'], 'scheduled_time' => '14:00:00']);
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'jadwalkan gym jam 2 siang', 'selected_from' => '2026-08-23', 'selected_to' => '2026-08-25',
+        ])->assertOk();
+
+        $this->assertDatabaseCount('calendar_events', 3);
+        $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'title' => 'Gym', 'starts_at' => '2026-08-23 14:00:00']);
+        $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'title' => 'Gym', 'starts_at' => '2026-08-25 14:00:00']);
+    }
+
     public function test_low_confidence_command_requires_confirmation_before_delete(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
