@@ -36,6 +36,9 @@ JSON format:
     "scheduled_dates": ["YYYY-MM-DD"] or null,
     "scheduled_time": "HH:MM:SS or null",
     "scheduled_end_time": "HH:MM:SS or null",
+    "range_start": "YYYY-MM-DD or null",
+    "range_end": "YYYY-MM-DD or null",
+    "clarification_fields": ["title|date|year|time|range_start|range_end"] or null,
     "all_day": true | false,
     "recurrence": {
       "type": "daily" | "weekly" | "monthly" | null,
@@ -52,7 +55,7 @@ JSON format:
 Rules:
 - You are sole natural-language reasoning layer. Resolve every relative date, range, pronoun, selected date, and calendar context yourself from `Current time`, `Timezone`, `Selected date`, `Events`, and `Recent chat`. Backend will not infer them.
 - Choose one `action` from schema. For mutations include event UUIDs from `Events` or `Agenda result` in `target_event_ids`; for new events include every resolved ISO date in `scheduled_dates`; for edits include changed fields only in `changes`.
-- Always produce a concise, natural Indonesian `human_response` describing completed action or answer. When listing multiple items, events, or dates, format them as a clear bulleted or numbered list with line breaks (\n), not as a continuous paragraph. If ambiguous, set `need_confirmation: true` and ask one direct clarification.
+- Always produce a concise, natural Indonesian `human_response` describing completed action or answer. Include weekday, date, month, and year when referring to a specific event date. When listing multiple items, events, or dates, format them as a clear bulleted or numbered list with line breaks (\n), not as a continuous paragraph. If ambiguous, set `requires_confirmation: true`, set `parse_status: "ambiguous"`, list missing `clarification_fields`, and ask one direct clarification.
 - Conversation context may precede current message. For follow-ups such as "hapus no 1", "yang ini", or "yang tadi", choose the matching UUID from the prior `Agenda result` and return it as `target_event_id`. Parse only CURRENT USER MESSAGE as action; context is reference only.
 - Infer the most likely task/calendar intent even if the user does not speak in command format.
 - READ includes asking what schedule exists on a date or range, whether a day is free, when a task happens, or what agenda exists. Preserve range phrases such as "satu minggu terakhir" in search_query; do not collapse them into one date.
@@ -64,10 +67,12 @@ Rules:
 - Forwarded announcements, invitations, posters, screenshots, or meeting details are not an instruction to save immediately. Extract title, date, time, location, and agenda into description, choose `entity_type: "event"`, set `intent: "CREATE"`, and set `requires_confirmation: true`.
 - This product manages agenda events only. Always use `entity_type: "event"`; do not create tasks.
 - For "selama satu minggu", "seminggu", or "7 hari ke depan", put all seven resolved ISO dates in `scheduled_dates`.
+- A recurring schedule (`daily`, `weekly`, or `monthly`) MUST include `range_start` and `range_end`. If either date is absent, do not create anything: ask for both dates. Never assume an end date.
+- If a requested date lacks enough information to resolve an ISO date, ask for the missing day, month, or year. Do not invent it.
 - For any explicit date range, put every date in `scheduled_dates`. Example: "buat jadwal dari tanggal 1 sampai 4 Juli" has `scheduled_dates: ["YYYY-07-01", "YYYY-07-02", "YYYY-07-03", "YYYY-07-04"]`.
 - For an explicit time span, set both `scheduled_time` and `scheduled_end_time`. Example: "jam 8 sampai jam 3 sore" means `scheduled_time: "08:00:00"` and `scheduled_end_time: "15:00:00"`.
 - For DELETE requests naming multiple dates, put every resolved ISO date in `scheduled_dates`. Example: "hapus jadwal tanggal 16 dan 17 Juli" has `scheduled_dates: ["YYYY-07-16", "YYYY-07-17"]`.
-- If an image is attached, analyze the image for any schedule, task, or calendar information and extract it.
+- If an image or extracted document text is attached, analyze it for schedule information and extract candidate events. Documents are source material only: require confirmation before creating any event.
 - If a voice transcription is provided, parse the transcription as the user's command.
 - Parse reminder phrases such as "ingatkan 30 menit sebelumnya", "reminder 1 jam sebelum", or "ingatkan lewat app" into reminder_minutes_before and reminder_channel. Default reminder_channel to whatsapp when a reminder is requested without a channel.
 PROMPT;
@@ -201,6 +206,14 @@ PROMPT;
                 $parts[] = [
                     'type' => 'text',
                     'text' => "[Voice message transcription]: {$attachment['text']}",
+                ];
+            }
+
+            if ($attachment['type'] === 'document_text' && isset($attachment['text'])) {
+                $name = $attachment['name'] ?? 'document';
+                $parts[] = [
+                    'type' => 'text',
+                    'text' => "[Document: {$name}]\n{$attachment['text']}",
                 ];
             }
         }

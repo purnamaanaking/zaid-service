@@ -145,6 +145,32 @@ class AgendaCommandCoverageTest extends TestCase
             ->assertOk()->assertJsonPath('data.result.items.0.title', 'This week')->assertJsonCount(1, 'data.result.items');
     }
 
+    public function test_recurring_schedule_without_date_range_requests_clarification(): void
+    {
+        $this->parser(['action' => 'CREATE_EVENTS', 'title' => 'Makan siang', 'scheduled_time' => '12:00:00', 'recurrence' => ['type' => 'weekly', 'day_of_week' => 'monday']]);
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'buat makan siang setiap Senin jam 12'])
+            ->assertOk()
+            ->assertJsonPath('data.requires_confirmation', true)
+            ->assertJsonPath('data.parse_status', 'ambiguous')
+            ->assertJsonPath('data.human_response', 'Jadwal berulang butuh tanggal mulai dan tanggal selesai.');
+
+        $this->assertDatabaseCount('calendar_events', 0);
+    }
+
+    public function test_creates_weekly_schedule_for_every_date_in_range(): void
+    {
+        $this->parser(['action' => 'CREATE_EVENTS', 'title' => 'Makan siang', 'scheduled_time' => '12:00:00', 'range_start' => '2026-08-01', 'range_end' => '2026-08-31', 'recurrence' => ['type' => 'weekly', 'day_of_week' => 'monday']]);
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'buat makan siang setiap Senin dari 1 sampai 31 Agustus 2026 jam 12'])->assertOk();
+
+        $this->assertDatabaseCount('calendar_events', 5);
+        $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'starts_at' => '2026-08-03 12:00:00']);
+        $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'starts_at' => '2026-08-31 12:00:00']);
+    }
+
     public function test_updates_all_ai_selected_events(): void
     {
         $user = User::factory()->active()->create();

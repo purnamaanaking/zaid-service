@@ -29,6 +29,10 @@ class PromptCommandService
         }
         $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $data, 'execution_status' => 'pending']);
         if (($parsed['parse_status'] ?? '') !== 'parsed') return $this->finish($request, 'failed', 'Aku belum paham. Coba jelaskan jadwalnya lagi.');
+        if (! empty($data['recurrence']) && (empty($data['range_start']) || empty($data['range_end']))) {
+            $request->update(['execution_status' => 'awaiting_confirmation']);
+            return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => $request->intent, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'requires_confirmation' => true, 'confirmation' => ['question' => 'Jadwal berulang butuh tanggal mulai dan tanggal selesai.', 'entities' => $data], 'result' => null, 'human_response' => 'Jadwal berulang butuh tanggal mulai dan tanggal selesai.'];
+        }
 
         $action = strtoupper($data['action'] ?? $parsed['intent'] ?? 'LIST_EVENTS');
         $confidence = (float) ($parsed['confidence_score'] ?? 0);
@@ -79,11 +83,26 @@ class PromptCommandService
 
     private function create(PromptRequest $request, User $user, array $data): array
     {
-        $dates = $data['scheduled_dates'] ?? [$data['scheduled_date'] ?? now('Asia/Jakarta')->format('Y-m-d')];
+        $dates = ! empty($data['recurrence']) ? $this->recurrenceDates($data) : ($data['scheduled_dates'] ?? [$data['scheduled_date'] ?? now('Asia/Jakarta')->format('Y-m-d')]);
         $events = collect($dates)->map(function ($date) use ($user, $data) { $data['scheduled_date'] = $date; return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($data)); });
         $events->each(fn ($event) => $this->action($request, 'create', $event, $data));
         $fallback = $events->count() === 1 ? $events->first()->title.' sudah masuk agenda.' : $events->count().' jadwal "'.$events->first()->title.'" sudah masuk agenda.';
         return $this->finish($request, 'executed', $this->reply($data, $fallback), ['items' => $this->items($events)]);
+    }
+
+    private function recurrenceDates(array $data): Collection
+    {
+        $start = Carbon::parse($data['range_start'], 'Asia/Jakarta')->startOfDay();
+        $end = Carbon::parse($data['range_end'], 'Asia/Jakarta')->startOfDay();
+        if ($end->lt($start)) return collect();
+        $recurrence = $data['recurrence'];
+        $weekday = ['sunday' => 0, 'monday' => 1, 'tuesday' => 2, 'wednesday' => 3, 'thursday' => 4, 'friday' => 5, 'saturday' => 6][$recurrence['day_of_week'] ?? ''] ?? null;
+        $day = (int) ($recurrence['day_of_month'] ?? $start->day);
+        $dates = collect();
+        for ($date = $start->copy(); $date->lte($end) && $dates->count() < 366; $date->addDay()) {
+            if ($recurrence['type'] === 'daily' || ($recurrence['type'] === 'weekly' && $date->dayOfWeek === $weekday) || ($recurrence['type'] === 'monthly' && $date->day === $day)) $dates->push($date->format('Y-m-d'));
+        }
+        return $dates;
     }
 
     private function update(PromptRequest $request, User $user, array $data): array

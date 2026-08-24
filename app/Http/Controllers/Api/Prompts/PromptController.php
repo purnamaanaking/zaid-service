@@ -52,9 +52,11 @@ class PromptController extends Controller
             'selected_from' => ['nullable', 'date_format:Y-m-d', 'required_with:selected_to', 'before_or_equal:selected_to'],
             'selected_to' => ['nullable', 'date_format:Y-m-d', 'required_with:selected_from', 'after_or_equal:selected_from'],
             'attachments' => ['nullable', 'array'],
-            'attachments.*.type' => ['required_with:attachments', 'string', 'in:image,audio_transcription'],
+            'attachments.*.type' => ['required_with:attachments', 'string', 'in:image,audio_transcription,document_text'],
             'attachments.*.url' => ['nullable', 'string'],
-            'attachments.*.text' => ['nullable', 'string'],
+            'attachments.*.text' => ['nullable', 'string', 'max:40000'],
+            'attachments.*.mime_type' => ['nullable', 'string', 'max:255'],
+            'attachments.*.name' => ['nullable', 'string', 'max:255'],
         ]);
 
         $result = $this->promptCommandService->process(
