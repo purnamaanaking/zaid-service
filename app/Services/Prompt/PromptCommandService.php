@@ -4,6 +4,7 @@ namespace App\Services\Prompt;
 
 use App\Contracts\Prompt\PromptParser;
 use App\Models\CalendarEvent;
+use App\Services\Documents\DocumentScheduleParser;
 use App\Models\PromptAction;
 use App\Models\PromptRequest;
 use App\Models\Reminder;
@@ -14,14 +15,26 @@ use Illuminate\Support\Facades\DB;
 
 class PromptCommandService
 {
-    public function __construct(private readonly PromptParser $parser) {}
+    public function __construct(private readonly PromptParser $parser, private readonly DocumentScheduleParser $documentSchedules) {}
 
     public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null, ?string $selectedDate = null, ?string $selectedFrom = null, ?string $selectedTo = null): array
     {
         $parsed = $this->parser->parse($this->context($user, $text, $channel, $selectedDate, $selectedFrom, $selectedTo), $user->id, $attachments);
         $data = $parsed['entities'] ?? [];
         $documentText = collect($attachments ?? [])->where('type', 'document_text')->pluck('text')->filter()->implode("\n\n");
-        if ($documentText !== '') $data['document_text'] = $documentText;
+        if ($documentText !== '') {
+            $data['document_text'] = $documentText;
+            $data['document_candidates'] = $this->documentSchedules->parse($documentText);
+        }
+        if (empty($data['document_candidates'])) {
+            $pending = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->where('execution_status', 'awaiting_confirmation')->latest()->first();
+            $candidates = data_get($pending?->extracted_entities, 'document_candidates', []);
+            if ($candidates) {
+                $filter = preg_replace('/^(khusus\s+(untuk|buat)|untuk)\s+/i', '', trim($text));
+                $data['document_candidates'] = preg_match('/\b(semua|seluruh)\b/i', $filter) ? $candidates : collect($candidates)->filter(fn ($candidate) => str_contains(mb_strtolower($candidate['searchable']), mb_strtolower($filter)))->values()->all();
+                $data['document_text'] = data_get($pending->extracted_entities, 'document_text');
+            }
+        }
         if ($selectedFrom && $selectedTo) {
             $dates = collect(Carbon::parse($selectedFrom, 'Asia/Jakarta')->toPeriod($selectedTo))->map->format('Y-m-d')->all();
             $data['from'] = $selectedFrom;
@@ -89,8 +102,9 @@ class PromptCommandService
 
     private function create(PromptRequest $request, User $user, array $data): array
     {
+        $candidates = $data['document_candidates'] ?? [];
         $dates = ! empty($data['recurrence']) ? $this->recurrenceDates($data) : ($data['scheduled_dates'] ?? [$data['scheduled_date'] ?? now('Asia/Jakarta')->format('Y-m-d')]);
-        $events = collect($dates)->map(function ($date) use ($user, $data) { $data['scheduled_date'] = $date; return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($data)); });
+        $events = $candidates ? collect($candidates)->map(fn ($candidate) => CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($candidate))) : collect($dates)->map(function ($date) use ($user, $data) { $data['scheduled_date'] = $date; return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($data)); });
         $events->each(fn ($event) => $this->action($request, 'create', $event, $data));
         $fallback = $events->count() === 1 ? $events->first()->title.' sudah masuk agenda.' : $events->count().' jadwal "'.$events->first()->title.'" sudah masuk agenda.';
         return $this->finish($request, 'executed', $this->reply($data, $fallback), ['items' => $this->items($events)]);
@@ -98,7 +112,11 @@ class PromptCommandService
 
     private function clarificationQuestion(array $data): string
     {
-        if (! empty($data['document_text'])) return 'Saya menemukan jadwal dari dokumen. Mau buat semua jadwal, atau khusus nama siapa?';
+        if (! empty($data['document_candidates'])) {
+            $items = collect($data['document_candidates'])->take(10)->map(fn ($item, $index) => ($index + 1).'. '.$item['title']."\n".$item['scheduled_date'].' · '.substr($item['scheduled_time'], 0, 5).'-'.substr($item['scheduled_end_time'], 0, 5).($item['location'] ? ' · '.$item['location'] : ''))->implode("\n");
+            return 'Saya menemukan '.count($data['document_candidates'])." jadwal dari dokumen:\n".$items."\n\nMau buat semua jadwal, atau khusus nama siapa?";
+        }
+        if (! empty($data['document_text'])) return 'Saya menemukan dokumen, tapi belum menemukan baris jadwal yang lengkap. Mau cek bagian tertentu?';
         if (! empty($data['human_response'])) return $data['human_response'];
         $fields = collect($data['clarification_fields'] ?? []);
         $needsDate = $fields->contains(fn ($field) => in_array($field, ['date', 'year'], true));
