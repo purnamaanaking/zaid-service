@@ -20,6 +20,8 @@ class PromptCommandService
     {
         $parsed = $this->parser->parse($this->context($user, $text, $channel, $selectedDate, $selectedFrom, $selectedTo), $user->id, $attachments);
         $data = $parsed['entities'] ?? [];
+        $documentText = collect($attachments ?? [])->where('type', 'document_text')->pluck('text')->filter()->implode("\n\n");
+        if ($documentText !== '') $data['document_text'] = $documentText;
         if ($selectedFrom && $selectedTo) {
             $dates = collect(Carbon::parse($selectedFrom, 'Asia/Jakarta')->toPeriod($selectedTo))->map->format('Y-m-d')->all();
             $data['from'] = $selectedFrom;
@@ -96,6 +98,7 @@ class PromptCommandService
 
     private function clarificationQuestion(array $data): string
     {
+        if (! empty($data['document_text'])) return 'Saya menemukan jadwal dari dokumen. Mau buat semua jadwal, atau khusus nama siapa?';
         if (! empty($data['human_response'])) return $data['human_response'];
         $fields = collect($data['clarification_fields'] ?? []);
         $needsDate = $fields->contains(fn ($field) => in_array($field, ['date', 'year'], true));
@@ -182,7 +185,7 @@ class PromptCommandService
     private function items(Collection $events): array { return $events->map(fn ($e) => ['id' => $e->id,'title' => $e->title,'starts_at' => $e->starts_at?->toIso8601String()])->all(); }
     private function context(User $user, string $text, string $channel, ?string $selectedDate, ?string $selectedFrom = null, ?string $selectedTo = null): string
     {
-        $history = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->latest()->limit(6)->get()->reverse()->map(fn ($p) => 'User: '.$p->raw_text."\nZaid: ".data_get($p->execution_summary, 'human_response', '')."\nAgenda result: ".json_encode(data_get($p->execution_summary, 'items', [])))->implode("\n");
+        $history = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->latest()->limit(6)->get()->reverse()->map(fn ($p) => 'User: '.$p->raw_text."\nZaid: ".data_get($p->execution_summary, 'human_response', '')."\nAgenda result: ".json_encode(data_get($p->execution_summary, 'items', [])).($p->execution_status === 'awaiting_confirmation' ? "\nPending clarification command: ".json_encode($p->extracted_entities).(! empty(data_get($p->extracted_entities, 'document_text')) ? "\nPending document import: ".data_get($p->extracted_entities, 'document_text') : '') : ''))->implode("\n");
         $events = $this->items(CalendarEvent::query()->where('user_id', $user->id)->orderBy('starts_at')->limit(100)->get());
         return "Current time: ".now('Asia/Jakarta')->toIso8601String()."\nTimezone: Asia/Jakarta\nSelected date: ".($selectedDate ?? 'none')."\nSelected date range: ".($selectedFrom && $selectedTo ? "$selectedFrom to $selectedTo" : 'none')."\nVisible calendar: month\nEvents: ".json_encode($events)."\nRecent chat:\n{$history}\nCurrent user message: {$text}";
     }

@@ -64,6 +64,66 @@ class PromptEventCommandTest extends TestCase
             ->assertJsonPath('data.human_response', 'Mau dijadwalkan hari Senin tanggal berapa dan jam berapa?');
     }
 
+    public function test_parser_receives_pending_clarification_command_for_text_follow_up(): void
+    {
+        $parser = new class implements PromptParser {
+            public string $received = '';
+            public function parse(string $text, string $userId, ?array $attachments = null): array
+            {
+                $this->received = $text;
+                return ['intent' => 'READ', 'confidence_score' => .98, 'parse_status' => 'parsed', 'requires_confirmation' => false, 'entities' => []];
+            }
+        };
+        $this->app->bind(PromptParser::class, fn () => $parser);
+        $user = User::factory()->active()->create();
+        \App\Models\PromptRequest::query()->create(['user_id' => $user->id, 'channel' => 'app_prompt', 'raw_text' => 'buatkan jadwal renang mulai Senin', 'normalized_text' => 'buatkan jadwal renang mulai Senin', 'parse_status' => 'ambiguous', 'execution_status' => 'awaiting_confirmation', 'extracted_entities' => ['action' => 'CREATE_EVENTS', 'title' => 'Renang', 'recurrence' => ['type' => 'weekly', 'day_of_week' => 'monday']]]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'mulai 1 September 2026 sampai 30 September 2026 jam 9'])
+            ->assertOk();
+
+        $this->assertStringContainsString('Pending clarification command:', $parser->received);
+        $this->assertStringContainsString('"title":"Renang"', $parser->received);
+    }
+
+    public function test_document_with_multiple_schedule_rows_asks_all_or_specific_name(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => .98,
+            'parse_status' => 'ambiguous',
+            'requires_confirmation' => true,
+            'entities' => ['action' => 'CREATE_EVENTS', 'human_response' => 'Bagian mana yang mau dijadwalkan?'],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'Ekstrak jadwal dari file sidang.xlsx',
+            'attachments' => [['type' => 'document_text', 'url' => null, 'name' => 'sidang.xlsx', 'text' => 'Nama Mahasiswa | Purnama Anaking | Senin | 27-Jul-2026 | 08.00 - 09.30']],
+        ])->assertOk()
+            ->assertJsonPath('data.human_response', 'Saya menemukan jadwal dari dokumen. Mau buat semua jadwal, atau khusus nama siapa?');
+    }
+
+    public function test_parser_receives_pending_document_text_for_a_filter_follow_up(): void
+    {
+        $parser = new class implements PromptParser {
+            public string $received = '';
+            public function parse(string $text, string $userId, ?array $attachments = null): array
+            {
+                $this->received = $text;
+                return ['intent' => 'READ', 'confidence_score' => .98, 'parse_status' => 'parsed', 'requires_confirmation' => false, 'entities' => []];
+            }
+        };
+        $this->app->bind(PromptParser::class, fn () => $parser);
+        $user = User::factory()->active()->create();
+        \App\Models\PromptRequest::query()->create(['user_id' => $user->id, 'channel' => 'app_prompt', 'raw_text' => 'Ekstrak jadwal sidang', 'normalized_text' => 'Ekstrak jadwal sidang', 'parse_status' => 'ambiguous', 'execution_status' => 'awaiting_confirmation', 'extracted_entities' => ['action' => 'CREATE_EVENTS', 'document_text' => 'Nama Mahasiswa | Purnama Anaking | Senin | 27-Jul-2026 | 08.00 - 09.30']]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'khusus untuk Purnama Anaking'])
+            ->assertOk();
+
+        $this->assertStringContainsString('Pending document import:', $parser->received);
+        $this->assertStringContainsString('Purnama Anaking', $parser->received);
+    }
+
     public function test_create_prompt_makes_events_for_each_explicit_date(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
