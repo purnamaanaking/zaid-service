@@ -34,6 +34,8 @@ class CalendarEventApiTest extends TestCase
             'priority' => 'high',
         ])->assertCreated()->json('data.event');
 
+        $this->assertDatabaseHas('calendar_events', ['id' => $event['id'], 'description' => 'Agenda: Client meeting.']);
+
         $this->actingAs($user, 'sanctum')->getJson('/api/v1/events?from=2026-07-01&to=2026-07-31')
             ->assertOk()->assertJsonPath('data.items.0.id', $event['id']);
 

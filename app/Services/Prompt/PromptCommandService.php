@@ -28,7 +28,11 @@ class PromptCommandService
             $data['scheduled_date'] = $selectedFrom;
         }
         $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => $parsed['intent'] ?? null, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'parse_status' => $parsed['parse_status'] ?? 'failed', 'extracted_entities' => $data, 'execution_status' => 'pending']);
-        if (($parsed['parse_status'] ?? '') !== 'parsed') return $this->finish($request, 'failed', 'Aku belum paham. Coba jelaskan jadwalnya lagi.');
+        if (($parsed['parse_status'] ?? '') !== 'parsed') {
+            $question = $this->clarificationQuestion($data);
+            $request->update(['execution_status' => 'awaiting_confirmation']);
+            return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => $request->intent, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'requires_confirmation' => true, 'confirmation' => ['question' => $question, 'entities' => $data], 'result' => null, 'human_response' => $question];
+        }
         if (! empty($data['recurrence']) && (empty($data['range_start']) || empty($data['range_end']))) {
             $request->update(['execution_status' => 'awaiting_confirmation']);
             return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => $request->intent, 'confidence_score' => $parsed['confidence_score'] ?? 0, 'requires_confirmation' => true, 'confirmation' => ['question' => 'Jadwal berulang butuh tanggal mulai dan tanggal selesai.', 'entities' => $data], 'result' => null, 'human_response' => 'Jadwal berulang butuh tanggal mulai dan tanggal selesai.'];
@@ -88,6 +92,18 @@ class PromptCommandService
         $events->each(fn ($event) => $this->action($request, 'create', $event, $data));
         $fallback = $events->count() === 1 ? $events->first()->title.' sudah masuk agenda.' : $events->count().' jadwal "'.$events->first()->title.'" sudah masuk agenda.';
         return $this->finish($request, 'executed', $this->reply($data, $fallback), ['items' => $this->items($events)]);
+    }
+
+    private function clarificationQuestion(array $data): string
+    {
+        if (! empty($data['human_response'])) return $data['human_response'];
+        $fields = collect($data['clarification_fields'] ?? []);
+        $needsDate = $fields->contains(fn ($field) => in_array($field, ['date', 'year'], true));
+        $needsTime = $fields->contains('time');
+        if ($needsDate && $needsTime) return 'Mau dijadwalkan hari Senin tanggal berapa dan jam berapa?';
+        if ($needsDate) return 'Mau dijadwalkan tanggal berapa? Sertakan bulan dan tahun ya.';
+        if ($needsTime) return 'Mau dijadwalkan jam berapa?';
+        return 'Bagian mana yang mau dijadwalkan? Sebutkan hari atau tanggal dan jamnya.';
     }
 
     private function recurrenceDates(array $data): Collection
@@ -154,6 +170,7 @@ class PromptCommandService
         $time = $data['scheduled_time'] ?? $existing?->starts_at?->format('H:i:s') ?? '09:00:00';
         $fields = ['title','description','location','participants','category','priority','color','recurrence','status','all_day'];
         $out = collect($fields)->filter(fn ($field) => array_key_exists($field, $data))->mapWithKeys(fn ($field) => [$field => $data[$field]])->all();
+        $out['description'] = filled($out['description'] ?? null) ? $out['description'] : 'Agenda: '.($out['title'] ?? $existing?->title ?? 'jadwal').'.';
         $out['starts_at'] = Carbon::parse("$date $time", 'Asia/Jakarta');
         if (array_key_exists('scheduled_end_time', $data)) $out['ends_at'] = Carbon::parse("$date {$data['scheduled_end_time']}", 'Asia/Jakarta');
         if (array_key_exists('ends_at', $data)) $out['ends_at'] = $data['ends_at'];

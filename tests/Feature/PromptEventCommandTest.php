@@ -48,6 +48,22 @@ class PromptEventCommandTest extends TestCase
         $this->assertStringContainsString('Current user message: hapus 1 aja', $parser->received);
     }
 
+    public function test_ambiguous_schedule_returns_a_specific_question(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => 0.9,
+            'parse_status' => 'ambiguous',
+            'requires_confirmation' => true,
+            'entities' => ['title' => 'Kolam renang', 'clarification_fields' => ['date', 'time']],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'buatkan jadwal hari Senin ke kolam renang'])
+            ->assertOk()
+            ->assertJsonPath('data.human_response', 'Mau dijadwalkan hari Senin tanggal berapa dan jam berapa?');
+    }
+
     public function test_create_prompt_makes_events_for_each_explicit_date(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([

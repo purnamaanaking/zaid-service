@@ -27,6 +27,7 @@ class EventController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->validateEvent($request);
+        $data['description'] = filled($data['description'] ?? null) ? $data['description'] : 'Agenda: '.$data['title'].'.';
         $event = $request->user()->calendarEvents()->create($data);
         SyncCalendarEventToGoogleCalendarJob::dispatch($event->id, 'create');
 
