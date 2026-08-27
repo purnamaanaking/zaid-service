@@ -73,7 +73,7 @@ class PromptEventCommandTest extends TestCase
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'buatkan jadwal hari Senin ke kolam renang'])
             ->assertOk()
-            ->assertJsonPath('data.human_response', 'Mau dijadwalkan hari Senin tanggal berapa dan jam berapa?');
+            ->assertJsonPath('data.human_response', 'Mau dijadwalkan hari apa dan jam berapa untuk Kolam renang minggu depan?');
     }
 
     public function test_parser_receives_pending_clarification_command_for_text_follow_up(): void

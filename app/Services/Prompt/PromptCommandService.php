@@ -121,7 +121,11 @@ class PromptCommandService
         $fields = collect($data['clarification_fields'] ?? []);
         $needsDate = $fields->contains(fn ($field) => in_array($field, ['date', 'year'], true));
         $needsTime = $fields->contains('time');
-        if ($needsDate && $needsTime) return 'Mau dijadwalkan hari Senin tanggal berapa dan jam berapa?';
+        if ($needsDate && $needsTime) {
+            return ! empty($data['title'])
+                ? "Mau dijadwalkan hari apa dan jam berapa untuk {$data['title']} minggu depan?"
+                : 'Mau dijadwalkan hari apa, tanggal berapa, dan jam berapa?';
+        }
         if ($needsDate) return 'Mau dijadwalkan tanggal berapa? Sertakan bulan dan tahun ya.';
         if ($needsTime) return 'Mau dijadwalkan jam berapa?';
         return 'Bagian mana yang mau dijadwalkan? Sebutkan hari atau tanggal dan jamnya.';
