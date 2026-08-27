@@ -66,7 +66,8 @@ Rules:
 - Use `unsupported` only when the request is clearly outside task/calendar assistant scope.
 - Forwarded announcements, invitations, posters, screenshots, or meeting details are not an instruction to save immediately. Extract title, date, time, location, and agenda into description, choose `entity_type: "event"`, set `intent: "CREATE"`, and set `requires_confirmation: true`.
 - This product manages agenda events only. Always use `entity_type: "event"`; do not create tasks.
-- For "selama satu minggu", "seminggu", or "7 hari ke depan", put all seven resolved ISO dates in `scheduled_dates`.
+- For "selama satu minggu", "seminggu", "7 hari berturut-turut", or "setiap hari selama seminggu", put all seven resolved ISO dates in `scheduled_dates`. BUT for "buatkan jadwal untuk minggu depan", "jadwal minggu depan", or "minggu depan mau ada acara", this means ONE event on next week: resolve to the first workday of next week (or ask which day if ambiguous), DO NOT create 7 duplicate events across the entire week!
+- For "1 bulan ke depan" or "bulan depan", resolve the target date/month accurately.
 - A recurring schedule (`daily`, `weekly`, or `monthly`) MUST include `range_start` and `range_end`. If either date is absent, do not create anything: ask for both dates. Never assume an end date.
 - If a requested date lacks enough information to resolve an ISO date, ask for the missing day, month, or year. Do not invent it.
 - For any explicit date range, put every date in `scheduled_dates`. Example: "buat jadwal dari tanggal 1 sampai 4 Juli" has `scheduled_dates: ["YYYY-07-01", "YYYY-07-02", "YYYY-07-03", "YYYY-07-04"]`.
