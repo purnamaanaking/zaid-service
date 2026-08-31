@@ -108,6 +108,7 @@ class PromptCommandService
     private function create(PromptRequest $request, User $user, array $data): array
     {
         $candidates = $data['document_candidates'] ?? [];
+        if (empty($data['description']) && preg_match('/(?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?/i', (string) ($data['human_response'] ?? ''), $matches)) $data['description'] = 'Agenda: '.($data['title'] ?? 'jadwal').'. '.rtrim(str_starts_with($matches[0], 'http') ? $matches[0] : 'https://'.$matches[0], '.,;:');
         $dates = ! empty($data['recurrence']) ? $this->recurrenceDates($data) : ($data['scheduled_dates'] ?? [$data['scheduled_date'] ?? now('Asia/Jakarta')->format('Y-m-d')]);
         $events = $candidates ? collect($candidates)->map(fn ($candidate) => CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($candidate))) : collect($dates)->map(function ($date) use ($user, $data) { $data['scheduled_date'] = $date; return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($data)); });
         $events->each(fn ($event) => $this->action($request, 'create', $event, $data));

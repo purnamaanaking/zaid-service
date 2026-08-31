@@ -153,6 +153,29 @@ class PromptEventCommandTest extends TestCase
         $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'title' => 'Sidang TA: Ahmad', 'starts_at' => '2026-07-27 08:00:00', 'ends_at' => '2026-07-27 09:30:00']);
     }
 
+    public function test_create_prompt_stores_link_from_confirmation_response(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => .98,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => [
+                'action' => 'CREATE_EVENTS',
+                'title' => 'Sosialisasi Metodologi Penelitian',
+                'scheduled_date' => '2026-08-31',
+                'scheduled_time' => '13:00:00',
+                'human_response' => 'Jadwal sudah dibuat dengan link Zoom tel-u.ac.id/metpengganjil2627.',
+            ],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'ya'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'description' => 'Agenda: Sosialisasi Metodologi Penelitian. https://tel-u.ac.id/metpengganjil2627']);
+    }
+
     public function test_create_prompt_makes_events_for_each_explicit_date(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
