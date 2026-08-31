@@ -86,7 +86,7 @@ class AgendaCommandCoverageTest extends TestCase
         CalendarEvent::query()->create(['user_id' => $user->id, 'title' => 'Meeting', 'starts_at' => '2026-07-24 08:00:00', 'timezone' => 'Asia/Jakarta']);
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'minggu ini terlalu sibuk gak?'])
-            ->assertOk()->assertJsonPath('data.human_response', "Minggu ini cukup padat.\n\n1. Meeting · 24 Jul, 08:00\n\n1 jadwal ditemukan.");
+            ->assertOk()->assertJsonPath('data.human_response', "Minggu ini cukup padat.\n\n1. Meeting · Jumat, 24 Jul 2026 · 08:00\n\n1 jadwal ditemukan.");
     }
 
     public function test_list_replaces_ai_event_list_with_one_canonical_time_range(): void
@@ -97,7 +97,7 @@ class AgendaCommandCoverageTest extends TestCase
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => '1 minggu kedepan ada jadwal apa aja coba list'])
             ->assertOk()
-            ->assertJsonPath('data.human_response', "Agenda kamu:\n\n1. Meeting · 24 Jul, 08:00-18:00")
+            ->assertJsonPath('data.human_response', "Agenda kamu:\n\n1. Meeting · Jumat, 24 Jul 2026 · 08:00-18:00")
             ->assertJsonPath('data.result.items.0.title', 'Meeting')
             ->assertJsonCount(1, 'data.result.items');
     }
@@ -120,7 +120,7 @@ class AgendaCommandCoverageTest extends TestCase
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'list jadwal seminggu ke depan'])
             ->assertOk()
-            ->assertJsonPath('data.human_response', "Agenda kamu:\n\n1. Lomba gemastik · 23 Aug, 09:00");
+            ->assertJsonPath('data.human_response', "Agenda kamu:\n\n1. Lomba gemastik · Minggu, 23 Agt 2026 · 09:00");
     }
 
     public function test_list_replaces_ai_empty_message_when_events_exist(): void
@@ -131,7 +131,7 @@ class AgendaCommandCoverageTest extends TestCase
 
         $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'list jadwal seminggu ke depan'])
             ->assertOk()
-            ->assertJsonPath('data.human_response', "Agenda kamu:\n\n1. Lomba gemastik · 23 Aug, 09:00");
+            ->assertJsonPath('data.human_response', "Agenda kamu:\n\n1. Lomba gemastik · Minggu, 23 Agt 2026 · 09:00");
     }
 
     public function test_lists_only_requested_week(): void
