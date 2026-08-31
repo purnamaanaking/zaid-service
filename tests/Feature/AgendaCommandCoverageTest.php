@@ -89,6 +89,23 @@ class AgendaCommandCoverageTest extends TestCase
             ->assertOk()->assertJsonPath('data.human_response', "Minggu ini cukup padat.\n\n1. Meeting · Jumat, 24 Jul 2026 · 08:00\n\n1 jadwal ditemukan.");
     }
 
+    public function test_link_request_returns_zoom_url_from_matching_agenda(): void
+    {
+        $user = User::factory()->active()->create();
+        $event = CalendarEvent::query()->create([
+            'user_id' => $user->id,
+            'title' => 'Sosialisasi Magang/KP dan Capstone Design & Project',
+            'description' => 'Link Zoom: https://tel-u.ac.id/magangkpcapstone',
+            'starts_at' => '2026-08-31 10:00:00',
+            'timezone' => 'Asia/Jakarta',
+        ]);
+        $this->parser(['action' => 'GET_EVENT_LINK', 'target_event_id' => $event->id]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'kasih gua link zoom capstone'])
+            ->assertOk()
+            ->assertJsonPath('data.human_response', 'Link Zoom untuk Sosialisasi Magang/KP dan Capstone Design & Project adalah https://tel-u.ac.id/magangkpcapstone');
+    }
+
     public function test_list_replaces_ai_event_list_with_one_canonical_time_range(): void
     {
         $this->parser(['action' => 'LIST_EVENTS', 'from' => '2026-07-22', 'to' => '2026-07-28', 'human_response' => "Agenda minggu ini:\n1. Meeting - 24 Juli 2026 pukul 08:00"]);

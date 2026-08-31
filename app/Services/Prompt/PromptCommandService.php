@@ -55,7 +55,7 @@ class PromptCommandService
 
         $action = strtoupper($data['action'] ?? $parsed['intent'] ?? 'LIST_EVENTS');
         $confidence = (float) ($parsed['confidence_score'] ?? 0);
-        if (($parsed['requires_confirmation'] ?? false) || ($confidence < .7 && ! in_array($action, ['RECAP', 'COUNT_EVENTS', 'SEARCH_EVENTS', 'CHECK_CONFLICTS', 'CHECK_AVAILABILITY', 'FIND_FREE_SLOT', 'LIST_EVENTS', 'READ'], true))) {
+        if (($parsed['requires_confirmation'] ?? false) || ($confidence < .7 && ! in_array($action, ['RECAP', 'COUNT_EVENTS', 'SEARCH_EVENTS', 'GET_EVENT_LINK', 'CHECK_CONFLICTS', 'CHECK_AVAILABILITY', 'FIND_FREE_SLOT', 'LIST_EVENTS', 'READ'], true))) {
             $request->update(['execution_status' => 'awaiting_confirmation', 'execution_summary' => ['command' => $data, 'reason' => $confidence < .7 ? 'low_confidence' : 'ai_requested_confirmation']]);
             return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => $request->intent, 'confidence_score' => $confidence, 'requires_confirmation' => true, 'confirmation' => ['question' => $data['human_response'] ?? 'Aku kurang yakin. Lanjutkan aksi ini?', 'entities' => $data], 'result' => null, 'human_response' => $data['human_response'] ?? 'Aku kurang yakin. Lanjutkan aksi ini?'];
         }
@@ -77,23 +77,25 @@ class PromptCommandService
             'DELETE', 'DELETE_EVENTS' => $this->delete($request, $user, $data),
             'SET_REMINDER', 'UPDATE_REMINDER' => $this->reminder($request, $user, $data),
             'DELETE_REMINDER' => $this->removeReminder($request, $user, $data),
-            'RECAP', 'COUNT_EVENTS', 'SEARCH_EVENTS', 'CHECK_CONFLICTS', 'CHECK_AVAILABILITY', 'FIND_FREE_SLOT', 'LIST_EVENTS', 'READ' => $this->read($request, $user, $data),
+            'RECAP', 'COUNT_EVENTS', 'SEARCH_EVENTS', 'GET_EVENT_LINK', 'CHECK_CONFLICTS', 'CHECK_AVAILABILITY', 'FIND_FREE_SLOT', 'LIST_EVENTS', 'READ' => $this->read($request, $user, $data),
             default => $this->finish($request, 'failed', $data['human_response'] ?? 'Perintah agenda belum dikenali.'),
         });
     }
 
     private function read(PromptRequest $request, User $user, array $data): array
     {
-        if (strtoupper($data['action'] ?? '') !== 'SEARCH_EVENTS') unset($data['search_query']);
+        if (! in_array(strtoupper($data['action'] ?? ''), ['SEARCH_EVENTS', 'GET_EVENT_LINK'], true)) unset($data['search_query']);
         $events = $this->events($user, $data);
         $items = $this->items($events);
-        $fallback = $events->isEmpty() ? 'Belum ada agenda.' : 'Agenda kamu:';
-        $reply = $this->reply($data, $fallback);
-        if (! $events->isEmpty()) {
+        $linkEvent = strtoupper($data['action'] ?? '') === 'GET_EVENT_LINK' ? $events->first(fn (CalendarEvent $event) => preg_match('/https?:\/\/[^\s]+/i', (string) $event->description)) : null;
+        preg_match('/https?:\/\/[^\s]+/i', (string) $linkEvent?->description, $matches);
+        $fallback = isset($matches[0]) ? 'Link Zoom untuk '.$linkEvent->title.' adalah '.$matches[0] : ($events->isEmpty() ? 'Belum ada agenda.' : 'Agenda kamu:');
+        $reply = isset($matches[0]) ? $fallback : $this->reply($data, $fallback);
+        if (! $events->isEmpty() && ! isset($matches[0])) {
             $list = $events->values()->map(fn ($event, $index) => ($index + 1).'. '.$event->title.' · '.$event->starts_at->locale('id')->translatedFormat('l, d M Y').' · '.$event->starts_at->format('H:i').($event->ends_at ? '-'.$event->ends_at->format('H:i') : ''))->implode("\n");
             if (in_array(strtoupper($data['action'] ?? ''), ['LIST_EVENTS', 'READ', 'SEARCH_EVENTS', 'RECAP'], true)) $reply = 'Agenda kamu:';
             $reply .= "\n\n".$list;
-        } elseif (empty($data['human_response'])) {
+        } elseif ($events->isEmpty() && empty($data['human_response'])) {
             $reply = 'Belum ada agenda untuk rentang tersebut.';
         }
         if (in_array(strtoupper($data['action'] ?? ''), ['CHECK_AVAILABILITY', 'CHECK_CONFLICTS', 'COUNT_EVENTS'], true)) $reply .= "\n\n".$events->count().' jadwal ditemukan.';

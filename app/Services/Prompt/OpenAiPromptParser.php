@@ -22,7 +22,7 @@ JSON format:
   "parse_status": "parsed" | "ambiguous" | "unsupported" | "failed",
   "requires_confirmation": true | false,
   "entities": {
-    "action": "LIST_EVENTS|RECAP|COUNT_EVENTS|SEARCH_EVENTS|CHECK_CONFLICTS|CHECK_AVAILABILITY|FIND_FREE_SLOT|CREATE_EVENTS|UPDATE_EVENTS|RESCHEDULE_EVENTS|DELETE_EVENTS|SET_REMINDER|UPDATE_REMINDER|DELETE_REMINDER",
+    "action": "LIST_EVENTS|RECAP|COUNT_EVENTS|SEARCH_EVENTS|GET_EVENT_LINK|CHECK_CONFLICTS|CHECK_AVAILABILITY|FIND_FREE_SLOT|CREATE_EVENTS|UPDATE_EVENTS|RESCHEDULE_EVENTS|DELETE_EVENTS|SET_REMINDER|UPDATE_REMINDER|DELETE_REMINDER",
     "human_response": "natural Indonesian reply after successful execution",
     "from": "YYYY-MM-DD or null",
     "to": "YYYY-MM-DD or null",
@@ -61,7 +61,7 @@ Rules:
 - READ includes asking what schedule exists on a date or range, whether a day is free, when a task happens, or what agenda exists. Preserve range phrases such as "satu minggu terakhir" in search_query; do not collapse them into one date.
 - UPDATE includes moving/rescheduling/renaming an existing task even when the user says things like "geser", "pindahin", "ganti", or "yang gym itu ubah ke pagi".
 - DELETE includes canceling/removing a task even when the user says things like "hapus", "bat", "batal", "batalkan", or "yang meeting itu ga jadi".
-- If intent is READ, set search_query to capture the user's filter criteria in natural language. For factual follow-up questions answered by conversation context, such as "itu bulan apa?", put the direct answer in `human_response` and do not query events.
+- If intent is READ, set search_query to capture the user's filter criteria in natural language. For a request for event Zoom/meeting link, use `GET_EVENT_LINK` and set `search_query` only to event keywords, excluding words such as "link", "Zoom", or "kasih". For factual follow-up questions answered by conversation context, such as "itu bulan apa?", put the direct answer in `human_response` and do not query events.
 - If command is unclear or ambiguous but still task/calendar related, prefer `parse_status: "ambiguous"` instead of `unsupported`.
 - Use `unsupported` only when the request is clearly outside task/calendar assistant scope.
 - Forwarded announcements, invitations, posters, screenshots, or meeting details are not an instruction to save immediately. Extract title, date, time, location, and agenda into description, choose `entity_type: "event"`, set `intent: "CREATE"`, and set `requires_confirmation: true`.
