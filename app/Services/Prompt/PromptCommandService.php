@@ -88,9 +88,11 @@ class PromptCommandService
         $events = $this->events($user, $data);
         $items = $this->items($events);
         $isLinkRequest = strtoupper($data['action'] ?? '') === 'GET_EVENT_LINK';
-        $linkEvent = $isLinkRequest ? $events->first(fn (CalendarEvent $event) => preg_match('/https?:\/\/[^\s]+/i', (string) $event->description)) : null;
-        preg_match('/https?:\/\/[^\s]+/i', (string) $linkEvent?->description, $matches);
-        $fallback = isset($matches[0]) ? 'Link Zoom untuk '.$linkEvent->title.' adalah '.$matches[0] : ($isLinkRequest && $events->isNotEmpty() ? 'Link Zoom untuk '.$events->first()->title.' belum tersedia dalam data saya.' : ($events->isEmpty() ? 'Belum ada agenda.' : 'Agenda kamu:'));
+        $linkPattern = '/(?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?/i';
+        $linkEvent = $isLinkRequest ? $events->first(fn (CalendarEvent $event) => preg_match($linkPattern, (string) $event->description)) : null;
+        preg_match($linkPattern, (string) $linkEvent?->description, $matches);
+        $link = isset($matches[0]) ? (str_starts_with($matches[0], 'http') ? $matches[0] : 'https://'.$matches[0]) : null;
+        $fallback = $link ? 'Link Zoom untuk '.$linkEvent->title.' adalah '.$link : ($isLinkRequest && $events->isNotEmpty() ? 'Link Zoom untuk '.$events->first()->title.' belum tersedia dalam data saya.' : ($events->isEmpty() ? 'Belum ada agenda.' : 'Agenda kamu:'));
         $reply = $isLinkRequest ? $fallback : $this->reply($data, $fallback);
         if (! $events->isEmpty() && ! $isLinkRequest) {
             $list = $events->values()->map(fn ($event, $index) => ($index + 1).'. '.$event->title.' · '.$event->starts_at->locale('id')->translatedFormat('l, d M Y').' · '.$event->starts_at->format('H:i').($event->ends_at ? '-'.$event->ends_at->format('H:i') : ''))->implode("\n");

@@ -106,6 +106,23 @@ class AgendaCommandCoverageTest extends TestCase
             ->assertJsonPath('data.human_response', 'Link Zoom untuk Sosialisasi Magang/KP dan Capstone Design & Project adalah https://tel-u.ac.id/magangkpcapstone');
     }
 
+    public function test_link_request_returns_url_without_scheme_from_matching_agenda(): void
+    {
+        $user = User::factory()->active()->create();
+        $event = CalendarEvent::query()->create([
+            'user_id' => $user->id,
+            'title' => 'Sosialisasi Metodologi Penelitian',
+            'description' => 'Link Zoom: tel-u.ac.id/metpengganjil2627',
+            'starts_at' => '2026-08-31 13:00:00',
+            'timezone' => 'Asia/Jakarta',
+        ]);
+        $this->parser(['action' => 'GET_EVENT_LINK', 'target_event_id' => $event->id]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', ['text' => 'mana link zoomnya?'])
+            ->assertOk()
+            ->assertJsonPath('data.human_response', 'Link Zoom untuk Sosialisasi Metodologi Penelitian adalah https://tel-u.ac.id/metpengganjil2627');
+    }
+
     public function test_link_request_without_url_does_not_append_agenda_list(): void
     {
         $user = User::factory()->active()->create();
