@@ -886,8 +886,21 @@ summary {
     .flow-connector span,
     .flow-node,
     .hero-enter,
-    .hero-visual-enter {
-        animation: none;
+    .hero-visual-enter,
+    .anim-star-1,
+    .anim-star-2,
+    .anim-star-3,
+    .anim-star-4,
+    .anim-aurora-1,
+    .anim-aurora-2,
+    .anim-circuit,
+    .anim-beam-1,
+    .anim-beam-2,
+    .anim-beam-3,
+    .anim-beam-4,
+    .anim-node-ping,
+    .anim-cta-glow {
+        animation: none !important;
     }
 
     .button-primary,
@@ -896,4 +909,70 @@ summary {
     .faq-icon {
         transition-duration: 0ms;
     }
+}
+
+/* Motion Design: Starfield, Circuit Flow, Aurora Drift, Laser Shimmer */
+@keyframes starTwinkle {
+    0%, 100% { opacity: 0.15; transform: scale(0.8); }
+    50% { opacity: 0.95; transform: scale(1.3); }
+}
+
+@keyframes auroraDriftOne {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-30px, 20px) scale(1.08); }
+}
+
+@keyframes auroraDriftTwo {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(25px, -20px) scale(1.06); }
+}
+
+@keyframes circuitFlow {
+    from { stroke-dashoffset: 48; }
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes beamShimmer {
+    0%, 100% { transform: scaleY(0.75); opacity: 0.4; }
+    50% { transform: scaleY(1.18); opacity: 0.95; }
+}
+
+@keyframes nodePing {
+    0% { transform: scale(1); opacity: 0.85; }
+    100% { transform: scale(2.8); opacity: 0; }
+}
+
+@keyframes ctaPulse {
+    0%, 100% {
+        box-shadow: 0 0 24px rgba(255, 255, 255, 0.25);
+    }
+    50% {
+        box-shadow: 0 0 45px rgba(216, 180, 254, 0.48);
+    }
+}
+
+.anim-star-1 { animation: starTwinkle 3.2s ease-in-out infinite; }
+.anim-star-2 { animation: starTwinkle 4.5s ease-in-out infinite 1.2s; }
+.anim-star-3 { animation: starTwinkle 3.8s ease-in-out infinite 2.1s; }
+.anim-star-4 { animation: starTwinkle 5.1s ease-in-out infinite 0.7s; }
+
+.anim-aurora-1 { animation: auroraDriftOne 14s ease-in-out infinite alternate; }
+.anim-aurora-2 { animation: auroraDriftTwo 16s ease-in-out infinite alternate; }
+
+.anim-circuit {
+    stroke-dasharray: 6 8;
+    animation: circuitFlow 3s linear infinite;
+}
+
+.anim-beam-1 { animation: beamShimmer 2.4s ease-in-out infinite; transform-origin: top; }
+.anim-beam-2 { animation: beamShimmer 3.1s ease-in-out infinite 0.5s; transform-origin: top; }
+.anim-beam-3 { animation: beamShimmer 2.8s ease-in-out infinite 1s; transform-origin: top; }
+.anim-beam-4 { animation: beamShimmer 3.5s ease-in-out infinite 1.5s; transform-origin: top; }
+
+.anim-node-ping {
+    animation: nodePing 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.anim-cta-glow {
+    animation: ctaPulse 3.5s ease-in-out infinite;
 }
