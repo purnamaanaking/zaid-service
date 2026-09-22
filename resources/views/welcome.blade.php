@@ -33,51 +33,8 @@
     <div class="pointer-events-none absolute -bottom-28 -left-28 h-[650px] w-[650px] rounded-full bg-gradient-to-tr from-violet-600/25 via-fuchsia-600/15 to-transparent blur-[160px] anim-aurora-2" aria-hidden="true"></div>
     <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:26px_26px] opacity-40" aria-hidden="true"></div>
 
-    <!-- Twinkling Starfield Sky Layer -->
-    <svg class="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
-        <!-- Tiny stars group 1 -->
-        <g class="anim-star-1 fill-white">
-            <circle cx="7%" cy="14%" r="1" />
-            <circle cx="21%" cy="26%" r="1.3" />
-            <circle cx="34%" cy="12%" r="0.8" />
-            <circle cx="48%" cy="20%" r="1" />
-            <circle cx="63%" cy="16%" r="1.4" />
-            <circle cx="79%" cy="24%" r="0.9" />
-            <circle cx="92%" cy="17%" r="1.2" />
-            <circle cx="14%" cy="75%" r="1.1" />
-            <circle cx="86%" cy="68%" r="0.8" />
-        </g>
-        <!-- Tiny stars group 2 -->
-        <g class="anim-star-2 fill-teal-200">
-            <circle cx="11%" cy="38%" r="1.2" />
-            <circle cx="27%" cy="17%" r="0.8" />
-            <circle cx="41%" cy="30%" r="1.4" />
-            <circle cx="57%" cy="14%" r="1" />
-            <circle cx="73%" cy="34%" r="1.2" />
-            <circle cx="89%" cy="40%" r="0.9" />
-            <circle cx="26%" cy="82%" r="1.3" />
-            <circle cx="71%" cy="78%" r="1" />
-        </g>
-        <!-- Tiny stars group 3 -->
-        <g class="anim-star-3 fill-violet-200">
-            <circle cx="5%" cy="52%" r="1" />
-            <circle cx="19%" cy="62%" r="1.3" />
-            <circle cx="37%" cy="72%" r="0.9" />
-            <circle cx="51%" cy="80%" r="1.2" />
-            <circle cx="67%" cy="62%" r="0.8" />
-            <circle cx="81%" cy="56%" r="1.4" />
-            <circle cx="95%" cy="72%" r="1" />
-        </g>
-        <!-- Diamond twinkle stars -->
-        <g class="anim-star-4 stroke-white/80 fill-none stroke-[0.8]">
-            <path d="M 170 85 L 170 93 M 166 89 L 174 89" />
-            <path d="M 860 105 L 860 113 M 856 109 L 864 109" />
-            <path d="M 310 200 L 310 208 M 306 204 L 314 204" stroke="#a7f3d0" />
-            <path d="M 970 220 L 970 228 M 966 224 L 974 224" stroke="#e9d5ff" />
-            <path d="M 230 460 L 230 468 M 226 464 L 234 464" stroke="#c4b5fd" />
-            <path d="M 890 480 L 890 488 M 886 484 L 894 484" />
-        </g>
-    </svg>
+    <!-- Dynamic Random Starfield & Stardust Canvas -->
+    <canvas id="sky-canvas" class="pointer-events-none absolute inset-0 h-full w-full z-10" aria-hidden="true"></canvas>
 
     <!-- Top Navigation Bar -->
     <header class="relative z-30 flex items-center justify-between px-6 sm:px-10 pt-5 sm:pt-6">
@@ -180,7 +137,7 @@
     </svg>
 
     <!-- Node 1: Top-Left (Voice Note NLP) -->
-    <div class="hidden lg:block absolute left-[175px] top-[29%] z-20 pointer-events-none text-left">
+    <div class="hidden lg:block absolute left-[175px] top-[29%] z-20 pointer-events-none text-left anim-float-1">
         <div class="flex items-center gap-1.5 text-xs font-semibold text-white tracking-wide">
             <span class="relative flex h-2 w-2">
                 <span class="anim-node-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
@@ -192,7 +149,7 @@
     </div>
 
     <!-- Node 2: Bottom-Left (WhatsApp Reminders) -->
-    <div class="hidden lg:block absolute left-[145px] top-[60.5%] z-20 pointer-events-none text-left">
+    <div class="hidden lg:block absolute left-[145px] top-[60.5%] z-20 pointer-events-none text-left anim-float-2">
         <div class="flex items-center gap-1.5 text-xs font-semibold text-white tracking-wide">
             <span class="relative flex h-2 w-2">
                 <span class="anim-node-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -204,7 +161,7 @@
     </div>
 
     <!-- Node 3: Top-Right (Google Sign-In) -->
-    <div class="hidden lg:block absolute right-[175px] top-[29%] z-20 pointer-events-none text-right">
+    <div class="hidden lg:block absolute right-[175px] top-[29%] z-20 pointer-events-none text-right anim-float-3">
         <div class="flex items-center justify-end gap-1.5 text-xs font-semibold text-white tracking-wide">
             <span>Google Sign-In</span>
             <span class="relative flex h-2 w-2">
@@ -216,7 +173,7 @@
     </div>
 
     <!-- Node 4: Bottom-Right (Smart Agenda) -->
-    <div class="hidden lg:block absolute right-[145px] top-[60.5%] z-20 pointer-events-none text-right">
+    <div class="hidden lg:block absolute right-[145px] top-[60.5%] z-20 pointer-events-none text-right anim-float-4">
         <div class="flex items-center justify-end gap-1.5 text-xs font-semibold text-white tracking-wide">
             <span>Smart Agenda</span>
             <span class="relative flex h-2 w-2">
@@ -368,6 +325,127 @@
                 modal.close();
             }
         }
+
+        /* Dynamic Random Starfield & Cosmic Dust Movement */
+        (function() {
+            const canvas = document.getElementById('sky-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let w = canvas.width = window.innerWidth;
+            let h = canvas.height = window.innerHeight;
+
+            function resize() {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize, { passive: true });
+
+            const colors = [
+                'rgba(255, 255, 255, ',
+                'rgba(216, 180, 254, ',
+                'rgba(167, 243, 208, ',
+                'rgba(192, 132, 252, '
+            ];
+
+            const particles = [];
+            const count = 90;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    r: Math.random() * 1.5 + 0.6,
+                    vx: (Math.random() - 0.5) * 0.4,
+                    vy: (Math.random() - 0.5) * 0.4,
+                    baseAlpha: Math.random() * 0.45 + 0.25,
+                    phase: Math.random() * Math.PI * 2,
+                    phaseSpeed: Math.random() * 0.03 + 0.015,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                });
+            }
+
+            const shootingStars = [];
+            function spawnShootingStar() {
+                shootingStars.push({
+                    x: Math.random() * w * 0.75,
+                    y: Math.random() * (h * 0.4),
+                    length: Math.random() * 70 + 40,
+                    speed: Math.random() * 4 + 4,
+                    angle: Math.PI / 4 + (Math.random() - 0.5) * 0.25,
+                    opacity: 1
+                });
+                setTimeout(spawnShootingStar, Math.random() * 4500 + 2500);
+            }
+            setTimeout(spawnShootingStar, 1200);
+
+            let mouseOffsetX = 0, mouseOffsetY = 0;
+            window.addEventListener('pointermove', function(e) {
+                mouseOffsetX = (e.clientX / w - 0.5) * 0.15;
+                mouseOffsetY = (e.clientY / h - 0.5) * 0.15;
+            }, { passive: true });
+
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            function render() {
+                ctx.clearRect(0, 0, w, h);
+
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    if (!reduceMotion) {
+                        p.x += p.vx + mouseOffsetX;
+                        p.y += p.vy + mouseOffsetY;
+                        p.phase += p.phaseSpeed;
+
+                        if (p.x < -10) p.x = w + 10;
+                        if (p.x > w + 10) p.x = -10;
+                        if (p.y < -10) p.y = h + 10;
+                        if (p.y > h + 10) p.y = -10;
+                    }
+
+                    const alpha = Math.max(0.1, Math.min(1, p.baseAlpha + Math.sin(p.phase) * 0.35));
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color + alpha + ')';
+                    if (p.r > 1.3) {
+                        ctx.shadowBlur = 6;
+                        ctx.shadowColor = '#d8b4fe';
+                    } else {
+                        ctx.shadowBlur = 0;
+                    }
+                    ctx.fill();
+                }
+
+                for (let j = shootingStars.length - 1; j >= 0; j--) {
+                    const s = shootingStars[j];
+                    s.x += Math.cos(s.angle) * s.speed;
+                    s.y += Math.sin(s.angle) * s.speed;
+                    s.opacity -= 0.018;
+
+                    if (s.opacity <= 0 || s.x > w || s.y > h) {
+                        shootingStars.splice(j, 1);
+                        continue;
+                    }
+
+                    const tailX = s.x - Math.cos(s.angle) * s.length;
+                    const tailY = s.y - Math.sin(s.angle) * s.length;
+
+                    const grad = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
+                    grad.addColorStop(0, 'rgba(216, 180, 254, 0)');
+                    grad.addColorStop(1, 'rgba(255, 255, 255, ' + s.opacity + ')');
+
+                    ctx.beginPath();
+                    ctx.moveTo(tailX, tailY);
+                    ctx.lineTo(s.x, s.y);
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = 1.3;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#fff';
+                    ctx.stroke();
+                }
+
+                requestAnimationFrame(render);
+            }
+            requestAnimationFrame(render);
+        })();
     </script>
 </body>
 </html>

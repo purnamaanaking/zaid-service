@@ -956,8 +956,34 @@ summary {
 .anim-star-3 { animation: starTwinkle 3.8s ease-in-out infinite 2.1s; }
 .anim-star-4 { animation: starTwinkle 5.1s ease-in-out infinite 0.7s; }
 
-.anim-aurora-1 { animation: auroraDriftOne 14s ease-in-out infinite alternate; }
-.anim-aurora-2 { animation: auroraDriftTwo 16s ease-in-out infinite alternate; }
+@keyframes floatNode1 {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    33% { transform: translate3d(4px, -7px, 0); }
+    66% { transform: translate3d(-3px, 5px, 0); }
+}
+
+@keyframes floatNode2 {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    33% { transform: translate3d(-5px, 6px, 0); }
+    66% { transform: translate3d(3px, -4px, 0); }
+}
+
+@keyframes floatNode3 {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    33% { transform: translate3d(-4px, -6px, 0); }
+    66% { transform: translate3d(5px, 4px, 0); }
+}
+
+@keyframes floatNode4 {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    33% { transform: translate3d(6px, 5px, 0); }
+    66% { transform: translate3d(-4px, -5px, 0); }
+}
+
+.anim-float-1 { animation: floatNode1 6.4s ease-in-out infinite; }
+.anim-float-2 { animation: floatNode2 8.1s ease-in-out infinite 0.7s; }
+.anim-float-3 { animation: floatNode3 7.3s ease-in-out infinite 1.4s; }
+.anim-float-4 { animation: floatNode4 8.8s ease-in-out infinite 2.1s; }
 
 .anim-circuit {
     stroke-dasharray: 6 8;
