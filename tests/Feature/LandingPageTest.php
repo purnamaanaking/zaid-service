@@ -31,7 +31,15 @@ class LandingPageTest extends TestCase
             ->assertSee('href="/app"', false)
             ->assertSee('href="/privacy"', false)
             ->assertSee('href="/terms"', false)
-            ->assertSee('href="mailto:zaidassistant@gmail.com"', false);
+            ->assertSee('href="mailto:zaidassistant@gmail.com"', false)
+            ->assertSee('Download App');
+    }
+
+    public function test_download_route_redirects_to_drive_folder(): void
+    {
+        $response = $this->get('/download');
+
+        $response->assertRedirect('https://drive.google.com/drive/folders/11xW8ol-Zi4qBwSxktrdw9BTjIpTM-KcB?usp=drive_link');
     }
 
     public function test_privacy_policy_explains_google_sign_in_only(): void

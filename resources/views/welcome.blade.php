@@ -47,7 +47,10 @@
                 <a class="nav-link" href="#faq">FAQ</a>
             </div>
 
-            <a href="/app" class="button-primary min-h-11 whitespace-nowrap px-5 sm:px-6">Get Started</a>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <a href="https://drive.google.com/drive/folders/11xW8ol-Zi4qBwSxktrdw9BTjIpTM-KcB?usp=drive_link" target="_blank" rel="noopener noreferrer" class="button-secondary min-h-11 whitespace-nowrap px-4 text-sm sm:px-5">Download App</a>
+                <a href="/app" class="button-primary min-h-11 whitespace-nowrap px-5 sm:px-6">Get Started</a>
+            </div>
         </nav>
     </header>
 
@@ -62,7 +65,13 @@
                     An AI-powered productivity assistant that helps users manage schedules, calendars, tasks, reminders, and daily planning.
                 </p>
                 <div class="hero-enter mt-8 flex flex-col gap-3 sm:flex-row">
-                    <a href="/app" class="button-primary min-h-12 px-7">Get Started</a>
+                    <a href="https://drive.google.com/drive/folders/11xW8ol-Zi4qBwSxktrdw9BTjIpTM-KcB?usp=drive_link" target="_blank" rel="noopener noreferrer" class="button-primary min-h-12 px-7 gap-2">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        <span>Download App</span>
+                    </a>
+                    <a href="/app" class="button-secondary min-h-12 px-6">Get Started</a>
                     <a href="/privacy" class="button-secondary min-h-12 px-6">Privacy Policy</a>
                 </div>
             </div>
@@ -255,6 +264,7 @@
                 <span>Copyright © 2026 Zaid Assistant</span>
             </div>
             <nav aria-label="Legal navigation" class="flex flex-wrap gap-x-5 gap-y-3 text-sm text-[#c8bdd2]">
+                <a class="footer-link" href="https://drive.google.com/drive/folders/11xW8ol-Zi4qBwSxktrdw9BTjIpTM-KcB?usp=drive_link" target="_blank" rel="noopener noreferrer">Download App</a>
                 <a class="footer-link" href="/privacy">Privacy Policy</a>
                 <a class="footer-link" href="/terms">Terms of Service</a>
                 <a class="footer-link" href="mailto:zaidassistant@gmail.com">Contact</a>

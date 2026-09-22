@@ -6,6 +6,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/download', function () {
+    return redirect()->away('https://drive.google.com/drive/folders/11xW8ol-Zi4qBwSxktrdw9BTjIpTM-KcB?usp=drive_link');
+});
+
 Route::get('/app', function () {
     return view('app');
 });
