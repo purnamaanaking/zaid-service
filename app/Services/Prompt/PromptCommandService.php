@@ -76,30 +76,16 @@ class PromptCommandService
 
             if ($matchedIdx !== null && isset($data['document_candidates'][$matchedIdx])) {
                 $data['document_candidates'] = [$data['document_candidates'][$matchedIdx]];
-            } else {
-                $filterTerm = '';
-                if (preg_match('/(?:terkait|khusus\s+untuk|khusus|tentang|kategori|yang)\s+([a-z0-9\s\/&-]+)/i', $norm, $m)) {
-                    $rawTarget = $m[1];
-                    $cleanTarget = trim(preg_replace('/\b(aja|saja|bro|pak|dong|ya|dulu|ini|itu|semua|seluruh|jadwal\w*|kegiatan\w*|agenda\w*|nya|list|cek|lihat|baca)\b/i', '', $rawTarget));
-                    if (strlen($cleanTarget) >= 3) {
-                        $filterTerm = $cleanTarget;
-                    }
-                }
-
-                if ($filterTerm === '') {
-                    $noFiles = preg_replace('/\b[a-z0-9_\-\.]+\.(pdf|xlsx|xls|csv|txt)\b/i', '', $norm) ?? $norm;
-                    $rawFilter = trim(preg_replace('/^(catat|jadwal\w*|buatkan|tambahkan|cek|lihat|baca|periksa|list|ekstrak|ambil|impor|\s)+/i', '', $noFiles));
-                    $cleanFilter = trim(preg_replace('/\b(list|dulu|bro|pak|ya|dong|sesuai|pdf\w*|dokumen\w*|file\w*|cek|disni|disini|jadwal\w*|agenda\w*|kegiatan\w*|coba|tolong|bantu|apa\s*aja|ada\s*apa|apa|aja|saja|yang|di|ke|dari|pada|untuk|ini|itu|tersebut|ekstrak|ambil|impor|buat|buatkan|catat|tambah|tambahkan|nya|semua|seluruh)\b/i', '', $rawFilter));
-                    if (strlen($cleanFilter) >= 3) {
-                        $filterTerm = $cleanFilter;
-                    }
-                }
-
-                if ($filterTerm !== '') {
-                    $data['document_candidates'] = collect($data['document_candidates'])
-                        ->filter(fn ($c) => str_contains(mb_strtolower($c['searchable'] ?? $c['title']), mb_strtolower($filterTerm)))
+            } elseif (preg_match('/(?:terkait|khusus\s+untuk|khusus|tentang|kategori)\s+([a-z0-9\s\/&-]+)/i', $text, $m)) {
+                $term = trim(preg_replace('/\b(aja|saja|bro|pak|dong|ya|dulu|ini|itu|semua|seluruh)\b/i', '', $m[1]));
+                if ($term !== '') {
+                    $filtered = collect($data['document_candidates'])
+                        ->filter(fn ($c) => str_contains(mb_strtolower($c['searchable'] ?? $c['title']), mb_strtolower($term)))
                         ->values()
                         ->all();
+                    if (! empty($filtered)) {
+                        $data['document_candidates'] = $filtered;
+                    }
                 }
             }
         }
@@ -109,25 +95,15 @@ class PromptCommandService
             if (preg_match('/\b(cek|lihat|baca|periksa|ada apa|apa aja|list|tampilkan)\b/i', $text) && ! preg_match('/\b(catat|buat|buatkan|tambah|tambahkan|jadwalkan|masukkan)\b/i', $text)) {
                 $data['action'] = 'LIST_EVENTS';
                 $parsed['intent'] = 'READ';
+                if (preg_match('/\b(sudah|telah)\s+(saya\s+)?(tambahkan|masukkan|catat|buat)/i', (string) ($data['human_response'] ?? ''))) {
+                    $data['human_response'] = null;
+                }
             }
         }
 
-        $isReadQuery = preg_match('/\b(list|daftar|ada apa|apa aja|sebutkan|tampilkan|sesuai|lihat|cek|baca|periksa)\b/i', $text)
-            || ($documentText !== '' && ! in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['CREATE_EVENTS', 'CREATE'], true));
-
-        // If user is asking to list/check schedules from document
-        if ($isReadQuery && ! empty($data['document_candidates'])) {
-            $count = count($data['document_candidates']);
+        if (in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['LIST_EVENTS', 'READ'], true) && ! empty($data['document_candidates']) && empty($data['human_response'])) {
             $listItems = collect($data['document_candidates'])->map(fn ($c, $i) => ($i + 1).'. '.$c['title'].' · '.$c['scheduled_date'].' ('.substr($c['scheduled_time'], 0, 5).'-'.substr($c['scheduled_end_time'], 0, 5).')'.(! empty($c['category']) ? ' ['.$c['category'].']' : ''))->implode("\n");
-            $reply = "Daftar jadwal di dokumen ({$count} kegiatan):\n\n".$listItems."\n\nMau catat semua jadwal, atau khusus kegiatan tertentu?";
-            $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => 'READ', 'confidence_score' => 1.0, 'parse_status' => 'ambiguous', 'extracted_entities' => $data, 'execution_status' => 'awaiting_confirmation', 'execution_summary' => ['human_response' => $reply]]);
-            return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => 'READ', 'confidence_score' => 1.0, 'requires_confirmation' => true, 'confirmation' => ['question' => $reply, 'entities' => $data], 'result' => null, 'human_response' => $reply];
-        }
-
-        if ($isReadQuery && empty($data['document_candidates']) && ! empty($filterTerm) && ! empty($data['document_text'])) {
-            $reply = "Tidak ditemukan jadwal terkait '{$filterTerm}' di dokumen tersebut.";
-            $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => 'READ', 'confidence_score' => 1.0, 'parse_status' => 'parsed', 'extracted_entities' => $data, 'execution_status' => 'executed', 'execution_summary' => ['human_response' => $reply]]);
-            return ['prompt_request_id' => $request->id, 'parse_status' => 'parsed', 'intent' => 'READ', 'confidence_score' => 1.0, 'requires_confirmation' => false, 'result' => null, 'human_response' => $reply];
+            $data['human_response'] = "Daftar jadwal di dokumen (".count($data['document_candidates'])." kegiatan):\n\n".$listItems."\n\nMau catat semua jadwal, atau khusus kegiatan tertentu?";
         }
 
         // If multiple candidates detected from document for creation, require confirmation first unless user said "semua"
@@ -186,6 +162,10 @@ class PromptCommandService
 
     private function read(PromptRequest $request, User $user, array $data): array
     {
+        if (! empty($data['document_text']) && filled($data['human_response'] ?? null)) {
+            return $this->finish($request, 'executed', $data['human_response']);
+        }
+
         if (! in_array(strtoupper($data['action'] ?? ''), ['SEARCH_EVENTS', 'GET_EVENT_LINK'], true)) unset($data['search_query']);
         $events = $this->events($user, $data);
         $items = $this->items($events);

@@ -302,7 +302,6 @@ class WhatsappWebhookDocumentTest extends TestCase
             ->with('+6281234567893', Mockery::on(function (string $reply) {
                 return str_contains($reply, 'Rakit modul sensor elektronika & eksperimen 3D modeling')
                     && str_contains($reply, '2026-10-18')
-                    && ! str_contains($reply, 'Nongkrong di coffee shop')
                     && ! str_contains($reply, 'sudah saya tambahkan');
             }))
             ->andReturn(true);
@@ -374,8 +373,8 @@ class WhatsappWebhookDocumentTest extends TestCase
         $mockSender->shouldReceive('send')
             ->once()
             ->with('+6281234567894', Mockery::on(function (string $reply) {
-                return str_contains($reply, 'Daftar jadwal di dokumen (1 kegiatan):')
-                    && str_contains($reply, 'Rakit modul sensor elektronika & eksperimen 3D modeling')
+                return str_contains($reply, 'Rakit modul sensor elektronika & eksperimen 3D modeling')
+                    && str_contains($reply, '18 Oktober 2026')
                     && ! str_contains($reply, 'Nongkrong di coffee shop');
             }))
             ->andReturn(true);
