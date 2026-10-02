@@ -70,6 +70,9 @@ class DocumentTextExtractor
             throw ValidationException::withMessages(['file' => 'Format dokumen belum didukung. Gunakan PDF, CSV, XLS, atau XLSX.']);
         }
 
-        return mb_substr(trim(preg_replace('/\s+/', ' ', $text) ?? ''), 0, 40000);
+        $text = preg_replace('/[ \t]+$/m', '', $text) ?? $text;
+        $text = preg_replace('/(\r?\n){3,}/', "\n\n", $text) ?? $text;
+
+        return mb_substr(trim($text), 0, 40000);
     }
 }

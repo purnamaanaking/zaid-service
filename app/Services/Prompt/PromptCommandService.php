@@ -59,25 +59,44 @@ class PromptCommandService
                 if (preg_match('/(?:terkait|khusus\s+untuk|khusus|tentang|kategori)\s+([a-z0-9\s\/&-]+)/i', $text, $m)) {
                     $rawFilter = $m[1];
                 } else {
-                    $rawFilter = trim(preg_replace('/^(catat|jadwal|buatkan|tambahkan|\s)+/i', '', $text));
+                    $noFiles = preg_replace('/\b[a-z0-9_\-\.]+\.(pdf|xlsx|xls|csv|txt)\b/i', '', $text) ?? $text;
+                    $rawFilter = trim(preg_replace('/^(catat|jadwal\w*|buatkan|tambahkan|cek|lihat|baca|periksa|list|ekstrak|ambil|impor|\s)+/i', '', $noFiles));
                 }
-                $filterTerm = trim(preg_replace('/\b(list|dulu|bro|pak|ya|dong|sesuai|pdfnya|pdf|dokumen\w*|file\w*)\b/i', '', $rawFilter));
+                $filterTerm = trim(preg_replace('/\b(list|dulu|bro|pak|ya|dong|sesuai|pdf\w*|dokumen\w*|file\w*|cek|disni|disini|jadwal\w*|agenda\w*|kegiatan\w*|coba|tolong|bantu|apa\s*aja|ada\s*apa|apa|aja|saja|yang|di|ke|dari|pada|untuk|ini|itu|tersebut|ekstrak|ambil|impor|buat|buatkan|catat|tambah|tambahkan)\b/i', '', $rawFilter));
 
-                if ($filterTerm !== '' && ! preg_match('/\b(semua|seluruh)\b/i', $filterTerm)) {
-                    $filtered = collect($data['document_candidates'])->filter(fn ($c) => str_contains(mb_strtolower($c['searchable'] ?? $c['title']), mb_strtolower($filterTerm)))->values()->all();
-                    if (! empty($filtered)) {
-                        $data['document_candidates'] = $filtered;
-                    }
+                if (strlen($filterTerm) >= 3 && ! preg_match('/\b(semua|seluruh)\b/i', $filterTerm)) {
+                    $data['document_candidates'] = collect($data['document_candidates'])
+                        ->filter(fn ($c) => str_contains(mb_strtolower($c['searchable'] ?? $c['title']), mb_strtolower($filterTerm)))
+                        ->values()
+                        ->all();
                 }
             }
         }
 
-        // If user is asking to list schedules from the document (e.g. "List jadwal di pdf apa aja", "sesuai pdf", "jadwal di file apa aja")
-        if (preg_match('/\b(list|daftar|ada apa|apa aja|sebutkan|tampilkan|sesuai|lihat|cek)\b.*\b(pdf\w*|dokumen\w*|jadwal\w*|excel\w*|file\w*)\b/i', $text) && ! empty($data['document_candidates'])) {
+        // Safety guard: if intent/action is CREATE but user only asked to check/view, force to READ
+        if (in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['CREATE_EVENTS', 'CREATE'], true)) {
+            if (preg_match('/\b(cek|lihat|baca|periksa|ada apa|apa aja|list|tampilkan)\b/i', $text) && ! preg_match('/\b(catat|buat|buatkan|tambah|tambahkan|jadwalkan|masukkan)\b/i', $text)) {
+                $data['action'] = 'LIST_EVENTS';
+                $parsed['intent'] = 'READ';
+            }
+        }
+
+        $isReadQuery = preg_match('/\b(list|daftar|ada apa|apa aja|sebutkan|tampilkan|sesuai|lihat|cek|baca|periksa)\b/i', $text)
+            || ! in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['CREATE_EVENTS', 'CREATE'], true);
+
+        // If user is asking to list/check schedules from document
+        if ($isReadQuery && ! empty($data['document_candidates'])) {
+            $count = count($data['document_candidates']);
             $listItems = collect($data['document_candidates'])->map(fn ($c, $i) => ($i + 1).'. '.$c['title'].' · '.$c['scheduled_date'].' ('.substr($c['scheduled_time'], 0, 5).'-'.substr($c['scheduled_end_time'], 0, 5).')'.(! empty($c['category']) ? ' ['.$c['category'].']' : ''))->implode("\n");
-            $reply = "Daftar jadwal di dokumen (".count($data['document_candidates'])." kegiatan):\n\n".$listItems."\n\nMau catat semua jadwal, atau khusus kegiatan tertentu?";
+            $reply = "Daftar jadwal di dokumen ({$count} kegiatan):\n\n".$listItems."\n\nMau catat semua jadwal, atau khusus kegiatan tertentu?";
             $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => 'READ', 'confidence_score' => 1.0, 'parse_status' => 'ambiguous', 'extracted_entities' => $data, 'execution_status' => 'awaiting_confirmation', 'execution_summary' => ['human_response' => $reply]]);
             return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => 'READ', 'confidence_score' => 1.0, 'requires_confirmation' => true, 'confirmation' => ['question' => $reply, 'entities' => $data], 'result' => null, 'human_response' => $reply];
+        }
+
+        if ($isReadQuery && empty($data['document_candidates']) && ! empty($filterTerm) && ! empty($data['document_text'])) {
+            $reply = "Tidak ditemukan jadwal terkait '{$filterTerm}' di dokumen tersebut.";
+            $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => 'READ', 'confidence_score' => 1.0, 'parse_status' => 'parsed', 'extracted_entities' => $data, 'execution_status' => 'executed', 'execution_summary' => ['human_response' => $reply]]);
+            return ['prompt_request_id' => $request->id, 'parse_status' => 'parsed', 'intent' => 'READ', 'confidence_score' => 1.0, 'requires_confirmation' => false, 'result' => null, 'human_response' => $reply];
         }
 
         // If multiple candidates detected from document for creation, require confirmation first unless user said "semua"

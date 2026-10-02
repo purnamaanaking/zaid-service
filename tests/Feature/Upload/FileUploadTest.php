@@ -36,7 +36,7 @@ class FileUploadTest extends TestCase
         $this->actingAs($user, 'sanctum')->post('/api/v1/upload', ['file' => $file, 'type' => 'document'])
             ->assertOk()
             ->assertJsonPath('data.type', 'document')
-            ->assertJsonPath('data.extracted_text', 'Tanggal,Acara 2026-08-23,Lomba gemastik');
+            ->assertJsonPath('data.extracted_text', "Tanggal,Acara\n2026-08-23,Lomba gemastik");
     }
 
     public function test_verified_user_can_upload_xlsx_schedule(): void
@@ -51,7 +51,7 @@ class FileUploadTest extends TestCase
 
         $this->actingAs($user, 'sanctum')->post('/api/v1/upload', ['file' => $file, 'type' => 'document'])
             ->assertOk()
-            ->assertJsonPath('data.extracted_text', 'Tanggal | Acara 2026-08-23 | Lomba gemastik');
+            ->assertJsonPath('data.extracted_text', "Tanggal | Acara\n2026-08-23 | Lomba gemastik");
     }
 
     public function test_unverified_user_cannot_upload(): void

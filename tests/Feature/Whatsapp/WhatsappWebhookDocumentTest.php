@@ -266,4 +266,82 @@ class WhatsappWebhookDocumentTest extends TestCase
             'title' => 'Standup meeting',
         ]);
     }
+
+    public function test_space_delimited_pdf_with_cek_jadwal_hobi_never_creates_and_only_lists_hobby(): void
+    {
+        config(['services.whatsapp.driver' => 'waha']);
+
+        $user = User::factory()->active()->create();
+        UserPhone::query()->create([
+            'user_id' => $user->id,
+            'phone_e164' => '+6281234567893',
+            'is_verified' => true,
+            'linked_for_whatsapp_at' => now(),
+        ]);
+
+        $mockWahaApi = Mockery::mock(WahaApiService::class);
+        $mockWahaApi->shouldReceive('downloadMediaContent')
+            ->once()
+            ->andReturn('%PDF-1.7 mock content');
+        $this->app->instance(WahaApiService::class, $mockWahaApi);
+
+        $spaceTableText = "NO     TANGGAL           KATEGORI         RENCANA AKTIVITAS                                           WAKTU                    VIBE\n".
+            "1      03/10/2026        Social / Fun     Nongkrong di coffee shop & mabar game santai                19:00 - 22:30             Relax\n".
+            "8      18/10/2026        Hobi             Rakit modul sensor elektronika & eksperimen 3D              13:00 - 16:30            Creative\n".
+            "       (Minggu)                           modeling";
+
+        $mockExtractor = Mockery::mock(DocumentTextExtractor::class);
+        $mockExtractor->shouldReceive('extract')
+            ->once()
+            ->andReturn($spaceTableText);
+        $this->app->instance(DocumentTextExtractor::class, $mockExtractor);
+
+        $mockSender = Mockery::mock(WhatsappSenderService::class);
+        $mockSender->shouldReceive('send')
+            ->once()
+            ->with('+6281234567893', Mockery::on(function (string $reply) {
+                return str_contains($reply, 'Rakit modul sensor elektronika & eksperimen 3D modeling')
+                    && str_contains($reply, '2026-10-18')
+                    && ! str_contains($reply, 'Nongkrong di coffee shop')
+                    && ! str_contains($reply, 'sudah saya tambahkan');
+            }))
+            ->andReturn(true);
+        $this->app->instance(WhatsappSenderService::class, $mockSender);
+
+        // Even if AI parser mistakenly returned CREATE_EVENTS, safety guard should intercept
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => 1.0,
+            'parse_status' => 'parsed',
+            'entities' => [
+                'action' => 'CREATE_EVENTS',
+                'human_response' => 'Jadwal hobi sudah saya tambahkan',
+            ],
+        ]));
+
+        $payload = [
+            'event' => 'message',
+            'session' => 'session_1',
+            'payload' => [
+                'id' => 'wa_msg_cek_hobi_disni',
+                'from' => '6281234567893@c.us',
+                'to' => 'bot@c.us',
+                'body' => 'cek jadwal hobi bro disni',
+                'fromMe' => false,
+                'hasMedia' => true,
+                'media' => [
+                    'url' => 'https://waha.zaidassistant.id/api/files/session_1/Random_Kegiatan_Oktober_2026.pdf',
+                    'mimetype' => 'application/pdf',
+                    'filename' => 'Random_Kegiatan_Oktober_2026.pdf',
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/api/v1/webhooks/whatsapp', $payload);
+
+        $response->assertStatus(202);
+
+        // Verify NO calendar event was created
+        $this->assertDatabaseCount('calendar_events', 0);
+    }
 }

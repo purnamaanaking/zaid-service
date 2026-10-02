@@ -14,7 +14,14 @@ class DocumentScheduleParser
         $candidates = [];
 
         foreach ($lines as $line) {
-            $cells = array_map('trim', explode('|', $line));
+            if (preg_match('/\b(planner|halaman|page|edisi|copyright)\b|•/i', $line)) {
+                continue;
+            }
+
+            $cells = str_contains($line, '|')
+                ? array_values(array_filter(array_map('trim', explode('|', $line)), fn ($c) => $c !== ''))
+                : array_values(array_filter(array_map('trim', preg_split('/\s{2,}|\t/', $line) ?: []), fn ($c) => $c !== ''));
+
             if ($header === null) {
                 $lower = array_map('strtolower', $cells);
                 $hasDate = in_array('tanggal', $lower, true) || in_array('date', $lower, true);
@@ -25,6 +32,14 @@ class DocumentScheduleParser
             }
 
             if ($header === null || count($cells) !== count($header)) {
+                if ($header !== null && ! empty($candidates) && count($cells) < count($header)) {
+                    $continuation = implode(' ', array_filter($cells, fn ($c) => ! preg_match('/^\(?(senin|selasa|rabu|kamis|jumat|sabtu|minggu|mon|tue|wed|thu|fri|sat|sun)\)?$/i', $c) && ! str_contains($c, '•')));
+                    if (! empty($continuation)) {
+                        $lastIdx = count($candidates) - 1;
+                        $candidates[$lastIdx]['title'] .= ' '.$continuation;
+                        $candidates[$lastIdx]['searchable'] .= ' '.$continuation;
+                    }
+                }
                 continue;
             }
 
