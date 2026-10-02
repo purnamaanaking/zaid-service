@@ -344,4 +344,101 @@ class WhatsappWebhookDocumentTest extends TestCase
         // Verify NO calendar event was created
         $this->assertDatabaseCount('calendar_events', 0);
     }
+
+    public function test_typo_caption_list_semua_ajdwal_nya_yang_hobi_aja_filters_only_hobby(): void
+    {
+        config(['services.whatsapp.driver' => 'waha']);
+
+        $user = User::factory()->active()->create();
+        UserPhone::query()->create([
+            'user_id' => $user->id,
+            'phone_e164' => '+6281234567894',
+            'is_verified' => true,
+            'linked_for_whatsapp_at' => now(),
+        ]);
+
+        $mockWahaApi = Mockery::mock(WahaApiService::class);
+        $mockWahaApi->shouldReceive('downloadMediaContent')->once()->andReturn('%PDF content');
+        $this->app->instance(WahaApiService::class, $mockWahaApi);
+
+        $spaceTableText = "NO     TANGGAL           KATEGORI         RENCANA AKTIVITAS                                           WAKTU                    VIBE\n".
+            "1      03/10/2026        Social / Fun     Nongkrong di coffee shop & mabar game santai                19:00 - 22:30             Relax\n".
+            "8      18/10/2026        Hobi             Rakit modul sensor elektronika & eksperimen 3D              13:00 - 16:30            Creative\n".
+            "       (Minggu)                           modeling";
+
+        $mockExtractor = Mockery::mock(DocumentTextExtractor::class);
+        $mockExtractor->shouldReceive('extract')->once()->andReturn($spaceTableText);
+        $this->app->instance(DocumentTextExtractor::class, $mockExtractor);
+
+        $mockSender = Mockery::mock(WhatsappSenderService::class);
+        $mockSender->shouldReceive('send')
+            ->once()
+            ->with('+6281234567894', Mockery::on(function (string $reply) {
+                return str_contains($reply, 'Daftar jadwal di dokumen (1 kegiatan):')
+                    && str_contains($reply, 'Rakit modul sensor elektronika & eksperimen 3D modeling')
+                    && ! str_contains($reply, 'Nongkrong di coffee shop');
+            }))
+            ->andReturn(true);
+        $this->app->instance(WhatsappSenderService::class, $mockSender);
+
+        $payload = [
+            'event' => 'message',
+            'session' => 'session_1',
+            'payload' => [
+                'id' => 'wa_msg_typo_hobi',
+                'from' => '6281234567894@c.us',
+                'to' => 'bot@c.us',
+                'body' => 'list semua ajdwal nya bro yang hobi aja',
+                'fromMe' => false,
+                'hasMedia' => true,
+                'media' => [
+                    'url' => 'https://waha.zaidassistant.id/api/files/session_1/test.pdf',
+                    'mimetype' => 'application/pdf',
+                    'filename' => 'Random_Kegiatan_Oktober_2026.pdf',
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/api/v1/webhooks/whatsapp', $payload);
+        $response->assertStatus(202);
+    }
+
+    public function test_capability_question_lu_bisa_baca_pdf_answers_helpfully_without_searching_document(): void
+    {
+        config(['services.whatsapp.driver' => 'waha']);
+
+        $user = User::factory()->active()->create();
+        UserPhone::query()->create([
+            'user_id' => $user->id,
+            'phone_e164' => '+6281234567895',
+            'is_verified' => true,
+            'linked_for_whatsapp_at' => now(),
+        ]);
+
+        $mockSender = Mockery::mock(WhatsappSenderService::class);
+        $mockSender->shouldReceive('send')
+            ->once()
+            ->with('+6281234567895', Mockery::on(function (string $reply) {
+                return str_contains($reply, 'Bisa banget!')
+                    && ! str_contains($reply, 'Tidak ditemukan jadwal');
+            }))
+            ->andReturn(true);
+        $this->app->instance(WhatsappSenderService::class, $mockSender);
+
+        $payload = [
+            'event' => 'message',
+            'session' => 'session_1',
+            'payload' => [
+                'id' => 'wa_msg_can_read_pdf',
+                'from' => '6281234567895@c.us',
+                'to' => 'bot@c.us',
+                'body' => 'lu bisa baca pdf ?',
+                'fromMe' => false,
+                'hasMedia' => false,
+            ],
+        ];
+
+        $response = $this->postJson('/api/v1/webhooks/whatsapp', $payload);
+        $response->assertStatus(202);
+    }
 }

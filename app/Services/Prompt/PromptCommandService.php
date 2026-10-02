@@ -19,6 +19,20 @@ class PromptCommandService
 
     public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null, ?string $selectedDate = null, ?string $selectedFrom = null, ?string $selectedTo = null): array
     {
+        $norm = preg_replace('/\b(bis\s+abaca|bisabaca)\b/i', 'bisa baca', $text);
+        $norm = preg_replace('/\b(abaca)\b/i', 'baca', $norm);
+        $norm = preg_replace('/\b(ajdwal|jadwla|jadawal)\b/i', 'jadwal', $norm);
+
+        $isCapabilityQuestion = (bool) preg_match(
+            '/(?:\b(bisa|bisakah|apakah\s+bisa)\b.*\b(baca|ekstrak|paham|proses|terima)\b.*\b(pdf|dokumen|file|excel|csv)\b|\b(lu|kamu|bot)\s+(bisa|bis)\b.*\b(baca|ekstrak|paham|proses)\b.*\b(pdf|dokumen|file)\b)/i',
+            $norm
+        );
+        if ($isCapabilityQuestion) {
+            $reply = 'Bisa banget! Kamu bisa kirim file PDF, Excel (XLSX/XLS), atau CSV jadwal ke sini. Nanti aku bantu baca isinya, tampilkan daftar kegiatannya, dan kamu bisa pilih untuk dicatat ke kalender.';
+            $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $norm, 'intent' => 'READ', 'confidence_score' => 1.0, 'parse_status' => 'parsed', 'extracted_entities' => [], 'execution_status' => 'executed', 'execution_summary' => ['human_response' => $reply]]);
+            return ['prompt_request_id' => $request->id, 'parse_status' => 'parsed', 'intent' => 'READ', 'confidence_score' => 1.0, 'requires_confirmation' => false, 'result' => null, 'human_response' => $reply];
+        }
+
         $parsed = $this->parser->parse($this->context($user, $text, $channel, $selectedDate, $selectedFrom, $selectedTo), $user->id, $attachments);
         $data = $parsed['entities'] ?? [];
         $documentText = collect($attachments ?? [])->where('type', 'document_text')->pluck('text')->filter()->implode("\n\n");
@@ -28,17 +42,25 @@ class PromptCommandService
         }
 
         if (empty($data['document_text'])) {
-            $recentDoc = PromptRequest::query()
-                ->where('user_id', $user->id)
-                ->where('channel', $channel)
-                ->whereNotNull('extracted_entities->document_text')
-                ->latest()
-                ->first();
-            if ($recentDoc) {
-                $docText = data_get($recentDoc->extracted_entities, 'document_text');
-                $docCandidates = data_get($recentDoc->extracted_entities, 'document_candidates', []);
-                $data['document_text'] = $docText;
-                $data['document_candidates'] = $docCandidates ?: $this->documentSchedules->parse($docText);
+            $isNumberSelection = (bool) (! preg_match('/\b(tanggal|tgl|jam|pukul|tahun|menit|detik)\b/i', $text)
+                && preg_match('/\b(?:nomor|no\.?|ke|pilih|catat|jadwalkan)?\s*(?:yang\s+)?(?:nomor|no\.?|ke)?\s*([0-9]+)\b/i', $text));
+            $isDocReference = (bool) preg_match('/\b(pdf\w*|dokumen\w*|file\w*|excel\w*|csv\w*|jadwal\s+tadi|jadwal\s+tersebut)\b/i', $text);
+            $isConfirmationWord = (bool) preg_match('/\b(semua|seluruh|semuanya|catat\s+semua|simpan\s+semua)\b/i', $text);
+            $isTargetFilter = (bool) preg_match('/(?:terkait|khusus|kategori|yang)\s+[a-z0-9]+/i', $text);
+
+            if ($isNumberSelection || $isDocReference || $isConfirmationWord || $isTargetFilter) {
+                $recentDoc = PromptRequest::query()
+                    ->where('user_id', $user->id)
+                    ->where('channel', $channel)
+                    ->whereNotNull('extracted_entities->document_text')
+                    ->latest()
+                    ->first();
+                if ($recentDoc) {
+                    $docText = data_get($recentDoc->extracted_entities, 'document_text');
+                    $docCandidates = data_get($recentDoc->extracted_entities, 'document_candidates', []);
+                    $data['document_text'] = $docText;
+                    $data['document_candidates'] = $docCandidates ?: $this->documentSchedules->parse($docText);
+                }
             }
         }
 
@@ -55,16 +77,25 @@ class PromptCommandService
             if ($matchedIdx !== null && isset($data['document_candidates'][$matchedIdx])) {
                 $data['document_candidates'] = [$data['document_candidates'][$matchedIdx]];
             } else {
-                $rawFilter = '';
-                if (preg_match('/(?:terkait|khusus\s+untuk|khusus|tentang|kategori)\s+([a-z0-9\s\/&-]+)/i', $text, $m)) {
-                    $rawFilter = $m[1];
-                } else {
-                    $noFiles = preg_replace('/\b[a-z0-9_\-\.]+\.(pdf|xlsx|xls|csv|txt)\b/i', '', $text) ?? $text;
-                    $rawFilter = trim(preg_replace('/^(catat|jadwal\w*|buatkan|tambahkan|cek|lihat|baca|periksa|list|ekstrak|ambil|impor|\s)+/i', '', $noFiles));
+                $filterTerm = '';
+                if (preg_match('/(?:terkait|khusus\s+untuk|khusus|tentang|kategori|yang)\s+([a-z0-9\s\/&-]+)/i', $norm, $m)) {
+                    $rawTarget = $m[1];
+                    $cleanTarget = trim(preg_replace('/\b(aja|saja|bro|pak|dong|ya|dulu|ini|itu|semua|seluruh|jadwal\w*|kegiatan\w*|agenda\w*|nya|list|cek|lihat|baca)\b/i', '', $rawTarget));
+                    if (strlen($cleanTarget) >= 3) {
+                        $filterTerm = $cleanTarget;
+                    }
                 }
-                $filterTerm = trim(preg_replace('/\b(list|dulu|bro|pak|ya|dong|sesuai|pdf\w*|dokumen\w*|file\w*|cek|disni|disini|jadwal\w*|agenda\w*|kegiatan\w*|coba|tolong|bantu|apa\s*aja|ada\s*apa|apa|aja|saja|yang|di|ke|dari|pada|untuk|ini|itu|tersebut|ekstrak|ambil|impor|buat|buatkan|catat|tambah|tambahkan)\b/i', '', $rawFilter));
 
-                if (strlen($filterTerm) >= 3 && ! preg_match('/\b(semua|seluruh)\b/i', $filterTerm)) {
+                if ($filterTerm === '') {
+                    $noFiles = preg_replace('/\b[a-z0-9_\-\.]+\.(pdf|xlsx|xls|csv|txt)\b/i', '', $norm) ?? $norm;
+                    $rawFilter = trim(preg_replace('/^(catat|jadwal\w*|buatkan|tambahkan|cek|lihat|baca|periksa|list|ekstrak|ambil|impor|\s)+/i', '', $noFiles));
+                    $cleanFilter = trim(preg_replace('/\b(list|dulu|bro|pak|ya|dong|sesuai|pdf\w*|dokumen\w*|file\w*|cek|disni|disini|jadwal\w*|agenda\w*|kegiatan\w*|coba|tolong|bantu|apa\s*aja|ada\s*apa|apa|aja|saja|yang|di|ke|dari|pada|untuk|ini|itu|tersebut|ekstrak|ambil|impor|buat|buatkan|catat|tambah|tambahkan|nya|semua|seluruh)\b/i', '', $rawFilter));
+                    if (strlen($cleanFilter) >= 3) {
+                        $filterTerm = $cleanFilter;
+                    }
+                }
+
+                if ($filterTerm !== '') {
                     $data['document_candidates'] = collect($data['document_candidates'])
                         ->filter(fn ($c) => str_contains(mb_strtolower($c['searchable'] ?? $c['title']), mb_strtolower($filterTerm)))
                         ->values()
@@ -82,7 +113,7 @@ class PromptCommandService
         }
 
         $isReadQuery = preg_match('/\b(list|daftar|ada apa|apa aja|sebutkan|tampilkan|sesuai|lihat|cek|baca|periksa)\b/i', $text)
-            || ! in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['CREATE_EVENTS', 'CREATE'], true);
+            || ($documentText !== '' && ! in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['CREATE_EVENTS', 'CREATE'], true));
 
         // If user is asking to list/check schedules from document
         if ($isReadQuery && ! empty($data['document_candidates'])) {
