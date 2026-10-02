@@ -131,7 +131,7 @@ PROMPT;
                             'content' => $userContent,
                         ],
                     ],
-                    'max_tokens' => 512,
+                    'max_tokens' => 1500,
                     'temperature' => 0.1,
                 ]);
 
@@ -259,7 +259,7 @@ PROMPT;
                             'content' => $userContent,
                         ],
                     ],
-                    'max_tokens' => 512,
+                    'max_tokens' => 1500,
                     'temperature' => 0.1,
                 ]);
 
