@@ -26,14 +26,52 @@ class PromptCommandService
             $data['document_text'] = $documentText;
             $data['document_candidates'] = $this->documentSchedules->parse($documentText);
         }
-        if (empty($data['document_candidates'])) {
-            $pending = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->where('execution_status', 'awaiting_confirmation')->latest()->first();
-            $candidates = data_get($pending?->extracted_entities, 'document_candidates', []);
-            if ($candidates) {
-                $filter = preg_replace('/^(khusus\s+(untuk|buat)|untuk)\s+/i', '', trim($text));
-                $data['document_candidates'] = preg_match('/\b(semua|seluruh)\b/i', $filter) ? $candidates : collect($candidates)->filter(fn ($candidate) => str_contains(mb_strtolower($candidate['searchable']), mb_strtolower($filter)))->values()->all();
-                $data['document_text'] = data_get($pending->extracted_entities, 'document_text');
+
+        if (empty($data['document_text'])) {
+            $recentDoc = PromptRequest::query()
+                ->where('user_id', $user->id)
+                ->where('channel', $channel)
+                ->whereNotNull('extracted_entities->document_text')
+                ->latest()
+                ->first();
+            if ($recentDoc) {
+                $docText = data_get($recentDoc->extracted_entities, 'document_text');
+                $docCandidates = data_get($recentDoc->extracted_entities, 'document_candidates', []);
+                $data['document_text'] = $docText;
+                $data['document_candidates'] = $docCandidates ?: $this->documentSchedules->parse($docText);
             }
+        }
+
+        if (! empty($data['document_candidates'])) {
+            $rawFilter = '';
+            if (preg_match('/(?:terkait|khusus\s+untuk|khusus|tentang|kategori)\s+([a-z0-9\s\/&-]+)/i', $text, $m)) {
+                $rawFilter = $m[1];
+            } else {
+                $rawFilter = trim(preg_replace('/^(catat|jadwal|buatkan|tambahkan|\s)+/i', '', $text));
+            }
+            $filterTerm = trim(preg_replace('/\b(list|dulu|bro|pak|ya|dong)\b/i', '', $rawFilter));
+
+            if ($filterTerm !== '' && ! preg_match('/\b(semua|seluruh)\b/i', $filterTerm)) {
+                $filtered = collect($data['document_candidates'])->filter(fn ($c) => str_contains(mb_strtolower($c['searchable'] ?? $c['title']), mb_strtolower($filterTerm)))->values()->all();
+                if (! empty($filtered)) {
+                    $data['document_candidates'] = $filtered;
+                }
+            }
+        }
+
+        // If user is asking to list schedules from the document (e.g. "List jadwal di pdf apa aja")
+        if (preg_match('/\b(list|daftar|ada apa|apa aja|sebutkan|tampilkan)\b.*\b(pdf|dokumen|jadwal|excel|file)\b/i', $text) && ! empty($data['document_candidates'])) {
+            $listItems = collect($data['document_candidates'])->map(fn ($c, $i) => ($i + 1).'. '.$c['title'].' · '.$c['scheduled_date'].' ('.substr($c['scheduled_time'], 0, 5).'-'.substr($c['scheduled_end_time'], 0, 5).')'.(! empty($c['category']) ? ' ['.$c['category'].']' : ''))->implode("\n");
+            $reply = "Daftar jadwal di dokumen (".count($data['document_candidates'])." kegiatan):\n\n".$listItems."\n\nMau catat semua jadwal, atau khusus kegiatan tertentu?";
+            $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => 'READ', 'confidence_score' => 1.0, 'parse_status' => 'ambiguous', 'extracted_entities' => $data, 'execution_status' => 'awaiting_confirmation', 'execution_summary' => ['human_response' => $reply]]);
+            return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => 'READ', 'confidence_score' => 1.0, 'requires_confirmation' => true, 'confirmation' => ['question' => $reply, 'entities' => $data], 'result' => null, 'human_response' => $reply];
+        }
+
+        // If multiple candidates detected from document for creation, require confirmation first
+        if (! empty($data['document_candidates']) && count($data['document_candidates']) > 1 && in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['CREATE_EVENTS', 'CREATE'], true)) {
+            $question = $this->clarificationQuestion($data);
+            $request = PromptRequest::query()->create(['user_id' => $user->id, 'channel' => $channel, 'raw_text' => $text, 'normalized_text' => $text, 'intent' => 'CREATE', 'confidence_score' => 0.95, 'parse_status' => 'ambiguous', 'extracted_entities' => $data, 'execution_status' => 'awaiting_confirmation', 'execution_summary' => ['human_response' => $question]]);
+            return ['prompt_request_id' => $request->id, 'parse_status' => 'ambiguous', 'intent' => 'CREATE', 'confidence_score' => 0.95, 'requires_confirmation' => true, 'confirmation' => ['question' => $question, 'entities' => $data], 'result' => null, 'human_response' => $question];
         }
         if ($selectedFrom && $selectedTo) {
             $dates = collect(Carbon::parse($selectedFrom, 'Asia/Jakarta')->toPeriod($selectedTo))->map->format('Y-m-d')->all();
@@ -112,7 +150,8 @@ class PromptCommandService
         $dates = ! empty($data['recurrence']) ? $this->recurrenceDates($data) : ($data['scheduled_dates'] ?? [$data['scheduled_date'] ?? now('Asia/Jakarta')->format('Y-m-d')]);
         $events = $candidates ? collect($candidates)->map(fn ($candidate) => CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($candidate))) : collect($dates)->map(function ($date) use ($user, $data) { $data['scheduled_date'] = $date; return CalendarEvent::query()->create(['user_id' => $user->id] + $this->payload($data)); });
         $events->each(fn ($event) => $this->action($request, 'create', $event, $data));
-        $fallback = $events->count() === 1 ? $events->first()->title.' sudah masuk agenda.' : $events->count().' jadwal "'.$events->first()->title.'" sudah masuk agenda.';
+        $firstTitle = $events->first()?->title ?? ($data['title'] ?? 'Jadwal');
+        $fallback = $events->count() === 1 ? $firstTitle.' sudah masuk agenda.' : $events->count().' jadwal "'.$firstTitle.'" sudah masuk agenda.';
         return $this->finish($request, 'executed', $this->reply($data, $fallback), ['items' => $this->items($events)]);
     }
 
@@ -201,10 +240,29 @@ class PromptCommandService
         $time = $data['scheduled_time'] ?? $existing?->starts_at?->format('H:i:s') ?? '09:00:00';
         $fields = ['title','description','location','participants','category','priority','color','recurrence','status','all_day'];
         $out = collect($fields)->filter(fn ($field) => array_key_exists($field, $data))->mapWithKeys(fn ($field) => [$field => $data[$field]])->all();
-        $out['description'] = filled($out['description'] ?? null) ? $out['description'] : 'Agenda: '.($out['title'] ?? $existing?->title ?? 'jadwal').'.';
+
+        $title = trim((string) ($out['title'] ?? $data['title'] ?? $data['name'] ?? $data['event_name'] ?? $data['agenda'] ?? ''));
+        if ($title === '') {
+            $desc = trim((string) ($out['description'] ?? $data['description'] ?? ''));
+            if ($desc !== '') {
+                $cleanDesc = preg_replace('/^(?:jadwal\s+(?:kegiatan|terkait|)\s*)/i', '', $desc);
+                $title = \Illuminate\Support\Str::limit($cleanDesc ?: $desc, 80, '');
+            } else {
+                $title = $existing?->title ?? 'Agenda';
+            }
+        }
+        $out['title'] = $title;
+
+        $out['description'] = filled($out['description'] ?? null) ? $out['description'] : 'Agenda: '.$title.'.';
         $out['starts_at'] = Carbon::parse("$date $time", 'Asia/Jakarta');
-        if (array_key_exists('scheduled_end_time', $data)) $out['ends_at'] = Carbon::parse("$date {$data['scheduled_end_time']}", 'Asia/Jakarta');
-        if (array_key_exists('ends_at', $data)) $out['ends_at'] = $data['ends_at'];
+        if (array_key_exists('scheduled_end_time', $data) && filled($data['scheduled_end_time'])) {
+            $out['ends_at'] = Carbon::parse("$date {$data['scheduled_end_time']}", 'Asia/Jakarta');
+        } elseif (array_key_exists('ends_at', $data) && filled($data['ends_at'])) {
+            $out['ends_at'] = Carbon::parse($data['ends_at'], 'Asia/Jakarta');
+        }
+        if (isset($out['ends_at']) && $out['ends_at'] instanceof Carbon && $out['ends_at']->lte($out['starts_at'])) {
+            $out['ends_at'] = $out['starts_at']->copy()->addHour();
+        }
         return $out;
     }
 
@@ -214,8 +272,16 @@ class PromptCommandService
     private function context(User $user, string $text, string $channel, ?string $selectedDate, ?string $selectedFrom = null, ?string $selectedTo = null): string
     {
         $history = PromptRequest::query()->where('user_id', $user->id)->where('channel', $channel)->latest()->limit(6)->get()->reverse()->map(fn ($p) => 'User: '.$p->raw_text."\nZaid: ".data_get($p->execution_summary, 'human_response', '')."\nAgenda result: ".json_encode(data_get($p->execution_summary, 'items', [])).($p->execution_status === 'awaiting_confirmation' ? "\nPending clarification command: ".json_encode($p->extracted_entities).(! empty(data_get($p->extracted_entities, 'document_text')) ? "\nPending document import: ".data_get($p->extracted_entities, 'document_text') : '') : ''))->implode("\n");
+        $recentDoc = PromptRequest::query()
+            ->where('user_id', $user->id)
+            ->where('channel', $channel)
+            ->whereNotNull('extracted_entities->document_text')
+            ->latest()
+            ->first();
+        $recentDocText = data_get($recentDoc?->extracted_entities, 'document_text');
+        $docContext = ! empty($recentDocText) && ! str_contains($history, 'Pending document import:') ? "\nActive document text in conversation:\n".\Illuminate\Support\Str::limit($recentDocText, 15000) : '';
         $events = $this->items(CalendarEvent::query()->where('user_id', $user->id)->orderBy('starts_at')->limit(100)->get());
-        return "Current time: ".now('Asia/Jakarta')->toIso8601String()."\nTimezone: Asia/Jakarta\nSelected date: ".($selectedDate ?? 'none')."\nSelected date range: ".($selectedFrom && $selectedTo ? "$selectedFrom to $selectedTo" : 'none')."\nVisible calendar: month\nEvents: ".json_encode($events)."\nRecent chat:\n{$history}\nCurrent user message: {$text}";
+        return "Current time: ".now('Asia/Jakarta')->toIso8601String()."\nTimezone: Asia/Jakarta\nSelected date: ".($selectedDate ?? 'none')."\nSelected date range: ".($selectedFrom && $selectedTo ? "$selectedFrom to $selectedTo" : 'none')."\nVisible calendar: month\nEvents: ".json_encode($events)."{$docContext}\nRecent chat:\n{$history}\nCurrent user message: {$text}";
     }
     private function finish(PromptRequest $request, string $status, string $reply, array $result = []): array { $request->update(['execution_status' => $status, 'execution_summary' => ['human_response' => $reply, 'command' => $request->extracted_entities, 'executed_at' => now()->toIso8601String()] + $result]); return ['prompt_request_id' => $request->id,'parse_status' => $request->parse_status,'intent' => $request->intent,'requires_confirmation' => false,'result' => $result,'human_response' => $reply]; }
 }

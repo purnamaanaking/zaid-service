@@ -153,6 +153,59 @@ class PromptEventCommandTest extends TestCase
         $this->assertDatabaseHas('calendar_events', ['user_id' => $user->id, 'title' => 'Sidang TA: Ahmad', 'starts_at' => '2026-07-27 08:00:00', 'ends_at' => '2026-07-27 09:30:00']);
     }
 
+    public function test_document_schedule_table_filter_security_prompts_confirmation(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'CREATE',
+            'confidence_score' => .95,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => ['action' => 'CREATE_EVENTS'],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $tableText = "NO | TANGGAL | KATEGORI | DESKRIPSI AKTIVITAS | WAKTU | STATUS\n".
+            "1 | 01/10/2026 (Kamis) | Work / Dev | Sprint review & deployment patch sistem API | 09:00 - 12:00 | Selesai\n".
+            "2 | 02/10/2026 (Jumat) | Security | Audit log server & update rule firewall UFW | 14:00 - 16:30 | Berjalan\n".
+            "11 | 21/10/2026 (Rabu) | Security | Latihan CTF web exploit & challenge reverse binary | 20:00 - 23:00 | Terjadwal";
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'Catat jadwal terkait security list dulu',
+            'attachments' => [['type' => 'document_text', 'url' => null, 'name' => 'jadwal.pdf', 'text' => $tableText]],
+        ])->assertOk();
+
+        $response->assertJsonPath('data.requires_confirmation', true);
+        $response->assertJsonPath('data.parse_status', 'ambiguous');
+        $this->assertStringContainsString('Audit log server & update rule firewall UFW', $response->json('data.human_response'));
+        $this->assertStringContainsString('Latihan CTF web exploit & challenge reverse binary', $response->json('data.human_response'));
+        $this->assertDatabaseCount('calendar_events', 0);
+    }
+
+    public function test_list_document_schedules_returns_full_list(): void
+    {
+        $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
+            'intent' => 'READ',
+            'confidence_score' => .98,
+            'parse_status' => 'parsed',
+            'requires_confirmation' => false,
+            'entities' => ['action' => 'LIST_EVENTS'],
+        ]));
+        $user = User::factory()->active()->create();
+
+        $tableText = "NO | TANGGAL | KATEGORI | DESKRIPSI AKTIVITAS | WAKTU | STATUS\n".
+            "1 | 01/10/2026 (Kamis) | Work / Dev | Sprint review & deployment patch sistem API | 09:00 - 12:00 | Selesai\n".
+            "2 | 02/10/2026 (Jumat) | Security | Audit log server & update rule firewall UFW | 14:00 - 16:30 | Berjalan";
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/prompts', [
+            'text' => 'List jadwal di pdf apa aja',
+            'attachments' => [['type' => 'document_text', 'url' => null, 'name' => 'jadwal.pdf', 'text' => $tableText]],
+        ])->assertOk();
+
+        $this->assertStringContainsString('Daftar jadwal di dokumen (2 kegiatan):', $response->json('data.human_response'));
+        $this->assertStringContainsString('Sprint review & deployment patch sistem API', $response->json('data.human_response'));
+        $this->assertStringContainsString('Audit log server & update rule firewall UFW', $response->json('data.human_response'));
+    }
+
     public function test_create_prompt_stores_link_from_confirmation_response(): void
     {
         $this->app->bind(PromptParser::class, fn () => new FakePromptParser([
