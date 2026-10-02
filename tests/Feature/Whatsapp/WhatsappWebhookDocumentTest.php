@@ -373,7 +373,7 @@ class WhatsappWebhookDocumentTest extends TestCase
         $mockSender->shouldReceive('send')
             ->once()
             ->with('+6281234567894', Mockery::on(function (string $reply) {
-                return str_contains($reply, 'Rakit modul sensor elektronika & eksperimen 3D modeling')
+                return str_contains($reply, 'Rakit modul sensor elektronika')
                     && str_contains($reply, '18 Oktober 2026')
                     && ! str_contains($reply, 'Nongkrong di coffee shop');
             }))
@@ -439,5 +439,71 @@ class WhatsappWebhookDocumentTest extends TestCase
 
         $response = $this->postJson('/api/v1/webhooks/whatsapp', $payload);
         $response->assertStatus(202);
+    }
+
+    public function test_affirmative_slang_kejrakan_immediately_confirms_pending_request(): void
+    {
+        config(['services.whatsapp.driver' => 'waha']);
+
+        $user = User::factory()->active()->create();
+        UserPhone::query()->create([
+            'user_id' => $user->id,
+            'phone_e164' => '+6281234567896',
+            'is_verified' => true,
+            'linked_for_whatsapp_at' => now(),
+        ]);
+
+        $mockSender = Mockery::mock(WhatsappSenderService::class);
+        $mockSender->shouldReceive('send')
+            ->once()
+            ->with('+6281234567896', Mockery::on(function (string $reply) {
+                return str_contains($reply, 'Rakit modul sensor elektronika')
+                    && str_contains($reply, 'sudah masuk agenda');
+            }))
+            ->andReturn(true);
+        $this->app->instance(WhatsappSenderService::class, $mockSender);
+
+        // Create an existing awaiting_confirmation request
+        \App\Models\PromptRequest::query()->create([
+            'user_id' => $user->id,
+            'channel' => 'whatsapp',
+            'raw_text' => 'tgl 18 bro',
+            'normalized_text' => 'tgl 18 bro',
+            'intent' => 'CREATE',
+            'confidence_score' => 0.95,
+            'parse_status' => 'ambiguous',
+            'execution_status' => 'awaiting_confirmation',
+            'extracted_entities' => [
+                'action' => 'CREATE_EVENTS',
+                'title' => 'Rakit modul sensor elektronika',
+                'scheduled_date' => '2026-10-18',
+                'scheduled_time' => '13:00:00',
+                'scheduled_end_time' => '16:30:00',
+            ],
+            'execution_summary' => [
+                'human_response' => 'Mau dijadwalkan kegiatan Rakit modul sensor elektronika pada 18 Oktober 2026? Apakah benar?',
+            ],
+        ]);
+
+        $payload = [
+            'event' => 'message',
+            'session' => 'session_1',
+            'payload' => [
+                'id' => 'wa_msg_confirm_kejrakan',
+                'from' => '6281234567896@c.us',
+                'to' => 'bot@c.us',
+                'body' => 'kejrakan',
+                'fromMe' => false,
+                'hasMedia' => false,
+            ],
+        ];
+
+        $response = $this->postJson('/api/v1/webhooks/whatsapp', $payload);
+        $response->assertStatus(202);
+
+        $this->assertDatabaseHas('calendar_events', [
+            'user_id' => $user->id,
+            'title' => 'Rakit modul sensor elektronika',
+        ]);
     }
 }

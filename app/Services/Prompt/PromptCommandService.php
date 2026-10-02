@@ -19,6 +19,25 @@ class PromptCommandService
 
     public function process(User $user, string $text, string $channel = 'app_prompt', ?array $attachments = null, ?string $selectedDate = null, ?string $selectedFrom = null, ?string $selectedTo = null): array
     {
+        $lastRequest = PromptRequest::query()
+            ->where('user_id', $user->id)
+            ->where('channel', $channel)
+            ->latest()
+            ->first();
+
+        if ($lastRequest && $lastRequest->execution_status === 'awaiting_confirmation') {
+            $isAffirmative = (bool) preg_match('/^(ya|iya|yep|yup|y|ok|oke|okay|sip|siap|betul|benar|bener|gas|gass|gaskeun|kerjakan|kejrakan|lakukan|buat|catat|simpan|masukin|masukkan|jadwalkan|lanjut|lanjutkan|gaspol|boleh|silakan)[\s.!]*$/i', trim($text));
+            $isNegative = (bool) preg_match('/^(batal|batalkan|jangan|ngga|nggak|ga|gak|tidak|no)[\s.!]*$/i', trim($text));
+
+            if ($isAffirmative) {
+                return $this->confirm($lastRequest, $user, true);
+            }
+
+            if ($isNegative) {
+                return $this->confirm($lastRequest, $user, false);
+            }
+        }
+
         $norm = preg_replace('/\b(bis\s+abaca|bisabaca)\b/i', 'bisa baca', $text);
         $norm = preg_replace('/\b(abaca)\b/i', 'baca', $norm);
         $norm = preg_replace('/\b(ajdwal|jadwla|jadawal)\b/i', 'jadwal', $norm);
@@ -99,6 +118,18 @@ class PromptCommandService
                     $data['human_response'] = null;
                 }
             }
+        }
+
+        $isSingleResolvedEvent = filled($data['title'] ?? null)
+            && (filled($data['scheduled_date'] ?? null) || count($data['scheduled_dates'] ?? []) === 1)
+            && filled($data['scheduled_time'] ?? null);
+
+        $wasAskedForDetails = $lastRequest && $lastRequest->execution_status === 'awaiting_confirmation';
+
+        if ($wasAskedForDetails && $isSingleResolvedEvent && in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['CREATE_EVENTS', 'CREATE'], true)) {
+            $parsed['requires_confirmation'] = false;
+            $parsed['parse_status'] = 'parsed';
+            $data['requires_confirmation'] = false;
         }
 
         if (in_array(strtoupper($data['action'] ?? $parsed['intent'] ?? ''), ['LIST_EVENTS', 'READ'], true) && ! empty($data['document_candidates']) && empty($data['human_response'])) {
