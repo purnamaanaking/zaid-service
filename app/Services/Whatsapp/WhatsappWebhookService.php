@@ -4,8 +4,10 @@ namespace App\Services\Whatsapp;
 
 use App\Models\UserPhone;
 use App\Models\WhatsappMessage;
+use App\Services\Documents\DocumentTextExtractor;
 use App\Services\Prompt\PromptCommandService;
 use App\Support\PhoneNumber;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
 class WhatsappWebhookService
@@ -80,16 +82,67 @@ class WhatsappWebhookService
             $media = $payload['media'];
             $mime = $media['mimetype'] ?? null;
             $url = $media['url'] ?? null;
+            $filename = $media['filename'] ?? 'file';
 
-            if ($url && is_string($mime) && str_starts_with($mime, 'image/')) {
-                $dataUrl = app(WahaApiService::class)->downloadMediaAsDataUrl($url, $mime);
+            if ($url && is_string($mime)) {
+                if (str_starts_with($mime, 'image/')) {
+                    $dataUrl = app(WahaApiService::class)->downloadMediaAsDataUrl($url, $mime);
 
-                $attachments[] = [
-                    'type' => 'image',
-                    'url' => $url,
-                    'data_url' => $dataUrl,
-                    'mime_type' => $mime,
-                ];
+                    $attachments[] = [
+                        'type' => 'image',
+                        'url' => $url,
+                        'data_url' => $dataUrl,
+                        'mime_type' => $mime,
+                    ];
+                } else {
+                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    $isDoc = in_array($ext, ['pdf', 'xlsx', 'xls', 'csv', 'txt'], true)
+                        || in_array($mime, [
+                            'application/pdf',
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'application/vnd.ms-excel',
+                            'text/csv',
+                            'text/plain',
+                        ], true);
+
+                    if ($isDoc) {
+                        $binary = app(WahaApiService::class)->downloadMediaContent($url);
+                        if ($binary !== null) {
+                            $tempExt = $ext ?: ($mime === 'application/pdf' ? 'pdf' : 'tmp');
+                            $tempPath = tempnam(sys_get_temp_dir(), 'waha_doc_').'.'.$tempExt;
+                            file_put_contents($tempPath, $binary);
+                            try {
+                                $uploadedFile = new UploadedFile($tempPath, $filename, $mime, null, true);
+                                $extractedText = app(DocumentTextExtractor::class)->extract($uploadedFile);
+                                if (! empty(trim($extractedText))) {
+                                    $attachments[] = [
+                                        'type' => 'document_text',
+                                        'url' => $url,
+                                        'text' => $extractedText,
+                                        'name' => $filename,
+                                        'mime_type' => $mime,
+                                    ];
+                                }
+                            } catch (\Throwable $e) {
+                                Log::warning('Failed to extract document from WhatsApp message.', [
+                                    'error' => $e->getMessage(),
+                                    'filename' => $filename,
+                                    'url' => $url,
+                                ]);
+                            } finally {
+                                @unlink($tempPath);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $rawText = trim((string) ($payload['body'] ?? ''));
+        if ($rawText === '' && ! empty($attachments)) {
+            $hasDoc = collect($attachments)->contains(fn ($a) => ($a['type'] ?? '') === 'document_text');
+            if ($hasDoc) {
+                $rawText = 'List jadwal di dokumen ini';
             }
         }
 
@@ -97,7 +150,7 @@ class WhatsappWebhookService
             'id' => $payload['id'] ?? null,
             'from' => $payload['_data']['key']['remoteJidAlt'] ?? $payload['from'] ?? null,
             'to' => $payload['to'] ?? ($webhookPayload['me']['id'] ?? 'bot'),
-            'text' => $payload['body'] ?? '',
+            'text' => $rawText,
             'source' => 'waha',
             'has_media' => ! empty($attachments),
             'media' => $payload['media'] ?? null,

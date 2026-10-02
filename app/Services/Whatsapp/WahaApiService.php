@@ -165,24 +165,40 @@ class WahaApiService
             : null;
     }
 
-    public function downloadMediaAsDataUrl(string $url, ?string $mimeType = null): ?string
+    public function downloadMediaContent(string $url): ?string
     {
+        $targetUrl = (str_starts_with($url, 'http://') || str_starts_with($url, 'https://'))
+            ? $url
+            : $this->baseUrl().'/'.ltrim($url, '/');
+
         $response = Http::withHeaders($this->fileHeaders())
             ->timeout(30)
-            ->get($url);
+            ->get($targetUrl);
 
         if (! $response->successful()) {
             Log::error('WAHA media download failed.', [
                 'status' => $response->status(),
                 'url' => $url,
+                'target_url' => $targetUrl,
                 'body' => substr($response->body(), 0, 500),
             ]);
 
             return null;
         }
 
-        $contentType = $mimeType ?: $response->header('Content-Type') ?: 'application/octet-stream';
-        $base64 = base64_encode($response->body());
+        return $response->body();
+    }
+
+    public function downloadMediaAsDataUrl(string $url, ?string $mimeType = null): ?string
+    {
+        $body = $this->downloadMediaContent($url);
+
+        if ($body === null) {
+            return null;
+        }
+
+        $contentType = $mimeType ?: 'application/octet-stream';
+        $base64 = base64_encode($body);
 
         return 'data:'.$contentType.';base64,'.$base64;
     }
