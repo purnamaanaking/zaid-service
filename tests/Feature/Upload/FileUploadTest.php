@@ -65,4 +65,17 @@ class FileUploadTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    public function test_validation_error_returns_structured_error_message(): void
+    {
+        $user = User::factory()->active()->create();
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/v1/upload', [
+            'type' => 'invalid_type',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonStructure(['error' => ['message'], 'message', 'errors']);
+    }
 }
